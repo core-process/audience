@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
 project(audience)
 
+add_compile_definitions(ENABLE_TRACE)
+
 add_library(audience STATIC src/lib.cpp)
 
 if(WIN32)

@@ -10,7 +10,7 @@
 
 #define AUDIENCE_COMPILING_INNER
 #include "../inner.h"
-
+#include "../trace.h"
 #include "resource.h"
 
 using namespace winrt;
@@ -51,19 +51,20 @@ bool audience_inner_init()
     // test if required COM objects are available
     WebViewControlProcess().GetWebViewControls().Size();
 
+    TRACEA(info, "COM initialization succeeded");
     return true;
   }
-  catch (hresult_error const &ex)
+  catch (const hresult_error &ex)
   {
-    _RPTW1(_CRT_ERROR, L"a COM exception occured: %Ts\n", ex.message().c_str());
+    TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
   }
-  catch (std::exception const &ex)
+  catch (const std::exception &ex)
   {
-    _RPT1(_CRT_ERROR, "an exception occured %Ts\n", ex.what());
+    TRACEA(error, "an exception occured: " << ex.what());
   }
   catch (...)
   {
-    _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+    TRACEA(error, "an unknown exception occured");
   }
   return false;
 }
@@ -114,51 +115,61 @@ void *audience_inner_window_create(const wchar_t *const title, const wchar_t *co
                 {
                   if (status == AsyncStatus::Completed)
                   {
+                    // update handle
                     handle->webview = sender.GetResults();
+
+                    // update position of web view
                     UpdateWebViewPosition(handle);
+
+                    // navigate to initial URL
                     handle->webview.Navigate(Uri(hstring(url_copy)));
+
+                    TRACEA(info, "web widget created successfully");
+                  }
+                  else
+                  {
+                    TRACEA(error, "web widget could not be created");
                   }
                 }
-                catch (hresult_error const &ex)
+                catch (const hresult_error &ex)
                 {
-                  _RPTW1(_CRT_ERROR, L"a COM exception occured: %Ts\n", ex.message().c_str());
+                  TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
                 }
-                catch (std::exception const &ex)
+                catch (const std::exception &ex)
                 {
-                  _RPT1(_CRT_ERROR, "an exception occured %Ts\n", ex.what());
+                  TRACEA(error, "an exception occured: " << ex.what());
                 }
                 catch (...)
                 {
-                  _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+                  TRACEA(error, "an unknown exception occured");
                 }
               });
     }
-    catch (hresult_error const &ex)
+    catch (const hresult_error &ex)
     {
-      _RPTW1(_CRT_ERROR, L"a COM exception occured: %Ts\n", ex.message().c_str());
+      TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
 
       // clean up and abort
       DestroyWindow(window);
       return nullptr;
     }
 
-    // install timer for title updates
-    SetTimer(window, 0x1, 1000, nullptr);
-
     // show window
     ShowWindow(window, SW_SHOW);
     UpdateWindow(window);
 
+    TRACEA(info, "window created successfully");
+
     // return handle
     return new std::shared_ptr<WindowHandle>(handle);
   }
-  catch (std::exception const &ex)
+  catch (const std::exception &ex)
   {
-    _RPT1(_CRT_ERROR, "an exception occured %Ts\n", ex.what());
+    TRACEA(error, "an exception occured: " << ex.what());
   }
   catch (...)
   {
-    _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+    TRACEA(error, "an unknown exception occured");
   }
 
   return nullptr;
@@ -169,19 +180,25 @@ void audience_inner_window_destroy(void *vhandle)
   try
   {
     auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(vhandle);
+
+    // destroy window
     if ((*handle)->window != nullptr)
     {
       DestroyWindow((*handle)->window);
+      TRACEA(info, "window destroyed");
     }
+
+    // delete handle
     delete handle;
+    TRACEA(info, "handle deleted");
   }
-  catch (std::exception const &ex)
+  catch (const std::exception &ex)
   {
-    _RPT1(_CRT_ERROR, "an exception occured %Ts\n", ex.what());
+    TRACEA(error, "an exception occured: " << ex.what());
   }
   catch (...)
   {
-    _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+    TRACEA(error, "an unknown exception occured");
   }
 }
 
@@ -196,65 +213,75 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 {
   switch (message)
   {
-  case WM_CREATE:
+  case WM_NCCREATE:
   {
+    // install handle as user data
     auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(((CREATESTRUCT *)lParam)->lpCreateParams);
-    if (handle)
+    if (handle != nullptr)
     {
       (*handle)->window = window;
       SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) new std::shared_ptr<WindowHandle>(*handle));
+      TRACEA(info, "handle installed in GWLP_USERDATA");
     }
     else
     {
-      _RPT0(_CRT_ERROR, "handle is zero\n");
+      TRACEA(error, "handle invalid");
     }
+  }
+  break;
+
+  case WM_CREATE:
+  {
+    // install timer for title updates
+    SetTimer(window, 0x1, 1000, nullptr);
   }
   break;
 
   case WM_COMMAND:
   {
+    // handle menu actions
     switch (LOWORD(wParam))
     {
     case IDM_EXIT:
       DestroyWindow(window);
-      break;
-    default:
-      return DefWindowProcW(window, message, wParam, lParam);
+      return 0;
     }
   }
   break;
 
   case WM_SIZE:
   {
+    // resize web widget
     try
     {
       auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-      if (handle)
+      if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
       {
         UpdateWebViewPosition(*handle);
       }
       else
       {
-        _RPT0(_CRT_ERROR, "handle is zero\n");
+        TRACEA(warning, "handle invalid");
       }
     }
-    catch (hresult_error const &ex)
+    catch (const hresult_error &ex)
     {
-      _RPTW1(_CRT_ERROR, L"a COM exception occured: %Ts\n", ex.message().c_str());
+      TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
     }
-    catch (std::exception const &ex)
+    catch (const std::exception &ex)
     {
-      _RPT1(_CRT_ERROR, "an exception occured %Ts\n", ex.what());
+      TRACEA(error, "an exception occured: " << ex.what());
     }
     catch (...)
     {
-      _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+      TRACEA(error, "an unknown exception occured");
     }
   }
   break;
 
   case WM_TIMER:
   {
+    // update application title
     switch (wParam)
     {
     case 0x1:
@@ -262,27 +289,27 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
       try
       {
         auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-        if (handle && (*handle)->webview)
+        if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
         {
           auto doctitle = (*handle)->webview.DocumentTitle();
           SetWindowTextW(window, doctitle.c_str());
         }
         else
         {
-          _RPT0(_CRT_ERROR, "handle is zero\n");
+          TRACEA(error, "handle invalid");
         }
       }
-      catch (hresult_error const &ex)
+      catch (const hresult_error &ex)
       {
-        _RPTW1(_CRT_ERROR, L"a COM exception occured: %Ts\n", ex.message().c_str());
+        TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
       }
-      catch (std::exception const &ex)
+      catch (const std::exception &ex)
       {
-        _RPT1(_CRT_ERROR, "an exception occured %Ts\n", ex.what());
+        TRACEA(error, "an exception occured: " << ex.what());
       }
       catch (...)
       {
-        _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+        TRACEA(error, "an unknown exception occured");
       }
     }
     break;
@@ -292,25 +319,36 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 
   case WM_DESTROY:
   {
+    // clear timer for title updates
+    KillTimer(window, 0x1);
+
+    // clean up installed handle
     auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-    if (handle)
+    if (handle != nullptr)
     {
+      // reset referenced window and widget
+      (*handle)->webview = nullptr;
       (*handle)->window = nullptr;
+
+      // remove handle from window user data
+      SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) nullptr);
       delete handle;
+
+      TRACEA(info, "handle removed from GWLP_USERDATA");
     }
     else
     {
-      _RPT0(_CRT_ERROR, "handle is zero\n");
+      TRACEA(error, "handle invalid");
     }
+
+    // quit message loop
     PostQuitMessage(0);
   }
   break;
-
-  default:
-    return DefWindowProcW(window, message, wParam, lParam);
   }
 
-  return 0;
+  // execute default window procedure
+  return DefWindowProcW(window, message, wParam, lParam);
 }
 
 Rect GetWebViewTargetPosition(const std::shared_ptr<WindowHandle> &handle)
@@ -318,6 +356,7 @@ Rect GetWebViewTargetPosition(const std::shared_ptr<WindowHandle> &handle)
   RECT rect;
   if (!GetClientRect(handle->window, &rect))
   {
+    TRACEA(error, "could not retrieve window client rect");
     return winrt::Windows::Foundation::Rect(0, 0, 0, 0);
   }
   return winrt::Windows::Foundation::Rect(0, 0, (float)(rect.right - rect.left), (float)(rect.bottom - rect.top));
@@ -325,9 +364,6 @@ Rect GetWebViewTargetPosition(const std::shared_ptr<WindowHandle> &handle)
 
 void UpdateWebViewPosition(const std::shared_ptr<WindowHandle> &handle)
 {
-  if (handle->webview)
-  {
-    auto rect = GetWebViewTargetPosition(handle);
-    handle->webview.as<IWebViewControlSite>().Bounds(rect);
-  }
+  auto rect = GetWebViewTargetPosition(handle);
+  handle->webview.as<IWebViewControlSite>().Bounds(rect);
 }
