@@ -41,11 +41,17 @@ bool audience_inner_init()
 {
   try
   {
+    // initialize COM
     auto r = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-    if (r == S_OK || r == S_FALSE)
+    if (r != S_OK && r != S_FALSE)
     {
-      return true;
+      return false;
     }
+
+    // test if required COM objects are available
+    WebViewControlProcess().GetWebViewControls().Size();
+
+    return true;
   }
   catch (hresult_error const &ex)
   {
@@ -132,16 +138,16 @@ void *audience_inner_window_create(const wchar_t *const title, const wchar_t *co
       _RPTW1(_CRT_ERROR, L"a COM exception occured: %Ts\n", ex.message().c_str());
 
       // clean up and abort
-      if (handle->window != nullptr)
-      {
-        DestroyWindow(handle->window);
-      }
+      DestroyWindow(window);
       return nullptr;
     }
 
+    // install timer for title updates
+    SetTimer(window, 0x1, 1000, nullptr);
+
     // show window
-    ShowWindow(handle->window, SW_SHOW);
-    UpdateWindow(handle->window);
+    ShowWindow(window, SW_SHOW);
+    UpdateWindow(window);
 
     // return handle
     return new std::shared_ptr<WindowHandle>(handle);
@@ -243,6 +249,43 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     catch (...)
     {
       _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+    }
+  }
+  break;
+
+  case WM_TIMER:
+  {
+    switch (wParam)
+    {
+    case 0x1:
+    {
+      try
+      {
+        auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+        if (handle && (*handle)->webview)
+        {
+          auto doctitle = (*handle)->webview.DocumentTitle();
+          SetWindowTextW(window, doctitle.c_str());
+        }
+        else
+        {
+          _RPT0(_CRT_ERROR, "handle is zero\n");
+        }
+      }
+      catch (hresult_error const &ex)
+      {
+        _RPTW1(_CRT_ERROR, L"a COM exception occured: %Ts\n", ex.message().c_str());
+      }
+      catch (std::exception const &ex)
+      {
+        _RPT1(_CRT_ERROR, "an exception occured %Ts\n", ex.what());
+      }
+      catch (...)
+      {
+        _RPT0(_CRT_ERROR, "an unknown exception occured\n");
+      }
+    }
+    break;
     }
   }
   break;
