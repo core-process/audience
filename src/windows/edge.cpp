@@ -1,7 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <roapi.h>
-#include <crtdbg.h>
 
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Web.UI.Interop.h>
@@ -11,6 +10,7 @@
 #define AUDIENCE_COMPILING_INNER
 #include "../inner.h"
 #include "../trace.h"
+#include "common.h"
 #include "resource.h"
 
 using namespace winrt;
@@ -34,9 +34,6 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 Rect GetWebViewTargetPosition(const std::shared_ptr<WindowHandle> &handle);
 void UpdateWebViewPosition(const std::shared_ptr<WindowHandle> &handle);
 
-HINSTANCE hInstanceEXE = nullptr;
-HINSTANCE hInstanceDLL = nullptr;
-
 bool audience_inner_init()
 {
   try
@@ -48,7 +45,7 @@ bool audience_inner_init()
       return false;
     }
 
-    // test if required COM objects are available
+    // test if required COM objects are available (will throw COM exception if not available)
     WebViewControlProcess().GetWebViewControls().Size();
 
     TRACEA(info, "COM initialization succeeded");
@@ -200,13 +197,6 @@ void audience_inner_window_destroy(void *vhandle)
   {
     TRACEA(error, "an unknown exception occured");
   }
-}
-
-BOOL WINAPI DllMain(_In_ HINSTANCE hinstDLL, _In_ DWORD fdwReason, _In_ LPVOID lpvReserved)
-{
-  hInstanceEXE = GetModuleHandleW(NULL);
-  hInstanceDLL = hinstDLL;
-  return true;
 }
 
 LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
