@@ -1,0 +1,16 @@
+#include "resource.h"
+#include "windows.h"
+
+LANGUAGE 9, 1
+
+// Icon with lowest ID value placed first to ensure application icon
+// remains consistent on all systems.
+IDI_AUDIENCE ICON "audience.ico"
+
+IDC_AUDIENCE MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "E&xit", IDM_EXIT
+    END
+END

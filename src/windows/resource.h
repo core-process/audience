@@ -1,0 +1,5 @@
+#define IDI_AUDIENCE 100
+
+#define IDC_AUDIENCE 110
+
+#define IDM_EXIT 120
