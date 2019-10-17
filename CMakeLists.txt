@@ -4,6 +4,7 @@ project(audience)
 add_compile_definitions(ENABLE_TRACE)
 
 add_library(audience STATIC src/lib.cpp)
+set_property(TARGET audience PROPERTY CXX_STANDARD 11)
 
 if(WIN32)
 
@@ -18,21 +19,25 @@ if(WIN32)
 
   # windows: ie11 widget
   add_library(audience_windows_ie11 SHARED src/windows/ie11.cpp src/windows/ie11_webview.cpp src/windows/common.cpp src/windows/resource.rc)
+  set_property(TARGET audience_windows_ie11 PROPERTY CXX_STANDARD 11)
   target_link_libraries(audience_windows_ie11 PUBLIC comsuppw.lib)
 
 elseif(APPLE)
 
   # macos: webkit widget
   add_library(audience_macos_webkit SHARED src/macos/webkit.cpp)
+  set_property(TARGET audience_macos_webkit PROPERTY CXX_STANDARD 11)
 
 elseif(UNIX)
 
   # unix/linux: webkit widget
   add_library(audience_unix_webkit SHARED src/unix/webkit.cpp)
+  set_property(TARGET audience_unix_webkit PROPERTY CXX_STANDARD 11)
 
 else()
   message(FATAL_ERROR "System not supported!")
 endif()
 
 add_executable(audienceapp WIN32 src/app.cpp)
+set_property(TARGET audienceapp PROPERTY CXX_STANDARD 11)
 target_link_libraries (audienceapp audience)
