@@ -2,10 +2,16 @@
 
 #ifdef AUDIENCE_COMPILING_INNER
 
-extern "C" __declspec(dllexport) bool audience_inner_init();
-extern "C" __declspec(dllexport) void *audience_inner_window_create(const wchar_t *const title, const wchar_t *const url);
-extern "C" __declspec(dllexport) void audience_inner_window_destroy(void *window);
-extern "C" __declspec(dllexport) void audience_inner_loop();
+#ifdef WIN32
+#define AUDIENCE_EXPORT __declspec(dllexport)
+#else
+#define AUDIENCE_EXPORT
+#endif
+
+extern "C" AUDIENCE_EXPORT bool audience_inner_init();
+extern "C" AUDIENCE_EXPORT void *audience_inner_window_create(const wchar_t *const title, const wchar_t *const url);
+extern "C" AUDIENCE_EXPORT void audience_inner_window_destroy(void *window);
+extern "C" AUDIENCE_EXPORT void audience_inner_loop();
 
 #else
 

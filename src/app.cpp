@@ -8,6 +8,7 @@
 #include <codecvt>
 
 #include "lib.h"
+#include "trace.h"
 
 #ifdef WIN32
 int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
@@ -42,6 +43,7 @@ int main(int argc, char **argv)
   // create and show window
   if (!audience_init())
   {
+    TRACEA(error, "could not initialize audience");
     return 1;
   }
 
@@ -51,6 +53,7 @@ int main(int argc, char **argv)
 
   if (window == nullptr)
   {
+    TRACEA(error, "could not create audience window");
     return 1;
   }
 
