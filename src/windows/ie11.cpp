@@ -148,7 +148,7 @@ void audience_inner_window_destroy(void *vhandle)
 bool fix_ie_compat_mode()
 {
   HKEY hk = nullptr;
-  DWORD ie_version = 11000;
+  DWORD ie_version = 11001;
   WCHAR exe_path[MAX_PATH + 1] = {0};
   WCHAR *exe_name = nullptr;
   if (GetModuleFileNameW(NULL, exe_path, MAX_PATH + 1) == 0)
