@@ -1,6 +1,10 @@
 #ifdef WIN32
-#define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#elif __APPLE__
+#include <dlfcn.h>
+#include <mach-o/dyld.h>
+#include <sys/syslimits.h>
+#include <stdlib.h>
 #endif
 
 #include <vector>
@@ -8,22 +12,12 @@
 
 #include "lib.h"
 #include "inner.h"
+#include "trace.h"
 
 audience_inner_init_t audience_inner_init = nullptr;
 audience_inner_window_create_t audience_inner_window_create = nullptr;
 audience_inner_window_destroy_t audience_inner_window_destroy = nullptr;
 audience_inner_loop_t audience_inner_loop = nullptr;
-
-#ifdef WIN32
-std::wstring GetLastErrorString()
-{
-  wchar_t buf[256] = {0};
-  FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                 NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-                 buf, (sizeof(buf) / sizeof(wchar_t)), NULL);
-  return std::wstring(buf);
-}
-#endif
 
 bool audience_is_initialized()
 {
@@ -37,36 +31,88 @@ bool audience_init()
     return true;
   }
 
+  std::vector<std::string> dylibs{
 #ifdef WIN32
-  std::vector<std::string> dlls{"audience_windows_edge.dll", "audience_windows_ie11.dll"};
-  for (auto dll : dlls)
+      "audience_windows_edge.dll",
+      "audience_windows_ie11.dll",
+#elif __APPLE__
+      "libaudience_macos_webkit.dylib",
+#else
+      "libaudience_linux_webkit.dylib",
+#endif
+  };
+
+  for (auto dylib : dylibs)
   {
-    auto instance = LoadLibraryA(dll.c_str());
-    if (instance != nullptr)
+#ifdef WIN32
+    auto dlh = LoadLibraryA(dylib.c_str());
+#else
+    char exe_path[PATH_MAX + 1] = {0};
+    uint32_t exe_path_len = sizeof(exe_path);
+    if (_NSGetExecutablePath(exe_path, &exe_path_len) != 0)
     {
-      audience_inner_init = (audience_inner_init_t)GetProcAddress(instance, "audience_inner_init");
-      audience_inner_window_create = (audience_inner_window_create_t)GetProcAddress(instance, "audience_inner_window_create");
-      audience_inner_window_destroy = (audience_inner_window_destroy_t)GetProcAddress(instance, "audience_inner_window_destroy");
-      audience_inner_loop = (audience_inner_loop_t)GetProcAddress(instance, "audience_inner_loop");
+      TRACEA(error, "could not find path of executable");
+      return true;
+    }
+
+    char exe_dir_path[PATH_MAX + 1] = {0};
+    if (realpath(exe_path, exe_dir_path) == nullptr)
+    {
+      TRACEA(error, "could not find real path of executable");
+    }
+
+    char *last_slash = nullptr;
+    for (last_slash = &exe_dir_path[strlen(exe_dir_path) - 1]; last_slash != exe_dir_path && *last_slash != '/'; last_slash--)
+    {
+    }
+    last_slash++;
+    *last_slash = 0;
+
+    auto dlh = dlopen((exe_dir_path + dylib).c_str(), RTLD_LAZY | RTLD_LOCAL);
+#endif
+
+    if (dlh != nullptr)
+    {
+#ifdef WIN32
+#define LookupFunction GetProcAddress
+#else
+#define LookupFunction dlsym
+#endif
+
+      audience_inner_init = (audience_inner_init_t)LookupFunction(dlh, "audience_inner_init");
+      audience_inner_window_create = (audience_inner_window_create_t)LookupFunction(dlh, "audience_inner_window_create");
+      audience_inner_window_destroy = (audience_inner_window_destroy_t)LookupFunction(dlh, "audience_inner_window_destroy");
+      audience_inner_loop = (audience_inner_loop_t)LookupFunction(dlh, "audience_inner_loop");
 
       if (audience_is_initialized() && audience_inner_init())
       {
+        TRACEA(info, "library " << dylib << " loaded successfully");
         return true;
+      }
+      else
+      {
+        TRACEA(info, "could not initialize library " << dylib);
       }
 
       audience_inner_init = nullptr;
       audience_inner_window_create = nullptr;
       audience_inner_window_destroy = nullptr;
       audience_inner_loop = nullptr;
+
+#ifdef WIN32
+      FreeLibrary(dlh);
+#else
+      dlclose(dlh);
+#endif
     }
     else
     {
-      OutputDebugStringW(GetLastErrorString().c_str());
-      OutputDebugStringW(L"\n");
+      TRACEA(info, "could not load library " << dylib);
+#ifdef WIN32
+      TRACEW(info, GetLastErrorString().c_str());
+#endif
     }
   }
-#else
-#endif
 
   return false;
 }

@@ -48,3 +48,15 @@
 #define TRACEW(level, message)
 
 #endif // ENABLE_TRACE
+
+
+#ifdef WIN32
+inline std::wstring GetLastErrorString()
+{
+  wchar_t buf[256] = {0};
+  FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
+                 NULL, GetLastError(), MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                 buf, (sizeof(buf) / sizeof(wchar_t)), NULL);
+  return std::wstring(buf);
+}
+#endif
