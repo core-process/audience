@@ -18,10 +18,17 @@ struct WindowHandle
   }
 };
 
+bool fix_ie_compat_mode();
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
 bool audience_inner_init()
 {
+  // fix ie compat mode
+  if (!fix_ie_compat_mode())
+  {
+    return false;
+  }
+
   // initialize COM
   auto r = OleInitialize(NULL);
   if (r != S_OK && r != S_FALSE)
@@ -132,6 +139,37 @@ void audience_inner_window_destroy(void *vhandle)
   {
     TRACEA(error, "an unknown exception occured");
   }
+}
+
+#define KEY_FEATURE_BROWSER_EMULATION \
+  L"Software\\Microsoft\\Internet "   \
+  L"Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION"
+
+bool fix_ie_compat_mode()
+{
+  HKEY hk = nullptr;
+  DWORD ie_version = 11000;
+  WCHAR exe_path[MAX_PATH + 1] = {0};
+  WCHAR *exe_name = nullptr;
+  if (GetModuleFileNameW(NULL, exe_path, MAX_PATH + 1) == 0)
+  {
+    return false;
+  }
+  for (exe_name = &exe_path[wcslen(exe_path) - 1]; exe_name != exe_path && *exe_name != '\\'; exe_name--)
+  {
+  }
+  exe_name++;
+  if (RegCreateKeyW(HKEY_CURRENT_USER, KEY_FEATURE_BROWSER_EMULATION, &hk) != ERROR_SUCCESS)
+  {
+    return false;
+  }
+  if (RegSetValueExW(hk, exe_name, 0, REG_DWORD, (BYTE *)&ie_version, sizeof(ie_version)) != ERROR_SUCCESS)
+  {
+    RegCloseKey(hk);
+    return false;
+  }
+  RegCloseKey(hk);
+  return true;
 }
 
 LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
