@@ -17,7 +17,8 @@ if(WIN32)
   target_link_libraries(audience_windows_edge PUBLIC WindowsApp.lib)
 
   # windows: ie11 widget
-  add_library(audience_windows_ie11 SHARED src/windows/ie11.cpp src/windows/common.cpp src/windows/resource.rc)
+  add_library(audience_windows_ie11 SHARED src/windows/ie11.cpp src/windows/ie11_webview.cpp src/windows/common.cpp src/windows/resource.rc)
+  target_link_libraries(audience_windows_ie11 PUBLIC comsuppw.lib)
 
 elseif(APPLE)
 

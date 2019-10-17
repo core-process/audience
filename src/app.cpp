@@ -10,7 +10,7 @@
 #include "lib.h"
 
 #ifdef WIN32
-int WINAPI WinMain(HINSTANCE hInt, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow)
+int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
   // prepare arguments
   std::vector<std::wstring> args;
