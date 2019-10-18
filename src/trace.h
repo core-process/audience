@@ -37,8 +37,20 @@
 #else // _MSC_VER
 
 #include <iostream>
-#define TRACEA(level, message) std::cerr << _TRACE_STRINGIFY(level) << ": " << message << std::endl;
-#define TRACEW(level, message) std::wcerr << _TRACE_WIDE(_TRACE_STRINGIFY(level)) << L": " << message << std::endl;
+#define TRACEA(level, message)                      \
+  std::cerr                                         \
+      << __FILE__                                   \
+      << "(" << _TRACE_STRINGIFY(__LINE__) << "): " \
+      << "[" << _TRACE_STRINGIFY(level) << "] "     \
+      << message                                    \
+      << std::endl;
+#define TRACEW(level, message)                                     \
+  std::wcerr                                                       \
+      << _TRACE_WIDE(__FILE__)                                     \
+      << L"(" << _TRACE_WIDE(_TRACE_STRINGIFY(__LINE__)) << L"): " \
+      << L"[" << _TRACE_WIDE(_TRACE_STRINGIFY(level)) << L"] "     \
+      << message                                                   \
+      << std::endl;
 
 #endif
 
@@ -48,7 +60,6 @@
 #define TRACEW(level, message)
 
 #endif // ENABLE_TRACE
-
 
 #ifdef WIN32
 inline std::wstring GetLastErrorString()
