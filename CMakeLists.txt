@@ -1,10 +1,13 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.13)
 project(audience)
 
 add_compile_definitions(ENABLE_TRACE)
 
-add_library(audience STATIC src/lib.cpp)
+add_library(audience STATIC src/lib.cpp src/whereami.c)
 set_property(TARGET audience PROPERTY CXX_STANDARD 11)
+if(UNIX)
+  target_link_libraries(audience PUBLIC dl)
+endif()
 
 if(WIN32)
 

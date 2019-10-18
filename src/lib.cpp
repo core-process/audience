@@ -5,6 +5,10 @@
 #include <mach-o/dyld.h>
 #include <sys/syslimits.h>
 #include <stdlib.h>
+#else
+#include <dlfcn.h>
+#include <linux/limits.h>
+#include <cstring>
 #endif
 
 #include <vector>
@@ -13,6 +17,15 @@
 #include "lib.h"
 #include "inner.h"
 #include "trace.h"
+#include "whereami.h"
+
+#if defined(WIN32)
+#define PATH_SEPARATOR "\\" 
+#else 
+#define PATH_SEPARATOR "/" 
+#endif 
+
+std::string whereami();
 
 audience_inner_init_t audience_inner_init = nullptr;
 audience_inner_window_create_t audience_inner_window_create = nullptr;
@@ -38,37 +51,18 @@ bool audience_init()
 #elif __APPLE__
       "libaudience_macos_webkit.dylib",
 #else
-      "libaudience_linux_webkit.dylib",
+      "libaudience_unix_webkit.so",
 #endif
   };
 
   for (auto dylib : dylibs)
   {
+    auto dylib_abs = whereami() + PATH_SEPARATOR + dylib;
+    TRACEA(info, "trying to load library from path " << dylib_abs);
 #ifdef WIN32
-    auto dlh = LoadLibraryA(dylib.c_str());
+    auto dlh = LoadLibraryA(dylib_abs.c_str());
 #else
-    char exe_path[PATH_MAX + 1] = {0};
-    uint32_t exe_path_len = sizeof(exe_path);
-    if (_NSGetExecutablePath(exe_path, &exe_path_len) != 0)
-    {
-      TRACEA(error, "could not find path of executable");
-      return true;
-    }
-
-    char exe_dir_path[PATH_MAX + 1] = {0};
-    if (realpath(exe_path, exe_dir_path) == nullptr)
-    {
-      TRACEA(error, "could not find real path of executable");
-    }
-
-    char *last_slash = nullptr;
-    for (last_slash = &exe_dir_path[strlen(exe_dir_path) - 1]; last_slash != exe_dir_path && *last_slash != '/'; last_slash--)
-    {
-    }
-    last_slash++;
-    *last_slash = 0;
-
-    auto dlh = dlopen((exe_dir_path + dylib).c_str(), RTLD_LAZY | RTLD_LOCAL);
+    auto dlh = dlopen(dylib_abs.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
 
     if (dlh != nullptr)
@@ -142,4 +136,25 @@ void audience_loop()
     return;
   }
   audience_inner_loop();
+}
+
+std::string whereami()
+{
+  auto length = wai_getExecutablePath(nullptr, 0, nullptr);
+  if(length == -1)
+  {
+    TRACEA(warning, "could not retrieve path of executable");
+    return "";
+  }
+  std::vector<char> buffer(length + 1, 0);
+  int dir_length = 0;
+  if(wai_getExecutablePath(&buffer[0], length, &dir_length) == -1)
+  {
+    TRACEA(warning, "could not retrieve path of executable");
+    return "";
+  }
+  buffer[dir_length] = 0;
+  std::string path(&buffer[0]);
+  TRACEA(info, "executable directory found: " << path);
+  return path;
 }
