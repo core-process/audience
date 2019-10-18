@@ -25,8 +25,10 @@ if(WIN32)
 elseif(APPLE)
 
   # macos: webkit widget
-  add_library(audience_macos_webkit SHARED src/macos/webkit.cpp)
+  add_library(audience_macos_webkit SHARED src/macos/webkit.m)
   set_property(TARGET audience_macos_webkit PROPERTY CXX_STANDARD 11)
+  target_compile_options(audience_macos_webkit PUBLIC "-fobjc-arc")
+  target_link_libraries (audience_macos_webkit "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
 
 elseif(UNIX)
 

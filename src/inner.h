@@ -8,10 +8,18 @@
 #define AUDIENCE_EXPORT
 #endif
 
-extern "C" AUDIENCE_EXPORT bool audience_inner_init();
-extern "C" AUDIENCE_EXPORT void *audience_inner_window_create(const wchar_t *const title, const wchar_t *const url);
-extern "C" AUDIENCE_EXPORT void audience_inner_window_destroy(void *window);
-extern "C" AUDIENCE_EXPORT void audience_inner_loop();
+#if __cplusplus
+extern "C" {
+#endif
+
+AUDIENCE_EXPORT bool audience_inner_init();
+AUDIENCE_EXPORT void *audience_inner_window_create(const wchar_t *const title, const wchar_t *const url);
+AUDIENCE_EXPORT void audience_inner_window_destroy(void *window);
+AUDIENCE_EXPORT void audience_inner_loop();
+
+#if __cplusplus
+}
+#endif
 
 #else
 
