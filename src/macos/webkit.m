@@ -37,14 +37,18 @@ void *audience_inner_window_create(const wchar_t *const title,
                                    const wchar_t *const url) {
   @autoreleasepool {
     // create window
+    NSRect screenSize = [[NSScreen mainScreen] frame];
+    NSRect targetRect =
+        CGRectMake(0, 0, screenSize.size.width / 2, screenSize.size.height / 2);
     NSWindow *window =
-        [[NSWindow alloc] initWithContentRect:CGRectMake(0, 0, 500, 500)
+        [[NSWindow alloc] initWithContentRect:targetRect
                                     styleMask:NSWindowStyleMaskTitled |
                                               NSWindowStyleMaskClosable |
                                               NSWindowStyleMaskMiniaturizable |
                                               NSWindowStyleMaskResizable
                                       backing:NSBackingStoreBuffered
-                                        defer:NO];
+                                        defer:NO
+                                       screen:[NSScreen mainScreen]];
     [window setTitle:[[NSString alloc]
                          initWithBytes:title
                                 length:wcslen(title) * sizeof(*title)
@@ -53,9 +57,8 @@ void *audience_inner_window_create(const wchar_t *const title,
 
     // create webview
     WKWebViewConfiguration *config = [WKWebViewConfiguration new];
-    WKWebView *webview =
-        [[WKWebView alloc] initWithFrame:CGRectMake(0, 0, 500, 500)
-                           configuration:config];
+    WKWebView *webview = [[WKWebView alloc] initWithFrame:targetRect
+                                            configuration:config];
     [webview
         loadRequest:
             [NSURLRequest
@@ -87,12 +90,12 @@ void *audience_inner_window_create(const wchar_t *const title,
 
     // create title update timer
     WindowWebviewDelegate *delegate = [[WindowWebviewDelegate alloc] init];
-    handle.title_timer =
-        [NSTimer scheduledTimerWithTimeInterval:1
-                                         target:delegate
-                                       selector:@selector(timedWindowTitleUpdate:)
-                                       userInfo:handle
-                                        repeats:YES];
+    handle.title_timer = [NSTimer
+        scheduledTimerWithTimeInterval:1
+                                target:delegate
+                              selector:@selector(timedWindowTitleUpdate:)
+                              userInfo:handle
+                               repeats:YES];
 
     return (__bridge_retained void *)handle;
   }
