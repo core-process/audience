@@ -28,7 +28,8 @@ void webview_title_update_callback(GtkWidget *widget, gpointer arg);
 
 bool audience_inner_init()
 {
-  if (gtk_init_check(0, NULL) == FALSE) {
+  if (gtk_init_check(0, NULL) == FALSE)
+  {
     return false;
   }
 
@@ -49,8 +50,8 @@ void *audience_inner_window_create(const wchar_t *const title, const wchar_t *co
     // retrieve screen dimensions
     GdkRectangle workarea = {0};
     gdk_monitor_get_workarea(
-      gdk_display_get_primary_monitor(gdk_display_get_default()),
-      &workarea);
+        gdk_display_get_primary_monitor(gdk_display_get_default()),
+        &workarea);
 
     // create window
     handle->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -65,7 +66,7 @@ void *audience_inner_window_create(const wchar_t *const title, const wchar_t *co
 
     // create handle instance for window and widget
     auto handle_priv = new std::shared_ptr<WindowHandle>(handle);
-    g_object_set_data(G_OBJECT(handle->window), WIDGET_HANDLE_KEY, handle_priv);    
+    g_object_set_data(G_OBJECT(handle->window), WIDGET_HANDLE_KEY, handle_priv);
     g_object_set_data(G_OBJECT(handle->webview), WIDGET_HANDLE_KEY, handle_priv);
 
     // listen to destroy signal and title changed event
@@ -97,8 +98,8 @@ void audience_inner_window_destroy(void *window)
 {
   try
   {
-    auto handle = reinterpret_cast<std::shared_ptr<WindowHandle>*>(window);
-    if((*handle)->window != nullptr)
+    auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(window);
+    if ((*handle)->window != nullptr)
     {
       gtk_window_close(GTK_WINDOW((*handle)->window));
     }
@@ -120,15 +121,18 @@ void audience_inner_loop()
   gtk_main();
 }
 
-void widget_destroy_callback(GtkWidget *widget, gpointer arg) {
-  auto handle_priv = reinterpret_cast<std::shared_ptr<WindowHandle>*>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+void widget_destroy_callback(GtkWidget *widget, gpointer arg)
+{
+  auto handle_priv = reinterpret_cast<std::shared_ptr<WindowHandle> *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (handle_priv != nullptr)
   {
-    if((*handle_priv)->window != nullptr) {
+    if ((*handle_priv)->window != nullptr)
+    {
       g_object_set_data(G_OBJECT((*handle_priv)->window), WIDGET_HANDLE_KEY, nullptr);
       (*handle_priv)->window = nullptr;
     }
-    if((*handle_priv)->webview) {
+    if ((*handle_priv)->webview)
+    {
       g_object_set_data(G_OBJECT((*handle_priv)->webview), WIDGET_HANDLE_KEY, nullptr);
       (*handle_priv)->webview = nullptr;
     }
@@ -138,13 +142,16 @@ void widget_destroy_callback(GtkWidget *widget, gpointer arg) {
   gtk_main_quit();
 }
 
-void webview_title_update_callback(GtkWidget *widget, gpointer arg) {
-  auto handle_priv = reinterpret_cast<std::shared_ptr<WindowHandle>*>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+void webview_title_update_callback(GtkWidget *widget, gpointer arg)
+{
+  auto handle_priv = reinterpret_cast<std::shared_ptr<WindowHandle> *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (handle_priv != nullptr)
   {
-    if((*handle_priv)->window != nullptr && (*handle_priv)->webview != nullptr) {
+    if ((*handle_priv)->window != nullptr && (*handle_priv)->webview != nullptr)
+    {
       auto title = webkit_web_view_get_title(WEBKIT_WEB_VIEW((*handle_priv)->webview));
-      if(title != nullptr) {
+      if (title != nullptr)
+      {
         gtk_window_set_title(GTK_WINDOW((*handle_priv)->window), title);
       }
     }
