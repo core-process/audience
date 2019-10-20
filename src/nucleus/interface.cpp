@@ -75,7 +75,7 @@ void audience_inner_window_destroy(void *vhandle)
 #ifdef __OBJC__
     AudienceHandle *handle = (__bridge_transfer AudienceHandle *)vhandle;
 #else
-    AudienceHandle *handle = reinterpret_cast<void *>(vhandle);
+    AudienceHandle *handle = reinterpret_cast<AudienceHandle *>(vhandle);
 #endif
     _audience_inner_window_destroy(handle);
   }

@@ -91,6 +91,7 @@ elseif(UNIX)
   # unix/linux: webkit widget
   add_library(audience_unix_webkit SHARED
     src/nucleus/unix/webkit.cpp
+    src/nucleus/unix/interface.cpp
   )
   set_target_properties(audience_unix_webkit PROPERTIES CXX_STANDARD 11)
   target_include_directories(audience_unix_webkit PRIVATE ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
