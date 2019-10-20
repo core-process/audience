@@ -30,6 +30,8 @@ extern "C"
     return return_value;                                  \
   }
 
+#define AUDIENCE_INTERFACE_NOTHING
+
 #ifdef __OBJC__
 #define AUDIENCE_INTERFACE_POOL_BEGIN \
   @autoreleasepool                    \
@@ -79,7 +81,7 @@ void audience_inner_window_destroy(void *vhandle)
 #endif
     _audience_inner_window_destroy(handle);
   }
-  AUDIENCE_INTERFACE_CATCH()
+  AUDIENCE_INTERFACE_CATCH(AUDIENCE_INTERFACE_NOTHING)
   AUDIENCE_INTERFACE_POOL_END
 }
 
@@ -90,6 +92,6 @@ void audience_inner_loop()
   {
     _audience_inner_loop();
   }
-  AUDIENCE_INTERFACE_CATCH()
+  AUDIENCE_INTERFACE_CATCH(AUDIENCE_INTERFACE_NOTHING)
   AUDIENCE_INTERFACE_POOL_END
 }

@@ -1,26 +1,17 @@
 #include <memory>
 
+#include "ie11_handle.h"
+
 #include "../../common/trace.h"
 #include "../interface.h"
 #include "ie11_webview.h"
 #include "common.h"
 #include "resource.h"
 
-struct WindowHandle
-{
-  HWND window;
-  IEWebView *webview;
-
-  WindowHandle() : window(nullptr),
-                   webview(nullptr)
-  {
-  }
-};
-
 bool fix_ie_compat_mode();
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-bool audience_inner_init()
+bool _audience_inner_init()
 {
   // fix ie compat mode
   if (!fix_ie_compat_mode())
@@ -39,104 +30,88 @@ bool audience_inner_init()
   return true;
 }
 
-void *audience_inner_window_create(const wchar_t *const title, const wchar_t *const url)
+AudienceHandle *_audience_inner_window_create(const std::wstring &title, const std::wstring &url)
 {
-  try
+  // register window class
+  WNDCLASSEXW wndcls;
+
+  wndcls.cbSize = sizeof(WNDCLASSEX);
+  wndcls.style = CS_HREDRAW | CS_VREDRAW;
+  wndcls.lpfnWndProc = WndProc;
+  wndcls.cbClsExtra = 0;
+  wndcls.cbWndExtra = 0;
+  wndcls.hInstance = hInstanceEXE;
+  wndcls.hIcon = LoadIcon(hInstanceDLL, MAKEINTRESOURCE(IDI_AUDIENCE));
+  wndcls.hIconSm = LoadIcon(hInstanceDLL, MAKEINTRESOURCE(IDI_AUDIENCE));
+  wndcls.hCursor = LoadCursor(nullptr, IDC_ARROW);
+  wndcls.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+  wndcls.lpszMenuName = MAKEINTRESOURCEW(IDC_AUDIENCE);
+  wndcls.lpszClassName = L"audience_ie11";
+
+  if (RegisterClassExW(&wndcls) == 0)
   {
-    // register window class
-    WNDCLASSEXW wndcls;
-
-    wndcls.cbSize = sizeof(WNDCLASSEX);
-    wndcls.style = CS_HREDRAW | CS_VREDRAW;
-    wndcls.lpfnWndProc = WndProc;
-    wndcls.cbClsExtra = 0;
-    wndcls.cbWndExtra = 0;
-    wndcls.hInstance = hInstanceEXE;
-    wndcls.hIcon = LoadIcon(hInstanceDLL, MAKEINTRESOURCE(IDI_AUDIENCE));
-    wndcls.hIconSm = LoadIcon(hInstanceDLL, MAKEINTRESOURCE(IDI_AUDIENCE));
-    wndcls.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wndcls.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wndcls.lpszMenuName = MAKEINTRESOURCEW(IDC_AUDIENCE);
-    wndcls.lpszClassName = L"audience_ie11";
-
-    if (RegisterClassExW(&wndcls) == 0)
-    {
-      return nullptr;
-    }
-
-    // create window
-    std::shared_ptr<WindowHandle> handle = std::make_shared<WindowHandle>();
-
-    HWND window = CreateWindowW(wndcls.lpszClassName, title, WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &handle);
-    if (!window)
-    {
-      return nullptr;
-    }
-
-    // create browser widget
-    handle->webview = new IEWebView();
-    handle->webview->AddRef();
-
-    if (!handle->webview->Create(window))
-    {
-      // delete webview
-      handle->webview->Release();
-      handle->webview = nullptr;
-
-      // destroy window
-      DestroyWindow(window);
-
-      return nullptr;
-    }
-
-    // navigate to url
-    handle->webview->Navigate(url);
-
-    // show window
-    ShowWindow(window, SW_SHOW);
-    UpdateWindow(window);
-
-    TRACEA(info, "window created successfully");
-
-    // return handle
-    return new std::shared_ptr<WindowHandle>(handle);
-  }
-  catch (const std::exception &ex)
-  {
-    TRACEA(error, "an exception occured: " << ex.what());
-  }
-  catch (...)
-  {
-    TRACEA(error, "an unknown exception occured");
+    return nullptr;
   }
 
-  return nullptr;
-}
+  // create window
+  AudienceHandle handle = std::make_shared<AudienceHandleData>();
 
-void audience_inner_window_destroy(void *vhandle)
-{
-  try
+  HWND window = CreateWindowW(wndcls.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &handle);
+  if (!window)
   {
-    auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(vhandle);
+    return nullptr;
+  }
+
+  // create browser widget
+  handle->webview = new IEWebView();
+  handle->webview->AddRef();
+
+  if (!handle->webview->Create(window))
+  {
+    // delete webview
+    handle->webview->Release();
+    handle->webview = nullptr;
 
     // destroy window
-    if ((*handle)->window != nullptr)
-    {
-      DestroyWindow((*handle)->window);
-      TRACEA(info, "window destroyed");
-    }
+    DestroyWindow(window);
 
-    // delete handle
-    delete handle;
-    TRACEA(info, "handle deleted");
+    return nullptr;
   }
-  catch (const std::exception &ex)
+
+  // navigate to url
+  handle->webview->Navigate(url.c_str());
+
+  // show window
+  ShowWindow(window, SW_SHOW);
+  UpdateWindow(window);
+
+  TRACEA(info, "window created successfully");
+
+  // return handle
+  return new AudienceHandle(handle);
+}
+
+void _audience_inner_window_destroy(AudienceHandle *handle)
+{
+  // destroy window
+  if ((*handle)->window != nullptr)
   {
-    TRACEA(error, "an exception occured: " << ex.what());
+    DestroyWindow((*handle)->window);
+    TRACEA(info, "window destroyed");
   }
-  catch (...)
+
+  // delete handle
+  delete handle;
+  TRACEA(info, "handle deleted");
+}
+
+void _audience_inner_loop()
+{
+  MSG msg;
+  while (GetMessage(&msg, nullptr, 0, 0))
   {
-    TRACEA(error, "an unknown exception occured");
+    TranslateMessage(&msg);
+    DispatchMessage(&msg);
   }
 }
 
@@ -178,11 +153,11 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
   case WM_NCCREATE:
   {
     // install handle as user data
-    auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(((CREATESTRUCT *)lParam)->lpCreateParams);
+    auto handle = reinterpret_cast<AudienceHandle *>(((CREATESTRUCT *)lParam)->lpCreateParams);
     if (handle != nullptr)
     {
       (*handle)->window = window;
-      SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) new std::shared_ptr<WindowHandle>(*handle));
+      SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) new AudienceHandle(*handle));
       TRACEA(info, "handle installed in GWLP_USERDATA");
     }
     else
@@ -216,7 +191,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     // resize web widget
     try
     {
-      auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+      auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
       if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview != nullptr)
       {
         (*handle)->webview->UpdateWebViewPosition();
@@ -246,7 +221,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     {
       try
       {
-        auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+        auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
         if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview != nullptr)
         {
           auto doctitle = (*handle)->webview->GetDocumentTitle();
@@ -277,7 +252,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     KillTimer(window, 0x1);
 
     // clean up installed handle
-    auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+    auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
     if (handle != nullptr)
     {
       // reset referenced window and widget

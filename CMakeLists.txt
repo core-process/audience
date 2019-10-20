@@ -55,6 +55,7 @@ if(WIN32)
   # windows: edge widget
   add_library(audience_windows_edge SHARED
     src/nucleus/windows/edge.cpp
+    src/nucleus/windows/edge_interface.cpp
     src/nucleus/windows/common.cpp
     src/nucleus/windows/resource.rc
   )
@@ -65,6 +66,7 @@ if(WIN32)
   add_library(audience_windows_ie11 SHARED
     src/nucleus/windows/ie11.cpp
     src/nucleus/windows/ie11_webview.cpp
+    src/nucleus/windows/ie11_interface.cpp
     src/nucleus/windows/common.cpp
     src/nucleus/windows/resource.rc
   )
