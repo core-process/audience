@@ -12,9 +12,7 @@ option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
 # AUDIENCE COMMON
 #######################################################################
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  add_compile_definitions(ENABLE_TRACE)
-endif()
+add_compile_definitions(AUDIENCE_ENABLE_TRACE=$<CONFIG:Debug>)
 
 if(AUDIENCE_STATIC_RUNTIME)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")

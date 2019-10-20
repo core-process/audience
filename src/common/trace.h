@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef ENABLE_TRACE
+#if AUDIENCE_ENABLE_TRACE
 
 #define _TRACE_STRINGIFY2(m) #m
 #define _TRACE_STRINGIFY(m) _TRACE_STRINGIFY2(m)
@@ -54,12 +54,12 @@
 
 #endif
 
-#else // ENABLE_TRACE
+#else // AUDIENCE_ENABLE_TRACE
 
 #define TRACEA(level, message)
 #define TRACEW(level, message)
 
-#endif // ENABLE_TRACE
+#endif // AUDIENCE_ENABLE_TRACE
 
 #ifdef WIN32
 #include <windows.h>
