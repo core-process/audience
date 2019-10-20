@@ -8,7 +8,7 @@ add_compile_definitions(ENABLE_TRACE)
 #######################################################################
 
 # audience library
-add_library(audience SHARED
+add_library(audience STATIC
   src/shell/lib.cpp
   src/shell/whereami.c
 )
