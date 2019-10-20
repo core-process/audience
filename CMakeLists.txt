@@ -6,14 +6,13 @@ project(audience)
 # AUDIENCE OPTIONS
 #######################################################################
 
-option(AUDIENCE_ENABLE_TRACE "print trace messages" ON)
 option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
 
 #######################################################################
 # AUDIENCE COMMON
 #######################################################################
 
-if(AUDIENCE_ENABLE_TRACE)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
   add_compile_definitions(ENABLE_TRACE)
 endif()
 
