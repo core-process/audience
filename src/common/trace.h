@@ -12,6 +12,7 @@
 #include <windows.h>
 #include <sstream>
 #define TRACEA(level, message)                        \
+  try                                                 \
   {                                                   \
     std::ostringstream str;                           \
     str                                               \
@@ -21,8 +22,12 @@
         << message                                    \
         << std::endl;                                 \
     OutputDebugStringA(str.str().c_str());            \
+  }                                                   \
+  catch (...)                                         \
+  {                                                   \
   }
 #define TRACEW(level, message)                                       \
+  try                                                                \
   {                                                                  \
     std::wostringstream str;                                         \
     str                                                              \
@@ -32,25 +37,40 @@
         << message                                                   \
         << std::endl;                                                \
     OutputDebugStringW(str.str().c_str());                           \
+  }                                                                  \
+  catch (...)                                                        \
+  {                                                                  \
   }
 
 #else // _MSC_VER
 
 #include <iostream>
-#define TRACEA(level, message)                      \
-  std::cerr                                         \
-      << __FILE__                                   \
-      << "(" << _TRACE_STRINGIFY(__LINE__) << "): " \
-      << "[" << _TRACE_STRINGIFY(level) << "] "     \
-      << message                                    \
-      << std::endl;
-#define TRACEW(level, message)                                     \
-  std::wcerr                                                       \
-      << _TRACE_WIDE(__FILE__)                                     \
-      << L"(" << _TRACE_WIDE(_TRACE_STRINGIFY(__LINE__)) << L"): " \
-      << L"[" << _TRACE_WIDE(_TRACE_STRINGIFY(level)) << L"] "     \
-      << message                                                   \
-      << std::endl;
+#define TRACEA(level, message)                        \
+  try                                                 \
+  {                                                   \
+    std::cerr                                         \
+        << __FILE__                                   \
+        << "(" << _TRACE_STRINGIFY(__LINE__) << "): " \
+        << "[" << _TRACE_STRINGIFY(level) << "] "     \
+        << message                                    \
+        << std::endl;                                 \
+  }                                                   \
+  catch (...)                                         \
+  {                                                   \
+  }
+#define TRACEW(level, message)                                       \
+  try                                                                \
+  {                                                                  \
+    std::wcerr                                                       \
+        << _TRACE_WIDE(__FILE__)                                     \
+        << L"(" << _TRACE_WIDE(_TRACE_STRINGIFY(__LINE__)) << L"): " \
+        << L"[" << _TRACE_WIDE(_TRACE_STRINGIFY(level)) << L"] "     \
+        << message                                                   \
+        << std::endl;                                                \
+  }                                                                  \
+  catch (...)                                                        \
+  {                                                                  \
+  }
 
 #endif
 
