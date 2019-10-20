@@ -62,6 +62,8 @@
 #endif // ENABLE_TRACE
 
 #ifdef WIN32
+#include <windows.h>
+#include <string>
 inline std::wstring GetLastErrorString()
 {
   wchar_t buf[256] = {0};
