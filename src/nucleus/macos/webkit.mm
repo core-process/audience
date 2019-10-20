@@ -1,11 +1,8 @@
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
 
-#include <wchar.h>
-
-#define AUDIENCE_COMPILING_INNER
-#include "../inner.h"
-#include "../trace.h"
+#include "../../common/trace.h"
+#include "../interface.h"
 
 @class WindowHandle;
 @class BrowserWindow;

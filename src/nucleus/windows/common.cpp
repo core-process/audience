@@ -1,7 +1,6 @@
 #include <windows.h>
 
-#define AUDIENCE_COMPILING_INNER
-#include "../inner.h"
+#include "../interface.h"
 
 HINSTANCE hInstanceEXE = nullptr;
 HINSTANCE hInstanceDLL = nullptr;

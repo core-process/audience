@@ -1,16 +1,25 @@
+#include <windows.h>
+#include <roapi.h>
+
+#include <winrt/Windows.Foundation.h>
+#include <winrt/Windows.Web.UI.Interop.h>
+
 #include <memory>
 
-#define AUDIENCE_COMPILING_INNER
-#include "../inner.h"
-#include "ie11_webview.h"
+#include "../../common/trace.h"
+#include "../interface.h"
 #include "common.h"
 #include "resource.h"
-#include "../trace.h"
+
+using namespace winrt;
+using namespace winrt::Windows::Foundation;
+using namespace winrt::Windows::Web::UI;
+using namespace winrt::Windows::Web::UI::Interop;
 
 struct WindowHandle
 {
   HWND window;
-  IEWebView *webview;
+  IWebViewControl webview;
 
   WindowHandle() : window(nullptr),
                    webview(nullptr)
@@ -18,26 +27,41 @@ struct WindowHandle
   }
 };
 
-bool fix_ie_compat_mode();
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+Rect GetWebViewTargetPosition(const std::shared_ptr<WindowHandle> &handle);
+void UpdateWebViewPosition(const std::shared_ptr<WindowHandle> &handle);
 
 bool audience_inner_init()
 {
-  // fix ie compat mode
-  if (!fix_ie_compat_mode())
+  try
   {
-    return false;
-  }
+    // initialize COM
+    auto r = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+    if (r != S_OK && r != S_FALSE)
+    {
+      return false;
+    }
 
-  // initialize COM
-  auto r = OleInitialize(NULL);
-  if (r != S_OK && r != S_FALSE)
+    // test if required COM objects are available (will throw COM exception if not available)
+    WebViewControlProcess().GetWebViewControls().Size();
+
+    TRACEA(info, "COM initialization succeeded");
+    return true;
+  }
+  catch (const hresult_error &ex)
   {
-    return false;
+    TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
   }
-
-  TRACEA(info, "COM initialization succeeded");
-  return true;
+  catch (const std::exception &ex)
+  {
+    TRACEA(error, "an exception occured: " << ex.what());
+  }
+  catch (...)
+  {
+    TRACEA(error, "an unknown exception occured");
+  }
+  return false;
 }
 
 void *audience_inner_window_create(const wchar_t *const title, const wchar_t *const url)
@@ -58,7 +82,7 @@ void *audience_inner_window_create(const wchar_t *const title, const wchar_t *co
     wndcls.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wndcls.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wndcls.lpszMenuName = MAKEINTRESOURCEW(IDC_AUDIENCE);
-    wndcls.lpszClassName = L"audience_ie11";
+    wndcls.lpszClassName = L"audience_edge";
 
     if (RegisterClassExW(&wndcls) == 0)
     {
@@ -75,23 +99,55 @@ void *audience_inner_window_create(const wchar_t *const title, const wchar_t *co
     }
 
     // create browser widget
-    handle->webview = new IEWebView();
-    handle->webview->AddRef();
-
-    if (!handle->webview->Create(window))
+    try
     {
-      // delete webview
-      handle->webview->Release();
-      handle->webview = nullptr;
+      std::wstring url_copy = url;
+      WebViewControlProcess()
+          .CreateWebViewControlAsync((std::uint64_t)window, GetWebViewTargetPosition(handle))
+          .Completed(
+              [handle, url_copy](auto &&sender, AsyncStatus const status) {
+                try
+                {
+                  if (status == AsyncStatus::Completed)
+                  {
+                    // update handle
+                    handle->webview = sender.GetResults();
 
-      // destroy window
+                    // update position of web view
+                    UpdateWebViewPosition(handle);
+
+                    // navigate to initial URL
+                    handle->webview.Navigate(Uri(hstring(url_copy)));
+
+                    TRACEA(info, "web widget created successfully");
+                  }
+                  else
+                  {
+                    TRACEA(error, "web widget could not be created");
+                  }
+                }
+                catch (const hresult_error &ex)
+                {
+                  TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
+                }
+                catch (const std::exception &ex)
+                {
+                  TRACEA(error, "an exception occured: " << ex.what());
+                }
+                catch (...)
+                {
+                  TRACEA(error, "an unknown exception occured");
+                }
+              });
+    }
+    catch (const hresult_error &ex)
+    {
+      TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
+
+      // clean up and abort
       DestroyWindow(window);
-
       return nullptr;
     }
-
-    // navigate to url
-    handle->webview->Navigate(url);
 
     // show window
     ShowWindow(window, SW_SHOW);
@@ -141,37 +197,6 @@ void audience_inner_window_destroy(void *vhandle)
   }
 }
 
-#define KEY_FEATURE_BROWSER_EMULATION \
-  L"Software\\Microsoft\\Internet "   \
-  L"Explorer\\Main\\FeatureControl\\FEATURE_BROWSER_EMULATION"
-
-bool fix_ie_compat_mode()
-{
-  HKEY hk = nullptr;
-  DWORD ie_version = 11001;
-  WCHAR exe_path[MAX_PATH + 1] = {0};
-  WCHAR *exe_name = nullptr;
-  if (GetModuleFileNameW(NULL, exe_path, MAX_PATH + 1) == 0)
-  {
-    return false;
-  }
-  for (exe_name = &exe_path[wcslen(exe_path) - 1]; exe_name != exe_path && *exe_name != '\\'; exe_name--)
-  {
-  }
-  exe_name++;
-  if (RegCreateKeyW(HKEY_CURRENT_USER, KEY_FEATURE_BROWSER_EMULATION, &hk) != ERROR_SUCCESS)
-  {
-    return false;
-  }
-  if (RegSetValueExW(hk, exe_name, 0, REG_DWORD, (BYTE *)&ie_version, sizeof(ie_version)) != ERROR_SUCCESS)
-  {
-    RegCloseKey(hk);
-    return false;
-  }
-  RegCloseKey(hk);
-  return true;
-}
-
 LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
 {
   switch (message)
@@ -218,14 +243,18 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     try
     {
       auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-      if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview != nullptr)
+      if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
       {
-        (*handle)->webview->UpdateWebViewPosition();
+        UpdateWebViewPosition(*handle);
       }
       else
       {
         TRACEA(warning, "handle invalid");
       }
+    }
+    catch (const hresult_error &ex)
+    {
+      TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
     }
     catch (const std::exception &ex)
     {
@@ -248,15 +277,19 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
       try
       {
         auto handle = reinterpret_cast<std::shared_ptr<WindowHandle> *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-        if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview != nullptr)
+        if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
         {
-          auto doctitle = (*handle)->webview->GetDocumentTitle();
+          auto doctitle = (*handle)->webview.DocumentTitle();
           SetWindowTextW(window, doctitle.c_str());
         }
         else
         {
           TRACEA(error, "handle invalid");
         }
+      }
+      catch (const hresult_error &ex)
+      {
+        TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
       }
       catch (const std::exception &ex)
       {
@@ -282,11 +315,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     if (handle != nullptr)
     {
       // reset referenced window and widget
-      if ((*handle)->webview != nullptr)
-      {
-        (*handle)->webview->Release();
-        (*handle)->webview = nullptr;
-      }
+      (*handle)->webview = nullptr;
       (*handle)->window = nullptr;
 
       // remove handle from window user data
@@ -308,4 +337,21 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 
   // execute default window procedure
   return DefWindowProcW(window, message, wParam, lParam);
+}
+
+Rect GetWebViewTargetPosition(const std::shared_ptr<WindowHandle> &handle)
+{
+  RECT rect;
+  if (!GetClientRect(handle->window, &rect))
+  {
+    TRACEA(error, "could not retrieve window client rect");
+    return winrt::Windows::Foundation::Rect(0, 0, 0, 0);
+  }
+  return winrt::Windows::Foundation::Rect(0, 0, (float)(rect.right - rect.left), (float)(rect.bottom - rect.top));
+}
+
+void UpdateWebViewPosition(const std::shared_ptr<WindowHandle> &handle)
+{
+  auto rect = GetWebViewTargetPosition(handle);
+  handle->webview.as<IWebViewControlSite>().Bounds(rect);
 }

@@ -7,8 +7,8 @@
 #include <locale>
 #include <codecvt>
 
-#include "lib.h"
-#include "trace.h"
+#include <audience.h>
+#include "../common/trace.h"
 
 #ifdef WIN32
 int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)

@@ -6,9 +6,8 @@
 #include <codecvt>
 #include <memory>
 
-#define AUDIENCE_COMPILING_INNER
-#include "../inner.h"
-#include "../trace.h"
+#include "../../common/trace.h"
+#include "../interface.h"
 
 struct WindowHandle
 {
