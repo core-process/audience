@@ -1,7 +1,24 @@
 cmake_minimum_required(VERSION 3.12)
 project(audience)
 
-add_compile_definitions(ENABLE_TRACE)
+#######################################################################
+# AUDIENCE OPTIONS
+#######################################################################
+
+option(AUDIENCE_ENABLE_TRACE "print trace messages" ON)
+option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
+
+#######################################################################
+# AUDIENCE COMMON
+#######################################################################
+
+if(AUDIENCE_ENABLE_TRACE)
+  add_compile_definitions(ENABLE_TRACE)
+endif()
+
+if(AUDIENCE_STATIC_RUNTIME)
+  set_property(GLOBAL PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
 
 #######################################################################
 # AUDIENCE SHELL
