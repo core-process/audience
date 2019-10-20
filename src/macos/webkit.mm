@@ -42,17 +42,7 @@
     self.handle = NULL;
   }
   // post application quit event
-  [NSApp postEvent:[NSEvent
-                       otherEventWithType:NSEventTypeApplicationDefined
-                                 location:NSMakePoint(0, 0)
-                            modifierFlags:0
-                                timestamp:NSProcessInfo.processInfo.systemUptime
-                             windowNumber:self.windowNumber
-                                  context:NULL
-                                  subtype:SHRT_MAX
-                                    data1:0
-                                    data2:0]
-           atStart:NO];
+  [NSApp terminate:self];
   TRACEA(info, "window closed");
 }
 @end
@@ -148,30 +138,4 @@ void audience_inner_window_destroy(void *window) {
   }
 }
 
-void audience_inner_loop() {
-  bool stop_soon = false;
-  while (true) {
-    @autoreleasepool {
-      NSEvent *event = [NSApp
-          nextEventMatchingMask:NSEventMaskAny
-                      untilDate:!stop_soon
-                                    ? [NSDate distantFuture]
-                                    : [NSDate dateWithTimeIntervalSinceNow:0.2]
-                         inMode:NSDefaultRunLoopMode
-                        dequeue:YES];
-
-      if (event != NULL) {
-        if (event.type == NSEventTypeApplicationDefined &&
-            event.subtype == SHRT_MAX) {
-          TRACEA(info, "quit event received");
-          stop_soon = true;
-        } else {
-          [NSApp sendEvent:event];
-          [NSApp updateWindows];
-        }
-      } else if (stop_soon) {
-        break;
-      }
-    }
-  }
-}
+void audience_inner_loop() { [NSApp run]; }
