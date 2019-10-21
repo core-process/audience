@@ -6,10 +6,9 @@
 #include <codecvt>
 #include <memory>
 
-#include "handle.h"
-
-#include "../../common/trace.h"
-#include "../interface.h"
+#include "../../../common/trace.h"
+#include "../../shared/interface.h"
+#include "nucleus.h"
 
 #define WIDGET_HANDLE_KEY "audience_window_handle"
 
