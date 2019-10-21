@@ -1,8 +1,8 @@
 #include <comutil.h>
 #include <mshtml.h>
 
-#include "../../common/trace.h"
-#include "ie11_webview.h"
+#include "../../../common/trace.h"
+#include "webview.h"
 
 bool IEWebView::Create(HWND pwnd)
 {

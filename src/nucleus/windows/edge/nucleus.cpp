@@ -6,12 +6,11 @@
 
 #include <memory>
 
-#include "edge_handle.h"
-
-#include "../../common/trace.h"
-#include "../interface.h"
-#include "common.h"
-#include "resource.h"
+#include "../../../common/trace.h"
+#include "../../shared/interface.h"
+#include "../shared/init.h"
+#include "../shared/resource.h"
+#include "nucleus.h"
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;

@@ -1,12 +1,11 @@
 #include <memory>
 
-#include "ie11_handle.h"
-
-#include "../../common/trace.h"
-#include "../interface.h"
-#include "ie11_webview.h"
-#include "common.h"
-#include "resource.h"
+#include "../../../common/trace.h"
+#include "../../shared/interface.h"
+#include "../shared/init.h"
+#include "../shared/resource.h"
+#include "webview.h"
+#include "nucleus.h"
 
 bool fix_ie_compat_mode();
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
