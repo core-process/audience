@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "../../../common/trace.h"
+#include "../../../common/scope_guard.h"
 #include "../../shared/interface.h"
 #include "../shared/init.h"
 #include "../shared/resource.h"
@@ -40,6 +41,8 @@ bool internal_init()
 
 AudienceHandle *internal_window_create(const std::wstring &title, const std::wstring &url)
 {
+  scope_guard scope_fail(scope_guard::execution::exception);
+
   // register window class
   WNDCLASSEXW wndcls;
 
@@ -70,55 +73,37 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
     return nullptr;
   }
 
+  scope_fail += [window]() { DestroyWindow(window); };
+
   // create browser widget
-  try
+  auto webview_op = WebViewControlProcess().CreateWebViewControlAsync((std::uint64_t)window, GetWebViewTargetPosition(handle));
+
+  if (webview_op.Status() != AsyncStatus::Completed)
   {
-    WebViewControlProcess()
-        .CreateWebViewControlAsync((std::uint64_t)window, GetWebViewTargetPosition(handle))
-        .Completed(
-            [handle, url](auto &&sender, AsyncStatus const status) {
-              try
-              {
-                if (status == AsyncStatus::Completed)
-                {
-                  // update handle
-                  handle->webview = sender.GetResults();
-
-                  // update position of web view
-                  UpdateWebViewPosition(handle);
-
-                  // navigate to initial URL
-                  handle->webview.Navigate(Uri(hstring(url)));
-
-                  TRACEA(info, "web widget created successfully");
-                }
-                else
-                {
-                  TRACEA(error, "web widget could not be created");
-                }
-              }
-              catch (const hresult_error &ex)
-              {
-                TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
-              }
-              catch (const std::exception &ex)
-              {
-                TRACEA(error, "an exception occured: " << ex.what());
-              }
-              catch (...)
-              {
-                TRACEA(error, "an unknown exception occured");
-              }
-            });
+    auto event = CreateEventW(nullptr, false, false, nullptr);
+    webview_op.Completed([event](auto, auto) { SetEvent(event); });
+    DWORD lpdwindex = 0;
+    if (CoWaitForMultipleHandles(
+            COWAIT_DISPATCH_WINDOW_MESSAGES | COWAIT_DISPATCH_CALLS | COWAIT_INPUTAVAILABLE,
+            INFINITE, 1, &event, &lpdwindex) != S_OK)
+    {
+      throw std::runtime_error("CoWaitForMultipleHandles failed");
+    }
+    if (webview_op.Status() != AsyncStatus::Completed)
+    {
+      throw std::runtime_error("creation of web view failed");
+    }
   }
-  catch (const hresult_error &ex)
-  {
-    TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
 
-    // clean up and abort
-    DestroyWindow(window);
-    return nullptr;
-  }
+  handle->webview = webview_op.GetResults();
+
+  // update position of web view
+  UpdateWebViewPosition(handle);
+
+  // navigate to initial URL
+  handle->webview.Navigate(Uri(hstring(url)));
+
+  TRACEA(info, "web widget created successfully");
 
   // show window
   ShowWindow(window, SW_SHOW);
