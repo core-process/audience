@@ -78,7 +78,7 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
   // create browser widget
   auto webview_op = WebViewControlProcess().CreateWebViewControlAsync((std::uint64_t)window, GetWebViewTargetPosition(handle));
 
-  if (webview_op.Status() != AsyncStatus::Completed)
+  if (webview_op.Status() == AsyncStatus::Started)
   {
     auto event = CreateEventW(nullptr, false, false, nullptr);
     webview_op.Completed([event](auto, auto) { SetEvent(event); });
@@ -89,10 +89,11 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
     {
       throw std::runtime_error("CoWaitForMultipleHandles failed");
     }
-    if (webview_op.Status() != AsyncStatus::Completed)
-    {
-      throw std::runtime_error("creation of web view failed");
-    }
+  }
+
+  if (webview_op.Status() != AsyncStatus::Completed)
+  {
+    throw std::runtime_error("creation of web view failed");
   }
 
   handle->webview = webview_op.GetResults();
