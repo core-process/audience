@@ -17,16 +17,9 @@
 #include <audience.h>
 
 #include "../common/trace.h"
+#include "../common/safefn.h"
 #include "nucleus.h"
-#include "whereami.h"
-
-#if defined(WIN32)
-#define PATH_SEPARATOR "\\"
-#else
-#define PATH_SEPARATOR "/"
-#endif
-
-std::string whereami();
+#include "util.h"
 
 nucleus_init_t nucleus_init = nullptr;
 nucleus_window_create_t nucleus_window_create = nullptr;
@@ -38,7 +31,7 @@ bool audience_is_initialized()
   return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_loop != nullptr;
 }
 
-bool audience_init()
+static bool _audience_init()
 {
   if (audience_is_initialized())
   {
@@ -58,7 +51,7 @@ bool audience_init()
 
   for (auto dylib : dylibs)
   {
-    auto dylib_abs = whereami() + PATH_SEPARATOR + dylib;
+    auto dylib_abs = dir_of_exe() + PATH_SEPARATOR + dylib;
     TRACEA(info, "trying to load library from path " << dylib_abs);
 #ifdef WIN32
     auto dlh = LoadLibraryA(dylib_abs.c_str());
@@ -117,6 +110,11 @@ bool audience_init()
   return false;
 }
 
+bool audience_init()
+{
+  return SAFE_FN(_audience_init, false)();
+}
+
 void *audience_window_create(const wchar_t *const title, const wchar_t *const url)
 {
   if (!audience_is_initialized())
@@ -126,13 +124,13 @@ void *audience_window_create(const wchar_t *const title, const wchar_t *const ur
   return nucleus_window_create(title, url);
 }
 
-void audience_window_destroy(void *window)
+void audience_window_destroy(void *handle)
 {
   if (!audience_is_initialized())
   {
     return;
   }
-  nucleus_window_destroy(window);
+  nucleus_window_destroy(handle);
 }
 
 void audience_loop()
@@ -142,25 +140,4 @@ void audience_loop()
     return;
   }
   nucleus_loop();
-}
-
-std::string whereami()
-{
-  auto length = wai_getExecutablePath(nullptr, 0, nullptr);
-  if (length == -1)
-  {
-    TRACEA(warning, "could not retrieve path of executable");
-    return "";
-  }
-  std::vector<char> buffer(length + 1, 0);
-  int dir_length = 0;
-  if (wai_getExecutablePath(&buffer[0], length, &dir_length) == -1)
-  {
-    TRACEA(warning, "could not retrieve path of executable");
-    return "";
-  }
-  buffer[dir_length] = 0;
-  std::string path(&buffer[0]);
-  TRACEA(info, "executable directory found: " << path);
-  return path;
 }

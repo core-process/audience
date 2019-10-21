@@ -14,7 +14,7 @@ extern "C" {
   #define WAI_FUNCSPEC
 #endif
 #ifndef WAI_PREFIX
-#define WAI_PREFIX(function) wai_##function
+#define WAI_PREFIX(function) audience_##function
 #endif
 
 /**
