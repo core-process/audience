@@ -1,5 +1,7 @@
 #include <windows.h>
 
+#include "init.h"
+
 HINSTANCE hInstanceEXE = nullptr;
 HINSTANCE hInstanceDLL = nullptr;
 

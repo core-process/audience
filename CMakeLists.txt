@@ -54,23 +54,25 @@ if(WIN32)
 
   # windows: edge widget
   add_library(audience_windows_edge SHARED
-    src/nucleus/windows/edge.cpp
-    src/nucleus/windows/edge_interface.cpp
-    src/nucleus/windows/common.cpp
-    src/nucleus/windows/resource.rc
+    src/nucleus/windows/edge/nucleus.cpp
+    src/nucleus/windows/edge/interface.cpp
+    src/nucleus/windows/shared/init.cpp
+    src/nucleus/windows/shared/resource.rc
   )
   set_target_properties(audience_windows_edge PROPERTIES CXX_STANDARD 17)
+  target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)
   target_link_libraries(audience_windows_edge PRIVATE WindowsApp.lib)
 
   # windows: ie11 widget
   add_library(audience_windows_ie11 SHARED
-    src/nucleus/windows/ie11.cpp
-    src/nucleus/windows/ie11_webview.cpp
-    src/nucleus/windows/ie11_interface.cpp
-    src/nucleus/windows/common.cpp
-    src/nucleus/windows/resource.rc
+    src/nucleus/windows/ie11/nucleus.cpp
+    src/nucleus/windows/ie11/webview.cpp
+    src/nucleus/windows/ie11/interface.cpp
+    src/nucleus/windows/shared/init.cpp
+    src/nucleus/windows/shared/resource.rc
   )
   set_target_properties(audience_windows_ie11 PROPERTIES CXX_STANDARD 11)
+  target_include_directories(audience_windows_ie11 PRIVATE src/nucleus/windows/ie11)
   target_link_libraries(audience_windows_ie11 PRIVATE comsuppw.lib)
 
 elseif(APPLE)
@@ -81,7 +83,7 @@ elseif(APPLE)
     src/nucleus/macos/webkit/interface.mm
   )
   set_target_properties(audience_macos_webkit PROPERTIES CXX_STANDARD 11)
-  target_include_directories(audience_macos_webkit PUBLIC src/nucleus/macos/webkit)
+  target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_link_libraries(audience_macos_webkit PRIVATE "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
 
@@ -93,12 +95,12 @@ elseif(UNIX)
 
   # unix/linux: webkit widget
   add_library(audience_unix_webkit SHARED
-    src/nucleus/unix/webkit.cpp
-    src/nucleus/unix/interface.cpp
+    src/nucleus/unix/webkit/nucleus.cpp
+    src/nucleus/unix/webkit/interface.cpp
   )
   set_target_properties(audience_unix_webkit PROPERTIES CXX_STANDARD 11)
+  target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit)
   target_include_directories(audience_unix_webkit PRIVATE ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
-  target_link_libraries(audience_unix_webkit PRIVATE ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES})
-  target_link_libraries(audience_unix_webkit PUBLIC Threads::Threads)
+  target_link_libraries(audience_unix_webkit PRIVATE ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES} Threads::Threads)
 
 endif()
