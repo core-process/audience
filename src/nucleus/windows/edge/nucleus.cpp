@@ -48,7 +48,7 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
 
   wndcls.cbSize = sizeof(WNDCLASSEX);
   wndcls.style = CS_HREDRAW | CS_VREDRAW;
-  wndcls.lpfnWndProc = WndProc;
+  wndcls.lpfnWndProc = NUCLEUS_SAFE_FN(WndProc, 0);
   wndcls.cbClsExtra = 0;
   wndcls.cbWndExtra = 0;
   wndcls.hInstance = hInstanceEXE;
@@ -183,29 +183,14 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
   case WM_SIZE:
   {
     // resize web widget
-    try
+    auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+    if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
     {
-      auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-      if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
-      {
-        UpdateWebViewPosition(*handle);
-      }
-      else
-      {
-        TRACEA(warning, "handle invalid");
-      }
+      UpdateWebViewPosition(*handle);
     }
-    catch (const hresult_error &ex)
+    else
     {
-      TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
-    }
-    catch (const std::exception &ex)
-    {
-      TRACEA(error, "an exception occured: " << ex.what());
-    }
-    catch (...)
-    {
-      TRACEA(error, "an unknown exception occured");
+      TRACEA(warning, "handle invalid");
     }
   }
   break;
@@ -217,30 +202,15 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     {
     case 0x1:
     {
-      try
+      auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+      if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
       {
-        auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-        if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview)
-        {
-          auto doctitle = (*handle)->webview.DocumentTitle();
-          SetWindowTextW(window, doctitle.c_str());
-        }
-        else
-        {
-          TRACEA(error, "handle invalid");
-        }
+        auto doctitle = (*handle)->webview.DocumentTitle();
+        SetWindowTextW(window, doctitle.c_str());
       }
-      catch (const hresult_error &ex)
+      else
       {
-        TRACEW(error, L"a COM exception occured: " << ex.message().c_str());
-      }
-      catch (const std::exception &ex)
-      {
-        TRACEA(error, "an exception occured: " << ex.what());
-      }
-      catch (...)
-      {
-        TRACEA(error, "an unknown exception occured");
+        TRACEA(error, "handle invalid");
       }
     }
     break;
