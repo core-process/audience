@@ -77,10 +77,11 @@ elseif(APPLE)
 
   # macos: webkit widget
   add_library(audience_macos_webkit SHARED
-    src/nucleus/macos/webkit.mm
-    src/nucleus/macos/interface.mm
+    src/nucleus/macos/webkit/nucleus.mm
+    src/nucleus/macos/webkit/interface.mm
   )
   set_target_properties(audience_macos_webkit PROPERTIES CXX_STANDARD 11)
+  target_include_directories(audience_macos_webkit PUBLIC src/nucleus/macos/webkit)
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_link_libraries(audience_macos_webkit PRIVATE "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
 

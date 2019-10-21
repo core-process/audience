@@ -1,10 +1,9 @@
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
 
-#include "handle.h"
-
-#include "../../common/trace.h"
-#include "../interface.h"
+#include "../../../common/trace.h"
+#include "../../shared/interface.h"
+#include "nucleus.h"
 
 @implementation AudienceHandle
 @end
@@ -39,13 +38,14 @@
 }
 @end
 
-bool _audience_inner_init() {
+bool internal_init() {
   [NSApplication sharedApplication];
+  TRACEA(info, "initialized");
   return true;
 }
 
-AudienceHandle *_audience_inner_window_create(const std::wstring &title,
-                                              const std::wstring &url) {
+AudienceHandle *internal_window_create(const std::wstring &title,
+                                       const std::wstring &url) {
   // prepare handle object
   AudienceHandle *handle = [[AudienceHandle alloc] init];
 
@@ -112,11 +112,11 @@ AudienceHandle *_audience_inner_window_create(const std::wstring &title,
   return handle;
 }
 
-void _audience_inner_window_destroy(AudienceHandle *handle) {
+void internal_window_destroy(AudienceHandle *handle) {
   if (handle.window != NULL) {
     [handle.window close];
   }
   TRACEA(info, "public window handle destroyed");
 }
 
-void _audience_inner_loop() { [NSApp run]; }
+void internal_loop() { [NSApp run]; }

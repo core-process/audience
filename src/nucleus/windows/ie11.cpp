@@ -11,7 +11,7 @@
 bool fix_ie_compat_mode();
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-bool _audience_inner_init()
+bool internal_init()
 {
   // fix ie compat mode
   if (!fix_ie_compat_mode())
@@ -30,7 +30,7 @@ bool _audience_inner_init()
   return true;
 }
 
-AudienceHandle *_audience_inner_window_create(const std::wstring &title, const std::wstring &url)
+AudienceHandle *internal_window_create(const std::wstring &title, const std::wstring &url)
 {
   // register window class
   WNDCLASSEXW wndcls;
@@ -91,7 +91,7 @@ AudienceHandle *_audience_inner_window_create(const std::wstring &title, const s
   return new AudienceHandle(handle);
 }
 
-void _audience_inner_window_destroy(AudienceHandle *handle)
+void internal_window_destroy(AudienceHandle *handle)
 {
   // destroy window
   if ((*handle)->window != nullptr)
@@ -105,7 +105,7 @@ void _audience_inner_window_destroy(AudienceHandle *handle)
   TRACEA(info, "handle deleted");
 }
 
-void _audience_inner_loop()
+void internal_loop()
 {
   MSG msg;
   while (GetMessage(&msg, nullptr, 0, 0))

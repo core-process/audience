@@ -28,14 +28,14 @@
 
 std::string whereami();
 
-audience_inner_init_t audience_inner_init = nullptr;
-audience_inner_window_create_t audience_inner_window_create = nullptr;
-audience_inner_window_destroy_t audience_inner_window_destroy = nullptr;
-audience_inner_loop_t audience_inner_loop = nullptr;
+nucleus_init_t nucleus_init = nullptr;
+nucleus_window_create_t nucleus_window_create = nullptr;
+nucleus_window_destroy_t nucleus_window_destroy = nullptr;
+nucleus_loop_t nucleus_loop = nullptr;
 
 bool audience_is_initialized()
 {
-  return audience_inner_init != nullptr && audience_inner_window_create != nullptr && audience_inner_window_destroy != nullptr && audience_inner_loop != nullptr;
+  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_loop != nullptr;
 }
 
 bool audience_init()
@@ -74,12 +74,17 @@ bool audience_init()
 #define LookupFunction dlsym
 #endif
 
-      audience_inner_init = (audience_inner_init_t)LookupFunction(dlh, "audience_inner_init");
-      audience_inner_window_create = (audience_inner_window_create_t)LookupFunction(dlh, "audience_inner_window_create");
-      audience_inner_window_destroy = (audience_inner_window_destroy_t)LookupFunction(dlh, "audience_inner_window_destroy");
-      audience_inner_loop = (audience_inner_loop_t)LookupFunction(dlh, "audience_inner_loop");
+      nucleus_init = (nucleus_init_t)LookupFunction(dlh, "audience_init");
+      nucleus_window_create = (nucleus_window_create_t)LookupFunction(dlh, "audience_window_create");
+      nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "audience_window_destroy");
+      nucleus_loop = (nucleus_loop_t)LookupFunction(dlh, "audience_loop");
 
-      if (audience_is_initialized() && audience_inner_init())
+      if (!audience_is_initialized())
+      {
+        TRACEA(info, "could not find function pointer in library " << dylib);
+      }
+
+      if (audience_is_initialized() && nucleus_init())
       {
         TRACEA(info, "library " << dylib << " loaded successfully");
         return true;
@@ -89,10 +94,10 @@ bool audience_init()
         TRACEA(info, "could not initialize library " << dylib);
       }
 
-      audience_inner_init = nullptr;
-      audience_inner_window_create = nullptr;
-      audience_inner_window_destroy = nullptr;
-      audience_inner_loop = nullptr;
+      nucleus_init = nullptr;
+      nucleus_window_create = nullptr;
+      nucleus_window_destroy = nullptr;
+      nucleus_loop = nullptr;
 
 #ifdef WIN32
       FreeLibrary(dlh);
@@ -118,7 +123,7 @@ void *audience_window_create(const wchar_t *const title, const wchar_t *const ur
   {
     return nullptr;
   }
-  return audience_inner_window_create(title, url);
+  return nucleus_window_create(title, url);
 }
 
 void audience_window_destroy(void *window)
@@ -127,7 +132,7 @@ void audience_window_destroy(void *window)
   {
     return;
   }
-  audience_inner_window_destroy(window);
+  nucleus_window_destroy(window);
 }
 
 void audience_loop()
@@ -136,7 +141,7 @@ void audience_loop()
   {
     return;
   }
-  audience_inner_loop();
+  nucleus_loop();
 }
 
 std::string whereami()

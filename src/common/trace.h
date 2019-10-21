@@ -1,6 +1,11 @@
 #pragma once
 
+#include <string>
+#include <exception>
+
 #if AUDIENCE_ENABLE_TRACE
+
+#include "demangle.h"
 
 #define _TRACE_STRINGIFY2(m) #m
 #define _TRACE_STRINGIFY(m) _TRACE_STRINGIFY2(m)
@@ -74,16 +79,23 @@
 
 #endif
 
+#define TRACEE(ex)                          \
+  TRACEA(error,                             \
+         "exception of type "               \
+             << demangle(typeid(ex).name()) \
+             << " with reason: "            \
+             << get_reason_from_exception(ex))
+
 #else // AUDIENCE_ENABLE_TRACE
 
 #define TRACEA(level, message)
 #define TRACEW(level, message)
+#define TRACEE(ex)
 
 #endif // AUDIENCE_ENABLE_TRACE
 
 #ifdef WIN32
 #include <windows.h>
-#include <string>
 inline std::wstring GetLastErrorString()
 {
   wchar_t buf[256] = {0};
@@ -93,3 +105,14 @@ inline std::wstring GetLastErrorString()
   return std::wstring(buf);
 }
 #endif
+
+inline std::string get_reason_from_exception(const std::exception &e)
+{
+  return e.what();
+}
+
+template <typename ExceptionT>
+inline std::string get_reason_from_exception(const ExceptionT &e)
+{
+  return "unknown reason";
+}
