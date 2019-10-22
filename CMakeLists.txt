@@ -19,6 +19,26 @@ if(AUDIENCE_STATIC_RUNTIME)
 endif()
 
 #######################################################################
+# AUDIENCE DEPENDENCIES
+#######################################################################
+
+include(ExternalProject)
+
+ExternalProject_Add(boost
+  URL "https://dl.bintray.com/boostorg/release/1.71.0/source/boost_1_71_0.tar.gz"
+  URL_HASH SHA256=96b34f7468f26a141f6020efb813f1a2f3dfb9797ecf76a7d7cbd843cc95f5bd
+  DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
+  PREFIX ${CMAKE_BINARY_DIR}/deps_build/boost
+  INSTALL_DIR ${CMAKE_BINARY_DIR}/deps/boost
+  BUILD_IN_SOURCE 1
+  UPDATE_COMMAND ""
+  PATCH_COMMAND ""
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/deps_build/boost/src/boost/boost/ ${CMAKE_BINARY_DIR}/deps/boost/boost/
+)
+
+#######################################################################
 # AUDIENCE SHELL
 #######################################################################
 
@@ -29,6 +49,9 @@ add_library(audience STATIC
 )
 set_target_properties(audience PROPERTIES CXX_STANDARD 11)
 target_include_directories(audience PUBLIC include)
+
+add_dependencies(audience boost)
+target_include_directories(audience PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
 
 if(UNIX)
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
