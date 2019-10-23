@@ -53,4 +53,6 @@ void webserver_stop(std::shared_ptr<WebserverHandle> handle)
   {
     thread.join();
   }
+
+  TRACEA(info, "webserver stopped");
 }
