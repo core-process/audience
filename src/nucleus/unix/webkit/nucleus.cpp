@@ -26,17 +26,24 @@ bool internal_init()
   return true;
 }
 
-AudienceHandle *internal_window_create(const std::wstring &title, const std::wstring &url)
+AudienceHandle *internal_window_create(const InternalWindowDetails &details)
 {
   scope_guard scope_fail(scope_guard::execution::exception);
+
+  // check parameter
+  if (details.webapp_type != AUDIENCE_WEBAPP_TYPE_URL)
+  {
+    TRACEA(error, "only url based web apps are supported");
+    return nullptr;
+  }
 
   // create handle instance
   auto handle = std::make_shared<AudienceHandleData>();
 
   // convert input parameter
   std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-  auto titlea = converter.to_bytes(title);
-  auto urla = converter.to_bytes(url);
+  auto title = converter.to_bytes(details.loading_title);
+  auto url = converter.to_bytes(details.webapp_location);
 
   // retrieve screen dimensions
   GdkRectangle workarea = {0};
@@ -60,7 +67,7 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
     }
   };
 
-  gtk_window_set_title(GTK_WINDOW(handle->window), titlea.c_str());
+  gtk_window_set_title(GTK_WINDOW(handle->window), title.c_str());
   gtk_window_set_default_size(GTK_WINDOW(handle->window), workarea.width / 2, workarea.height / 2);
   gtk_window_set_resizable(GTK_WINDOW(handle->window), true);
   gtk_window_set_position(GTK_WINDOW(handle->window), GTK_WIN_POS_CENTER);
@@ -92,7 +99,7 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
   // webkit_settings_set_enable_developer_extras(settings, true);
 
   // show window and trigger url load
-  webkit_web_view_load_uri(WEBKIT_WEB_VIEW(handle->webview), urla.c_str());
+  webkit_web_view_load_uri(WEBKIT_WEB_VIEW(handle->webview), url.c_str());
   gtk_widget_show_all(GTK_WIDGET(handle->window));
 
   TRACEA(info, "window created");

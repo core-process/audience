@@ -3,6 +3,8 @@
 #include <wchar.h>
 #include <string>
 
+#include <audience_details.h>
+
 #include "safefn.h"
 #include "nucleus.h"
 
@@ -19,7 +21,7 @@
 extern "C"
 {
   AUDIENCE_EXT_EXPORT bool audience_init();
-  AUDIENCE_EXT_EXPORT void *audience_window_create(const wchar_t *const title, const wchar_t *const url);
+  AUDIENCE_EXT_EXPORT void *audience_window_create(const AudienceWindowDetails *details);
   AUDIENCE_EXT_EXPORT void audience_window_destroy(void *handle);
   AUDIENCE_EXT_EXPORT void audience_loop();
 }
@@ -28,8 +30,15 @@ extern "C"
 // Internal Declaration
 ///////////////////////////////////////////////////////////////////////
 
+struct InternalWindowDetails
+{
+  AudienceWebAppType webapp_type;
+  std::wstring webapp_location;
+  std::wstring loading_title;
+};
+
 bool internal_init();
-AudienceHandle *internal_window_create(const std::wstring &title, const std::wstring &url);
+AudienceHandle *internal_window_create(const InternalWindowDetails &details);
 void internal_window_destroy(AudienceHandle *handle);
 void internal_loop();
 
@@ -37,9 +46,13 @@ void internal_loop();
 // Bridge Implementation
 ///////////////////////////////////////////////////////////////////////
 
-static inline void *_internal_window_create(const wchar_t *const title, const wchar_t *const url)
+static inline void *_internal_window_create(const AudienceWindowDetails *details)
 {
-  AudienceHandle *handle = internal_window_create(std::wstring(title), std::wstring(url));
+  InternalWindowDetails internal_details{
+      details->webapp_type,
+      std::wstring(details->webapp_location),
+      std::wstring(details->loading_title != nullptr ? details->loading_title : L"Loading...")};
+  AudienceHandle *handle = internal_window_create(internal_details);
 #ifdef __OBJC__
   return (__bridge_retained void *)handle;
 #else
@@ -76,13 +89,13 @@ static inline void _internal_window_destroy(void *handle)
     }                                                 \
   }
 
-#define AUDIENCE_EXTIMPL_WINDOW_CREATE                                               \
-  void *audience_window_create(const wchar_t *const title, const wchar_t *const url) \
-  {                                                                                  \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                                                     \
-    {                                                                                \
-      return NUCLEUS_SAFE_FN(_internal_window_create, nullptr)(title, url);          \
-    }                                                                                \
+#define AUDIENCE_EXTIMPL_WINDOW_CREATE                                   \
+  void *audience_window_create(const AudienceWindowDetails *details)     \
+  {                                                                      \
+    AUDIENCE_EXTIMPL_RELEASEPOOL                                         \
+    {                                                                    \
+      return NUCLEUS_SAFE_FN(_internal_window_create, nullptr)(details); \
+    }                                                                    \
   }
 
 #define AUDIENCE_EXTIMPL_WINDOW_DESTROY         \

@@ -44,8 +44,13 @@ bool internal_init() {
   return true;
 }
 
-AudienceHandle *internal_window_create(const std::wstring &title,
-                                       const std::wstring &url) {
+AudienceHandle *internal_window_create(const InternalWindowDetails &details) {
+  // check parameter
+  if (details.webapp_type != AUDIENCE_WEBAPP_TYPE_URL) {
+    TRACEA(error, "only url based web apps are supported");
+    return nullptr;
+  }
+
   // prepare handle object
   AudienceHandle *handle = [[AudienceHandle alloc] init];
 
@@ -69,8 +74,9 @@ AudienceHandle *internal_window_create(const std::wstring &title,
   handle.window.handle = handle;
 
   [handle.window setTitle:[[NSString alloc]
-                              initWithBytes:title.c_str()
-                                     length:title.length() * sizeof(wchar_t)
+                              initWithBytes:details.loading_title.c_str()
+                                     length:details.loading_title.length() *
+                                            sizeof(wchar_t)
                                    encoding:NSUTF32LittleEndianStringEncoding]];
   [handle.window center];
 
@@ -82,12 +88,14 @@ AudienceHandle *internal_window_create(const std::wstring &title,
       loadRequest:
           [NSURLRequest
               requestWithURL:
-                  [NSURL URLWithString:
-                             [[NSString alloc]
-                                 initWithBytes:url.c_str()
-                                        length:url.length() * sizeof(wchar_t)
-                                      encoding:
-                                          NSUTF32LittleEndianStringEncoding]]]];
+                  [NSURL
+                      URLWithString:
+                          [[NSString alloc]
+                              initWithBytes:details.webapp_location.c_str()
+                                     length:details.webapp_location.length() *
+                                            sizeof(wchar_t)
+                                   encoding:
+                                       NSUTF32LittleEndianStringEncoding]]]];
   [handle.webview setAutoresizesSubviews:YES];
   [handle.webview setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
 

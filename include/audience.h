@@ -1,6 +1,6 @@
 #pragma once
 
-#include <wchar.h>
+#include <audience_details.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -9,7 +9,7 @@ extern "C"
 
   bool audience_init();
   bool audience_is_initialized();
-  void *audience_window_create(const wchar_t *const title, const wchar_t *const url);
+  void *audience_window_create(const AudienceWindowDetails *details);
   void audience_window_destroy(void *handle);
   void audience_loop();
 

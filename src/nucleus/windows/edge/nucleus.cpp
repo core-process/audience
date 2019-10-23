@@ -39,9 +39,16 @@ bool internal_init()
   return true;
 }
 
-AudienceHandle *internal_window_create(const std::wstring &title, const std::wstring &url)
+AudienceHandle *internal_window_create(const InternalWindowDetails &details)
 {
   scope_guard scope_fail(scope_guard::execution::exception);
+
+  // check parameter
+  if (details.webapp_type != AUDIENCE_WEBAPP_TYPE_URL)
+  {
+    TRACEA(error, "only url based web apps are supported");
+    return nullptr;
+  }
 
   // register window class
   WNDCLASSEXW wndcls;
@@ -67,7 +74,7 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
   // create window
   AudienceHandle handle = std::make_shared<AudienceHandleData>();
 
-  HWND window = CreateWindowW(wndcls.lpszClassName, title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &handle);
+  HWND window = CreateWindowW(wndcls.lpszClassName, details.loading_title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &handle);
   if (!window)
   {
     return nullptr;
@@ -102,7 +109,7 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
   UpdateWebViewPosition(handle);
 
   // navigate to initial URL
-  handle->webview.Navigate(Uri(hstring(url)));
+  handle->webview.Navigate(Uri(hstring(details.webapp_location)));
 
   TRACEA(info, "web widget created successfully");
 

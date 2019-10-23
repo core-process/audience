@@ -115,13 +115,13 @@ bool audience_init()
   return SAFE_FN(_audience_init, false)();
 }
 
-void *audience_window_create(const wchar_t *const title, const wchar_t *const url)
+void *audience_window_create(const AudienceWindowDetails *details)
 {
   if (!audience_is_initialized())
   {
     return nullptr;
   }
-  return nucleus_window_create(title, url);
+  return nucleus_window_create(details);
 }
 
 void audience_window_destroy(void *handle)

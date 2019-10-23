@@ -23,6 +23,8 @@ if(WIN32)
   add_compile_options(/bigobj)
 endif()
 
+include_directories(include)
+
 #######################################################################
 # AUDIENCE DEPENDENCIES
 #######################################################################
@@ -54,7 +56,6 @@ add_library(audience STATIC
   src/shell/webserver/process.cpp
 )
 set_target_properties(audience PROPERTIES CXX_STANDARD 11)
-target_include_directories(audience PUBLIC include)
 
 add_dependencies(audience boost)
 target_include_directories(audience PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)

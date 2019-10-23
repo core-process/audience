@@ -54,9 +54,13 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  auto window = audience_window_create(
-      args.size() > 1 ? args[1].c_str() : L"Loading...",
-      args.size() > 2 ? args[2].c_str() : (std::wstring(L"http://127.0.0.1:") + std::to_wstring(ws_port) + L"/").c_str());
+  auto webapp_url = std::wstring(L"http://127.0.0.1:") + std::to_wstring(ws_port) + L"/";
+  AudienceWindowDetails window_details{
+      AUDIENCE_WEBAPP_TYPE_URL,
+      webapp_url.c_str(),
+      nullptr};
+
+  auto window = audience_window_create(&window_details);
 
   if (window == nullptr)
   {
