@@ -85,6 +85,12 @@ AudienceHandle *internal_window_create(const std::wstring &title, const std::wst
   g_signal_connect(G_OBJECT(handle->webview), "destroy", G_CALLBACK(NUCLEUS_SAFE_FN(widget_destroy_callback)), nullptr);
   g_signal_connect(G_OBJECT(handle->webview), "notify::title", G_CALLBACK(NUCLEUS_SAFE_FN(webview_title_update_callback)), nullptr);
 
+  // TODO debugging features
+  // WebKitSettings *settings =
+  //     webkit_web_view_get_settings(WEBKIT_WEB_VIEW(handle->webview));
+  // webkit_settings_set_enable_write_console_messages_to_stdout(settings, true);
+  // webkit_settings_set_enable_developer_extras(settings, true);
+
   // show window and trigger url load
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(handle->webview), urla.c_str());
   gtk_widget_show_all(GTK_WIDGET(handle->window));
