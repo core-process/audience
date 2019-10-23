@@ -1,5 +1,6 @@
 #ifdef WIN32
 #include <windows.h>
+#include <shlobj.h>
 #endif
 
 #include <iostream>
@@ -42,13 +43,42 @@ int main(int argc, char **argv)
 #endif
 
   // read arguments
+  std::wstring app_dir;
+
   if (args.size() < 2)
   {
+#if defined(WIN32)
+    BROWSEINFOW bi;
+    ZeroMemory(&bi, sizeof(BROWSEINFOW));
+    bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+    bi.lpszTitle = L"Please select web app folder:";
+
+    LPITEMIDLIST pidl = NULL;
+    if ((pidl = SHBrowseForFolderW(&bi)) != NULL)
+    {
+      wchar_t buffer[MAX_PATH + 1];
+      if (SHGetPathFromIDListW(pidl, buffer))
+      {
+        app_dir = buffer;
+      }
+      else
+      {
+        return 1;
+      }
+    }
+    else
+    {
+      return 1;
+    }
+#else
     std::wcerr << L"Usage: " << args[0] << L" <APP_DIR>" << std::endl;
     return 1;
+#endif
   }
-
-  std::wstring app_dir = args[1];
+  else
+  {
+    app_dir = args[1];
+  }
 
   // create and show window
   if (!audience_init())

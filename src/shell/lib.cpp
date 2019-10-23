@@ -148,6 +148,9 @@ void *_audience_window_create(const AudienceWindowDetails *details)
     // construct url of webapp
     auto webapp_url = std::wstring(L"http://") + converter.from_bytes(address) + L":" + std::to_wstring(ws_port) + L"/";
 
+    TRACEW(info, L"serving app from folder " << details->webapp_location);
+    TRACEW(info, L"serving app via url " << webapp_url);
+
     // create window
     AudienceWindowDetails new_details{
         AUDIENCE_WEBAPP_TYPE_URL,
