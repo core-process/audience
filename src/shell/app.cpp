@@ -44,10 +44,8 @@ int main(int argc, char **argv)
   }
 #endif
 
-  std::thread ws([]() {
-    webserver("127.0.0.1", 8080, "/Users/niklas/Dev/avantgarde/avantgarde-mythicalcards/src/frontend", 3);
-  });
-  std::this_thread::sleep_for(std::chrono::seconds(1));
+  unsigned short ws_port = 0;
+  auto ws = webserver_start("127.0.0.1", ws_port, "/Users/niklas/Dev/avantgarde/avantgarde-mythicalcards/src/frontend", 3);
 
   // create and show window
   if (!audience_init())
@@ -58,7 +56,7 @@ int main(int argc, char **argv)
 
   auto window = audience_window_create(
       args.size() > 1 ? args[1].c_str() : L"Loading...",
-      args.size() > 2 ? args[2].c_str() : L"http://127.0.0.1:8080/");
+      args.size() > 2 ? args[2].c_str() : (std::wstring(L"http://127.0.0.1:") + std::to_wstring(ws_port) + L"/").c_str());
 
   if (window == nullptr)
   {
@@ -69,7 +67,7 @@ int main(int argc, char **argv)
   audience_loop();
   audience_window_destroy(window);
 
-  ws.join();
+  webserver_stop(ws);
 
   return 0;
 }

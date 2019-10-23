@@ -114,6 +114,12 @@ public:
       std::shared_ptr<std::string const> const &doc_root)
       : stream_(std::move(socket)), doc_root_(doc_root), queue_(*this)
   {
+    TRACEA(info, "http session created");
+  }
+
+  ~http_session()
+  {
+    TRACEA(info, "http session closed");
   }
 
   // Start the session

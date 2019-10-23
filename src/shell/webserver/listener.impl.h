@@ -56,6 +56,11 @@ public:
     }
   }
 
+  boost::asio::ip::tcp::endpoint local_endpoint()
+  {
+    return acceptor_.local_endpoint();
+  }
+
   // Start accepting incoming connections
   void
   run()

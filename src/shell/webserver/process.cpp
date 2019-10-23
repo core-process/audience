@@ -1,44 +1,56 @@
-#include <boost/asio/signal_set.hpp>
 #include <thread>
 #include <iostream>
 
 #include "listener.impl.h"
+#include "process.h"
 
-void webserver(std::string address, unsigned short port, std::string doc_root, int threads)
+struct WebserverHandle
 {
   // The io_context is required for all I/O
-  boost::asio::io_context ioc{threads};
+  boost::asio::io_context ioc;
+  std::vector<std::thread> threads;
+
+  WebserverHandle(int concurrency_hint)
+      : ioc(concurrency_hint)
+  {
+    threads.reserve(concurrency_hint);
+  }
+};
+
+std::shared_ptr<WebserverHandle> webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads)
+{
+  auto handle = std::make_shared<WebserverHandle>(threads);
 
   // Create and launch a listening port
-  std::make_shared<listener>(
-      ioc,
+  auto l = std::make_shared<listener>(
+      handle->ioc,
       boost::asio::ip::tcp::endpoint{boost::asio::ip::make_address(address), port},
-      std::make_shared<std::string>(doc_root))
-      ->run();
+      std::make_shared<std::string>(doc_root));
 
-  // Capture SIGINT and SIGTERM to perform a clean shutdown
-  boost::asio::signal_set signals(ioc, SIGINT, SIGTERM);
-  signals.async_wait(
-      [&](boost::beast::error_code const &, int) {
-        // Stop the `io_context`. This will cause `run()`
-        // to return immediately, eventually destroying the
-        // `io_context` and all of the sockets in it.
-        ioc.stop();
-      });
+  port = l->local_endpoint().port();
+  TRACEA(info, "webserver started at " << address << ":" << port);
+
+  l->run();
 
   // Run the I/O service on the requested number of threads
-  std::vector<std::thread> v;
-  v.reserve(threads - 1);
-  for (auto i = threads - 1; i > 0; --i)
-    v.emplace_back(
-        [&ioc] {
-          ioc.run();
+  for (auto i = 0; i < threads; ++i)
+  {
+    handle->threads.emplace_back(
+        [handle] {
+          handle->ioc.run();
         });
-  ioc.run();
+  }
 
-  // (If we get here, it means we got a SIGINT or SIGTERM)
+  return handle;
+}
+
+void webserver_stop(std::shared_ptr<WebserverHandle> handle)
+{
+  handle->ioc.stop();
 
   // Block until all the threads exit
-  for (auto &t : v)
-    t.join();
+  for (auto &thread : handle->threads)
+  {
+    thread.join();
+  }
 }

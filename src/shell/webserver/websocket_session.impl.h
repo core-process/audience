@@ -18,6 +18,12 @@ public:
   explicit websocket_session(boost::asio::ip::tcp::socket &&socket)
       : ws_(std::move(socket))
   {
+    TRACEA(info, "websocket session created");
+  }
+
+  ~websocket_session()
+  {
+    TRACEA(info, "websocket session closed");
   }
 
   // Start the asynchronous accept operation
