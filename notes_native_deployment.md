@@ -16,6 +16,7 @@ Proposed Schema: audience, e.g. audience://myapp/ or audience://myapp/main.js
 ## Windows Edge
 - https://docs.microsoft.com/en-us/uwp/api/windows.web.ui.iwebviewcontrol.webresourcerequested
 - https://docs.microsoft.com/en-us/uwp/api/windows.ui.xaml.controls.webview.navigatetolocalstreamuri
+- https://code.msdn.microsoft.com/HTML-WebView-control-sample-56e773fa/sourcecode?fileId=99260&pathId=523934392
 
 ## Windows IE11
 - https://stackoverflow.com/a/8325433

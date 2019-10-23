@@ -12,6 +12,7 @@
 #include "../shared/init.h"
 #include "../shared/resource.h"
 #include "nucleus.h"
+#include "stream_resolver.h"
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
@@ -47,9 +48,9 @@ AudienceHandle *internal_window_create(const InternalWindowDetails &details)
   scope_guard scope_fail(scope_guard::execution::exception);
 
   // check parameter
-  if (details.webapp_type != AUDIENCE_WEBAPP_TYPE_URL)
+  if (details.webapp_type != AUDIENCE_WEBAPP_TYPE_DIRECTORY)
   {
-    TRACEA(error, "only url based web apps are supported");
+    TRACEA(error, "only directory based web apps are supported");
     return nullptr;
   }
 
@@ -112,7 +113,8 @@ AudienceHandle *internal_window_create(const InternalWindowDetails &details)
   UpdateWebViewPosition(handle);
 
   // navigate to initial URL
-  handle->webview.Navigate(Uri(hstring(details.webapp_location)));
+  auto uri = handle->webview.BuildLocalStreamUri(L"webapp", L"index.html");
+  handle->webview.NavigateToLocalStreamUri(uri, winrt::make<WebViewUriToStreamResolver>(details.webapp_location));
 
   TRACEA(info, "web widget created successfully");
 

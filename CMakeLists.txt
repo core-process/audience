@@ -91,6 +91,7 @@ if(WIN32)
   )
   set_target_properties(audience_windows_edge PROPERTIES CXX_STANDARD 17)
   target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)
+  target_compile_options(audience_windows_edge PRIVATE "/await")
   target_link_libraries(audience_windows_edge PRIVATE WindowsApp.lib)
 
   # windows: ie11 widget
