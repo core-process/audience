@@ -13,12 +13,17 @@ extern "C"
     AUDIENCE_WEBAPP_TYPE_URL = 1
   };
 
+#pragma pack(push)
+#pragma pack(1)
+
   struct AudienceWindowDetails
   {
     AudienceWebAppType webapp_type;
     const wchar_t *webapp_location; // cannot be nullptr
     const wchar_t *loading_title;   // defaults to "Loading..."
   };
+
+#pragma pack(pop)
 
 #ifdef __cplusplus
 }

@@ -5,6 +5,7 @@
 
 #include <audience_details.h>
 
+#include "../../common/nucleus_interface_details.h"
 #include "safefn.h"
 #include "nucleus.h"
 
@@ -20,7 +21,7 @@
 
 extern "C"
 {
-  AUDIENCE_EXT_EXPORT bool audience_init();
+  AUDIENCE_EXT_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation);
   AUDIENCE_EXT_EXPORT void *audience_window_create(const AudienceWindowDetails *details);
   AUDIENCE_EXT_EXPORT void audience_window_destroy(void *handle);
   AUDIENCE_EXT_EXPORT void audience_loop();
@@ -37,7 +38,7 @@ struct InternalWindowDetails
   std::wstring loading_title;
 };
 
-bool internal_init();
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation);
 AudienceHandle *internal_window_create(const InternalWindowDetails &details);
 void internal_window_destroy(AudienceHandle *handle);
 void internal_loop();
@@ -80,13 +81,13 @@ static inline void _internal_window_destroy(void *handle)
 #define AUDIENCE_EXTIMPL_RELEASEPOOL
 #endif
 
-#define AUDIENCE_EXTIMPL_INIT                         \
-  bool audience_init()                                \
-  {                                                   \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                      \
-    {                                                 \
-      return NUCLEUS_SAFE_FN(internal_init, false)(); \
-    }                                                 \
+#define AUDIENCE_EXTIMPL_INIT                                         \
+  bool audience_init(AudienceNucleusProtocolNegotiation *negotiation) \
+  {                                                                   \
+    AUDIENCE_EXTIMPL_RELEASEPOOL                                      \
+    {                                                                 \
+      return NUCLEUS_SAFE_FN(internal_init, false)(negotiation);      \
+    }                                                                 \
   }
 
 #define AUDIENCE_EXTIMPL_WINDOW_CREATE                                   \

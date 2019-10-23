@@ -16,8 +16,12 @@
 void widget_destroy_callback(GtkWidget *widget, gpointer arg);
 void webview_title_update_callback(GtkWidget *widget, gpointer arg);
 
-bool internal_init()
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
 {
+  // negotiate protocol
+  negotiation->allow_webapp_type_url = true;
+
+  // init gtk
   if (gtk_init_check(0, NULL) == FALSE)
   {
     return false;

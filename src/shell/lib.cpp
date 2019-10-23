@@ -30,7 +30,8 @@ nucleus_window_create_t nucleus_window_create = nullptr;
 nucleus_window_destroy_t nucleus_window_destroy = nullptr;
 nucleus_loop_t nucleus_loop = nullptr;
 
-std::map<void *, std::shared_ptr<WebserverHandle>> _audience_webserver_registry;
+AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
+std::map<void *, std::shared_ptr<WebserverHandle>> nucleus_webserver_registry{};
 
 bool audience_is_initialized()
 {
@@ -83,7 +84,9 @@ static bool _audience_init()
         TRACEA(info, "could not find function pointer in library " << dylib);
       }
 
-      if (audience_is_initialized() && nucleus_init())
+      nucleus_protocol_negotiation = {false, false};
+
+      if (audience_is_initialized() && nucleus_init(&nucleus_protocol_negotiation))
       {
         TRACEA(info, "library " << dylib << " loaded successfully");
         return true;
@@ -97,6 +100,7 @@ static bool _audience_init()
       nucleus_window_create = nullptr;
       nucleus_window_destroy = nullptr;
       nucleus_loop = nullptr;
+      nucleus_protocol_negotiation = {};
 
 #ifdef WIN32
       FreeLibrary(dlh);
@@ -128,14 +132,19 @@ void *_audience_window_create(const AudienceWindowDetails *details)
     return nullptr;
   }
 
-  // create url based application window
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_URL)
+  // cases which do not require an webserver
+  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_URL && nucleus_protocol_negotiation.allow_webapp_type_url)
   {
     return nucleus_window_create(details);
   }
 
-  // create directory based application window
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY)
+  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.allow_webapp_type_directory)
+  {
+    return nucleus_window_create(details);
+  }
+
+  // create a webserver and translate directory based webapp to url webapp
+  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.allow_webapp_type_url)
   {
     std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
@@ -166,13 +175,13 @@ void *_audience_window_create(const AudienceWindowDetails *details)
     }
 
     // attach webserver to registry
-    _audience_webserver_registry[window_handle] = ws_handle;
+    nucleus_webserver_registry[window_handle] = ws_handle;
 
     // return window handle
     return window_handle;
   }
 
-  throw std::invalid_argument("invalid webapp type");
+  throw std::invalid_argument("cannot serve web app, either unknown type or protocol insufficient");
 }
 
 void *audience_window_create(const AudienceWindowDetails *details)
@@ -191,11 +200,11 @@ void _audience_window_destroy(void *handle)
   nucleus_window_destroy(handle);
 
   // check if we have to stop a running webservice
-  auto i = _audience_webserver_registry.find(handle);
-  if (i != _audience_webserver_registry.end())
+  auto i = nucleus_webserver_registry.find(handle);
+  if (i != nucleus_webserver_registry.end())
   {
     webserver_stop(i->second);
-    _audience_webserver_registry.erase(i);
+    nucleus_webserver_registry.erase(i);
   }
 }
 

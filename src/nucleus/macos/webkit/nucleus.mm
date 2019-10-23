@@ -38,9 +38,14 @@
 }
 @end
 
-bool internal_init() {
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation) {
+  // negotiate protocol
+  negotiation->allow_webapp_type_url = true;
+
+  // init shared application object
   [NSApplication sharedApplication];
   TRACEA(info, "initialized");
+
   return true;
 }
 

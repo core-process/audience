@@ -23,8 +23,11 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 Rect GetWebViewTargetPosition(const AudienceHandle &handle);
 void UpdateWebViewPosition(const AudienceHandle &handle);
 
-bool internal_init()
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
 {
+  // negotiate protocol
+  negotiation->allow_webapp_type_directory = true;
+
   // initialize COM
   auto r = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
   if (r != S_OK && r != S_FALSE)

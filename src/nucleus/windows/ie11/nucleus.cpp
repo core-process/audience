@@ -12,8 +12,11 @@
 bool fix_ie_compat_mode();
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 
-bool internal_init()
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
 {
+  // negotiate protocol
+  negotiation->allow_webapp_type_url = true;
+
   // fix ie compat mode
   if (!fix_ie_compat_mode())
   {
