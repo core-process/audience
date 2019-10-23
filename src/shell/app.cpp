@@ -10,6 +10,10 @@
 #include <audience.h>
 #include "../common/trace.h"
 
+#include "webserver/process.h"
+#include <thread>
+#include <chrono>
+
 #ifdef WIN32
 int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
@@ -40,6 +44,11 @@ int main(int argc, char **argv)
   }
 #endif
 
+  std::thread ws([]() {
+    webserver("127.0.0.1", 8080, "/Users/niklas/Dev/avantgarde/avantgarde-mythicalcards/src/frontend", 3);
+  });
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
   // create and show window
   if (!audience_init())
   {
@@ -49,7 +58,7 @@ int main(int argc, char **argv)
 
   auto window = audience_window_create(
       args.size() > 1 ? args[1].c_str() : L"Loading...",
-      args.size() > 2 ? args[2].c_str() : L"https://mikripatrida.com/en");
+      args.size() > 2 ? args[2].c_str() : L"http://127.0.0.1:8080/");
 
   if (window == nullptr)
   {
@@ -59,6 +68,8 @@ int main(int argc, char **argv)
 
   audience_loop();
   audience_window_destroy(window);
+
+  ws.join();
 
   return 0;
 }

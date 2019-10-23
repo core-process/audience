@@ -46,6 +46,7 @@ ExternalProject_Add(boost
 add_library(audience STATIC
   src/shell/lib.cpp
   src/shell/whereami.c
+  src/shell/webserver/process.cpp
 )
 set_target_properties(audience PROPERTIES CXX_STANDARD 11)
 target_include_directories(audience PUBLIC include)
