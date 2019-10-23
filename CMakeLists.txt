@@ -13,9 +13,14 @@ option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
 #######################################################################
 
 add_compile_definitions(AUDIENCE_ENABLE_TRACE=$<CONFIG:Debug>)
+add_compile_definitions(BOOST_ALL_NO_LIB=1)
 
 if(AUDIENCE_STATIC_RUNTIME)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
+if(WIN32)
+  add_compile_options(/bigobj)
 endif()
 
 #######################################################################
