@@ -5,11 +5,11 @@
 #include "../../shared/interface.h"
 #include "nucleus.h"
 
-@implementation AudienceHandle
+@implementation AudienceWindowContextData
 @end
 
 @interface BrowserWindow : NSWindow <NSWindowDelegate>
-@property(strong) AudienceHandle *handle;
+@property(strong) AudienceWindowContext context;
 - (void)timedWindowTitleUpdate:(NSTimer *)timer;
 - (void)windowWillClose:(NSNotification *)notification;
 @end
@@ -17,21 +17,28 @@
 @implementation BrowserWindow
 - (void)timedWindowTitleUpdate:(NSTimer *)timer {
   // update window title with document title
-  if (self.handle != NULL && self.handle.webview != NULL) {
-    [self setTitle:[self.handle.webview title]];
+  if (self.context != NULL && self.context.webview != NULL) {
+    [self setTitle:[self.context.webview title]];
   }
 }
+
 - (void)windowWillClose:(NSNotification *)notification {
-  // clear all references on handle and remove handle reference
-  if (self.handle != NULL) {
-    if (self.handle.titletimer != NULL) {
-      [self.handle.titletimer invalidate];
-      self.handle.titletimer = NULL;
+  if (self.context != NULL) {
+    // trigger event
+    internal_on_window_destroyed(self.context);
+
+    // invalidate title timer
+    if (self.context.titletimer != NULL) {
+      [self.context.titletimer invalidate];
+      self.context.titletimer = NULL;
     }
-    self.handle.window = NULL;
-    self.handle.webview = NULL;
-    self.handle = NULL;
+
+    // remove all references
+    self.context.window = NULL;
+    self.context.webview = NULL;
+    self.context = NULL;
   }
+
   // post application quit event
   [NSApp terminate:self];
   TRACEA(info, "window closed");
@@ -49,22 +56,17 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation) {
   return true;
 }
 
-AudienceHandle *internal_window_create(const InternalWindowDetails &details) {
-  // check parameter
-  if (details.webapp_type != AUDIENCE_WEBAPP_TYPE_URL) {
-    TRACEA(error, "only url based web apps are supported");
-    return nullptr;
-  }
-
-  // prepare handle object
-  AudienceHandle *handle = [[AudienceHandle alloc] init];
+AudienceWindowContext
+internal_window_create(const InternalWindowDetails &details) {
+  // prepare context object
+  AudienceWindowContext context = [[AudienceWindowContextData alloc] init];
 
   // create window
   NSRect screenSize = NSScreen.mainScreen.frame;
   NSRect targetRect =
       CGRectMake(0, 0, screenSize.size.width / 2, screenSize.size.height / 2);
 
-  handle.window = [[BrowserWindow alloc]
+  context.window = [[BrowserWindow alloc]
       initWithContentRect:targetRect
                 styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                           NSWindowStyleMaskMiniaturizable |
@@ -73,23 +75,24 @@ AudienceHandle *internal_window_create(const InternalWindowDetails &details) {
                     defer:NO
                    screen:NSScreen.mainScreen];
 
-  [handle.window setReleasedWhenClosed:NO];
+  [context.window setReleasedWhenClosed:NO];
 
-  handle.window.delegate = handle.window;
-  handle.window.handle = handle;
+  context.window.delegate = context.window;
+  context.window.context = context;
 
-  [handle.window setTitle:[[NSString alloc]
-                              initWithBytes:details.loading_title.c_str()
-                                     length:details.loading_title.length() *
-                                            sizeof(wchar_t)
-                                   encoding:NSUTF32LittleEndianStringEncoding]];
-  [handle.window center];
+  [context.window
+      setTitle:[[NSString alloc]
+                   initWithBytes:details.loading_title.c_str()
+                          length:details.loading_title.length() *
+                                 sizeof(wchar_t)
+                        encoding:NSUTF32LittleEndianStringEncoding]];
+  [context.window center];
 
   // create webview
   WKWebViewConfiguration *config = [WKWebViewConfiguration new];
-  handle.webview = [[WKWebView alloc] initWithFrame:targetRect
-                                      configuration:config];
-  [handle.webview
+  context.webview = [[WKWebView alloc] initWithFrame:targetRect
+                                       configuration:config];
+  [context.webview
       loadRequest:
           [NSURLRequest
               requestWithURL:
@@ -101,12 +104,13 @@ AudienceHandle *internal_window_create(const InternalWindowDetails &details) {
                                             sizeof(wchar_t)
                                    encoding:
                                        NSUTF32LittleEndianStringEncoding]]]];
-  [handle.webview setAutoresizesSubviews:YES];
-  [handle.webview setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
+  [context.webview setAutoresizesSubviews:YES];
+  [context.webview
+      setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
 
   // attach webview and put window in front
-  [handle.window.contentView addSubview:handle.webview];
-  [handle.window orderFrontRegardless];
+  [context.window.contentView addSubview:context.webview];
+  [context.window orderFrontRegardless];
 
   // activate and finish launching
   [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
@@ -114,22 +118,23 @@ AudienceHandle *internal_window_create(const InternalWindowDetails &details) {
   [NSApp activateIgnoringOtherApps:YES];
 
   // create title update timer
-  handle.titletimer =
+  context.titletimer =
       [NSTimer scheduledTimerWithTimeInterval:1
-                                       target:handle.window
+                                       target:context.window
                                      selector:@selector(timedWindowTitleUpdate:)
                                      userInfo:NULL
                                       repeats:YES];
 
   TRACEA(info, "window created");
-  return handle;
+  return context;
 }
 
-void internal_window_destroy(AudienceHandle *handle) {
-  if (handle.window != NULL) {
-    [handle.window close];
+void internal_window_destroy(AudienceWindowContext context) {
+  // perform close operation
+  if (context != NULL && context.window != NULL) {
+    [context.window close];
+    TRACEA(info, "window close triggered");
   }
-  TRACEA(info, "public window handle destroyed");
 }
 
 void internal_loop() { [NSApp run]; }

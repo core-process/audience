@@ -5,21 +5,21 @@
 #include <memory>
 
 ///////////////////////////////////////////////////////////////////////
-// Handle
+// Window Context
 ///////////////////////////////////////////////////////////////////////
 
-struct AudienceHandleData
+struct AudienceWindowContextData
 {
   HWND window;
   winrt::Windows::Web::UI::IWebViewControl webview;
 
-  AudienceHandleData() : window(nullptr),
-                         webview(nullptr)
+  AudienceWindowContextData() : window(nullptr),
+                                webview(nullptr)
   {
   }
 };
 
-using AudienceHandle = std::shared_ptr<AudienceHandleData>;
+using AudienceWindowContext = std::shared_ptr<AudienceWindowContextData>;
 
 ///////////////////////////////////////////////////////////////////////
 // Exception Handling

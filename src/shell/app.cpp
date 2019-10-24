@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 
   auto window = audience_window_create(&window_details);
 
-  if (window == nullptr)
+  if (!window)
   {
     TRACEA(error, "could not create audience window");
     return 2;

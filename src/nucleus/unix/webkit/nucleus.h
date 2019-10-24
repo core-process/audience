@@ -3,15 +3,15 @@
 #include <gtk/gtk.h>
 #include <memory>
 
-struct AudienceHandleData
+struct AudienceWindowContextData
 {
   GtkWidget *window;
   GtkWidget *webview;
 
-  AudienceHandleData() : window(nullptr),
-                         webview(nullptr)
+  AudienceWindowContextData() : window(nullptr),
+                                webview(nullptr)
   {
   }
 };
 
-using AudienceHandle = std::shared_ptr<AudienceHandleData>;
+using AudienceWindowContext = std::shared_ptr<AudienceWindowContextData>;

@@ -5,8 +5,10 @@
 
 @class BrowserWindow;
 
-@interface AudienceHandle : NSObject
+@interface AudienceWindowContextData : NSObject
 @property(strong) BrowserWindow *window;
 @property(strong) WKWebView *webview;
 @property(strong) NSTimer *titletimer;
 @end
+
+typedef AudienceWindowContextData *AudienceWindowContext;

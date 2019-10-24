@@ -94,6 +94,9 @@ if(WIN32)
   target_compile_options(audience_windows_edge PRIVATE "/await")
   target_link_libraries(audience_windows_edge PRIVATE WindowsApp.lib)
 
+  add_dependencies(audience_windows_edge boost)
+  target_include_directories(audience_windows_edge PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
+
   # windows: ie11 widget
   add_library(audience_windows_ie11 SHARED
     src/nucleus/windows/ie11/nucleus.cpp
@@ -106,6 +109,9 @@ if(WIN32)
   target_include_directories(audience_windows_ie11 PRIVATE src/nucleus/windows/ie11)
   target_link_libraries(audience_windows_ie11 PRIVATE comsuppw.lib)
 
+  add_dependencies(audience_windows_ie11 boost)
+  target_include_directories(audience_windows_ie11 PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
+
 elseif(APPLE)
 
   # macos: webkit widget
@@ -117,6 +123,9 @@ elseif(APPLE)
   target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_link_libraries(audience_macos_webkit PRIVATE "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
+
+  add_dependencies(audience_macos_webkit boost)
+  target_include_directories(audience_macos_webkit PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
 
 elseif(UNIX)
 
@@ -133,5 +142,8 @@ elseif(UNIX)
   target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit)
   target_include_directories(audience_unix_webkit PRIVATE ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
   target_link_libraries(audience_unix_webkit PRIVATE ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES} Threads::Threads)
+
+  add_dependencies(audience_unix_webkit boost)
+  target_include_directories(audience_unix_webkit PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
 
 endif()

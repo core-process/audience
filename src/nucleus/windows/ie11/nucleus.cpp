@@ -34,16 +34,9 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
   return true;
 }
 
-AudienceHandle *internal_window_create(const InternalWindowDetails &details)
+AudienceWindowContext internal_window_create(const InternalWindowDetails &details)
 {
   scope_guard scope_fail(scope_guard::execution::exception);
-
-  // check parameter
-  if (details.webapp_type != AUDIENCE_WEBAPP_TYPE_URL)
-  {
-    TRACEA(error, "only url based web apps are supported");
-    return nullptr;
-  }
 
   // register window class
   WNDCLASSEXW wndcls;
@@ -63,62 +56,56 @@ AudienceHandle *internal_window_create(const InternalWindowDetails &details)
 
   if (RegisterClassExW(&wndcls) == 0)
   {
-    return nullptr;
+    return {};
   }
 
   // create window
-  AudienceHandle handle = std::make_shared<AudienceHandleData>();
+  AudienceWindowContext context = std::make_shared<AudienceWindowContextData>();
 
-  HWND window = CreateWindowW(wndcls.lpszClassName, details.loading_title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &handle);
+  HWND window = CreateWindowW(wndcls.lpszClassName, details.loading_title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &context);
   if (!window)
   {
-    return nullptr;
+    return {};
   }
 
   scope_fail += [window]() { DestroyWindow(window); };
 
   // create browser widget
-  handle->webview = new IEWebView();
-  handle->webview->AddRef();
+  context->webview = new IEWebView();
+  context->webview->AddRef();
 
-  scope_fail += [handle]() {
-    if (handle->webview != nullptr)
+  scope_fail += [context]() {
+    if (context->webview != nullptr)
     {
-      handle->webview->Release();
-      handle->webview = nullptr;
+      context->webview->Release();
+      context->webview = nullptr;
     }
   };
 
-  if (!handle->webview->Create(window))
+  if (!context->webview->Create(window))
   {
     throw std::runtime_error("creation of web view failed");
   }
 
   // navigate to url
-  handle->webview->Navigate(details.webapp_location.c_str());
+  context->webview->Navigate(details.webapp_location.c_str());
 
   // show window
   ShowWindow(window, SW_SHOW);
   UpdateWindow(window);
 
   TRACEA(info, "window created successfully");
-
-  // return handle
-  return new AudienceHandle(handle);
+  return context;
 }
 
-void internal_window_destroy(AudienceHandle *handle)
+void internal_window_destroy(AudienceWindowContext context)
 {
   // destroy window
-  if ((*handle)->window != nullptr)
+  if (context->window != nullptr)
   {
-    DestroyWindow((*handle)->window);
+    DestroyWindow(context->window);
     TRACEA(info, "window destroyed");
   }
-
-  // delete handle
-  delete handle;
-  TRACEA(info, "handle deleted");
 }
 
 void internal_loop()
@@ -168,17 +155,17 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
   {
   case WM_NCCREATE:
   {
-    // install handle as user data
-    auto handle = reinterpret_cast<AudienceHandle *>(((CREATESTRUCT *)lParam)->lpCreateParams);
-    if (handle != nullptr)
+    // install context as user data
+    auto context = reinterpret_cast<AudienceWindowContext *>(((CREATESTRUCT *)lParam)->lpCreateParams);
+    if (context != nullptr)
     {
-      (*handle)->window = window;
-      SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) new AudienceHandle(*handle));
-      TRACEA(info, "handle installed in GWLP_USERDATA");
+      (*context)->window = window;
+      SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) new AudienceWindowContext(*context));
+      TRACEA(info, "private context installed in GWLP_USERDATA");
     }
     else
     {
-      TRACEA(error, "handle invalid");
+      TRACEA(error, "context invalid");
     }
   }
   break;
@@ -205,14 +192,14 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
   case WM_SIZE:
   {
     // resize web widget
-    auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-    if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview != nullptr)
+    auto context_priv = reinterpret_cast<AudienceWindowContext *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+    if (context_priv != nullptr && (*context_priv)->window != nullptr && (*context_priv)->webview != nullptr)
     {
-      (*handle)->webview->UpdateWebViewPosition();
+      (*context_priv)->webview->UpdateWebViewPosition();
     }
     else
     {
-      TRACEA(warning, "handle invalid");
+      TRACEA(warning, "private context invalid");
     }
   }
   break;
@@ -224,15 +211,15 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     {
     case 0x1:
     {
-      auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-      if (handle != nullptr && (*handle)->window != nullptr && (*handle)->webview != nullptr)
+      auto context_priv = reinterpret_cast<AudienceWindowContext *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+      if (context_priv != nullptr && (*context_priv)->window != nullptr && (*context_priv)->webview != nullptr)
       {
-        auto doctitle = (*handle)->webview->GetDocumentTitle();
+        auto doctitle = (*context_priv)->webview->GetDocumentTitle();
         SetWindowTextW(window, doctitle.c_str());
       }
       else
       {
-        TRACEA(error, "handle invalid");
+        TRACEA(error, "private context invalid");
       }
     }
     break;
@@ -245,27 +232,30 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     // clear timer for title updates
     KillTimer(window, 0x1);
 
-    // clean up installed handle
-    auto handle = reinterpret_cast<AudienceHandle *>(GetWindowLongPtrW(window, GWLP_USERDATA));
-    if (handle != nullptr)
+    // clean up installed context
+    auto context_priv = reinterpret_cast<AudienceWindowContext *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+    if (context_priv != nullptr)
     {
+      // trigger event
+      internal_on_window_destroyed(*context_priv);
+
       // reset referenced window and widget
-      if ((*handle)->webview != nullptr)
+      if ((*context_priv)->webview != nullptr)
       {
-        (*handle)->webview->Release();
-        (*handle)->webview = nullptr;
+        (*context_priv)->webview->Release();
+        (*context_priv)->webview = nullptr;
       }
-      (*handle)->window = nullptr;
+      (*context_priv)->window = nullptr;
 
-      // remove handle from window user data
+      // remove private context from window user data
       SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) nullptr);
-      delete handle;
+      delete context_priv;
 
-      TRACEA(info, "handle removed from GWLP_USERDATA");
+      TRACEA(info, "private context removed from GWLP_USERDATA");
     }
     else
     {
-      TRACEA(error, "handle invalid");
+      TRACEA(error, "context invalid");
     }
 
     // quit message loop

@@ -5,15 +5,15 @@
 
 #include "webview.h"
 
-struct AudienceHandleData
+struct AudienceWindowContextData
 {
   HWND window;
   IEWebView *webview;
 
-  AudienceHandleData() : window(nullptr),
-                         webview(nullptr)
+  AudienceWindowContextData() : window(nullptr),
+                                webview(nullptr)
   {
   }
 };
 
-using AudienceHandle = std::shared_ptr<AudienceHandleData>;
+using AudienceWindowContext = std::shared_ptr<AudienceWindowContextData>;

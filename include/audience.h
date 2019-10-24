@@ -9,8 +9,8 @@ extern "C"
 
   bool audience_init();
   bool audience_is_initialized();
-  void *audience_window_create(const AudienceWindowDetails *details);
-  void audience_window_destroy(void *handle);
+  AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
+  void audience_window_destroy(AudienceWindowHandle handle);
   void audience_loop();
 
 #ifdef __cplusplus

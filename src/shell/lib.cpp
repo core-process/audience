@@ -49,7 +49,7 @@ thread_local nucleus_window_destroy_t nucleus_window_destroy = nullptr;
 thread_local nucleus_loop_t nucleus_loop = nullptr;
 
 thread_local AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
-thread_local std::map<void *, std::shared_ptr<WebserverHandle>> nucleus_webserver_registry{};
+thread_local std::map<AudienceWindowHandle, std::shared_ptr<WebserverHandle>> nucleus_webserver_registry{};
 
 bool audience_is_initialized()
 {
@@ -162,7 +162,7 @@ bool audience_init()
   return SAFE_FN(_audience_init, false)();
 }
 
-void *_audience_window_create(const AudienceWindowDetails *details)
+AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *details)
 {
   // validate thread lock
   SHELL_CHECK_THREAD_LOCK;
@@ -170,7 +170,7 @@ void *_audience_window_create(const AudienceWindowDetails *details)
   // ensure initialization
   if (!audience_is_initialized())
   {
-    return nullptr;
+    return {};
   }
 
   // cases which do not require an webserver
@@ -209,28 +209,27 @@ void *_audience_window_create(const AudienceWindowDetails *details)
 
     auto window_handle = nucleus_window_create(&new_details);
 
-    if (window_handle == nullptr)
+    if (window_handle == AudienceWindowHandle{})
     {
       webserver_stop(ws_handle);
-      return nullptr;
+      return {};
     }
 
     // attach webserver to registry
     nucleus_webserver_registry[window_handle] = ws_handle;
 
-    // return window handle
     return window_handle;
   }
 
   throw std::invalid_argument("cannot serve web app, either unknown type or protocol insufficient");
 }
 
-void *audience_window_create(const AudienceWindowDetails *details)
+AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details)
 {
-  return SAFE_FN(_audience_window_create, nullptr)(details);
+  return SAFE_FN(_audience_window_create, AudienceWindowHandle{})(details);
 }
 
-void _audience_window_destroy(void *handle)
+void _audience_window_destroy(AudienceWindowHandle handle)
 {
   // validate thread lock
   SHELL_CHECK_THREAD_LOCK;
@@ -253,7 +252,7 @@ void _audience_window_destroy(void *handle)
   }
 }
 
-void audience_window_destroy(void *handle)
+void audience_window_destroy(AudienceWindowHandle handle)
 {
   SAFE_FN(_audience_window_destroy)
   (handle);
