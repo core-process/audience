@@ -84,7 +84,7 @@ static bool _audience_init()
         TRACEA(info, "could not find function pointer in library " << dylib);
       }
 
-      nucleus_protocol_negotiation = {false, false};
+      nucleus_protocol_negotiation = {false, false, false};
 
       if (audience_is_initialized() && nucleus_init(&nucleus_protocol_negotiation))
       {

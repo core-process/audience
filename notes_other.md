@@ -1,0 +1,1 @@
+- https://www.reddit.com/r/cpp/comments/4v06wu/passing_capturing_c_lambda_functions_as_function/

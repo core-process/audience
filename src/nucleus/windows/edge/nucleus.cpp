@@ -28,6 +28,7 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
 {
   // negotiate protocol
   negotiation->nucleus_handles_webapp_type_directory = true;
+  negotiation->nucleus_handles_messaging = true;
 
   // initialize COM
   auto r = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
