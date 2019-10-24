@@ -138,6 +138,12 @@ void internal_main()
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
+
+  // trigger final event
+  internal_on_process_quit();
+
+  // lets quit now
+  TRACEA(info, "calling ExitProcess()");
   ExitProcess(0);
 }
 
@@ -219,6 +225,31 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
   }
   break;
 
+  case WM_CLOSE:
+  {
+    bool prevent_close = false;
+
+    // trigger event
+    auto context_priv = reinterpret_cast<AudienceWindowContext *>(GetWindowLongPtrW(window, GWLP_USERDATA));
+    if (context_priv != nullptr)
+    {
+      internal_on_window_will_close(*context_priv, prevent_close);
+    }
+    else
+    {
+      TRACEA(error, "private context invalid");
+    }
+
+    // close window
+    if (!prevent_close)
+    {
+      DestroyWindow(window);
+    }
+
+    return 0;
+  }
+  break;
+
   case WM_DESTROY:
   {
     bool prevent_quit = false;
@@ -248,10 +279,19 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
       TRACEA(error, "private context invalid");
     }
 
-    // quit message loop
+    // trigger further events
     if (!prevent_quit)
     {
-      PostQuitMessage(0);
+      // trigger process will quit event
+      prevent_quit = false;
+      internal_on_process_will_quit(prevent_quit);
+
+      // quit message loop
+      if (!prevent_quit)
+      {
+        TRACEA(info, "posting WM_QUIT");
+        PostQuitMessage(0);
+      }
     }
   }
   break;
