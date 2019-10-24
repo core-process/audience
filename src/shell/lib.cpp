@@ -17,6 +17,7 @@
 #include <locale>
 #include <map>
 #include <thread>
+#include <mutex>
 
 #include <audience.h>
 
