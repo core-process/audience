@@ -119,7 +119,7 @@ void internal_loop()
 
 void widget_destroy_callback(GtkWidget *widget, gpointer arg)
 {
-  auto context_priv = reinterpret_cast<AudienceWindowContext>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+  auto context_priv = reinterpret_cast<AudienceWindowContext*>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (context_priv != nullptr)
   {
     // trigger event
@@ -149,7 +149,7 @@ void widget_destroy_callback(GtkWidget *widget, gpointer arg)
 
 void webview_title_update_callback(GtkWidget *widget, gpointer arg)
 {
-  auto context_priv = reinterpret_cast<AudienceWindowContext>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+  auto context_priv = reinterpret_cast<AudienceWindowContext*>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (context_priv != nullptr && (*context_priv)->window != nullptr && (*context_priv)->webview != nullptr)
   {
     auto title = webkit_web_view_get_title(WEBKIT_WEB_VIEW((*context_priv)->webview));
