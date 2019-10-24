@@ -112,18 +112,21 @@ void internal_window_destroy(AudienceWindowContext context)
   }
 }
 
-void internal_loop()
+void internal_main()
 {
   gtk_main();
+  exit(0);
 }
 
 void widget_destroy_callback(GtkWidget *widget, gpointer arg)
 {
-  auto context_priv = reinterpret_cast<AudienceWindowContext*>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+  bool prevent_quit = false;
+
+  auto context_priv = reinterpret_cast<AudienceWindowContext *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (context_priv != nullptr)
   {
     // trigger event
-    internal_on_window_destroyed(*context_priv);
+    internal_on_window_close(*context_priv, prevent_quit);
 
     // remove context pointer from widgets
     if ((*context_priv)->window != nullptr)
@@ -144,12 +147,15 @@ void widget_destroy_callback(GtkWidget *widget, gpointer arg)
   }
 
   // trigger quit signal
-  gtk_main_quit();
+  if (!prevent_quit)
+  {
+    gtk_main_quit();
+  }
 }
 
 void webview_title_update_callback(GtkWidget *widget, gpointer arg)
 {
-  auto context_priv = reinterpret_cast<AudienceWindowContext*>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+  auto context_priv = reinterpret_cast<AudienceWindowContext *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (context_priv != nullptr && (*context_priv)->window != nullptr && (*context_priv)->webview != nullptr)
   {
     auto title = webkit_web_view_get_title(WEBKIT_WEB_VIEW((*context_priv)->webview));

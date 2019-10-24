@@ -27,8 +27,8 @@
 #include "nucleus.h"
 #include "util.h"
 
-std::mutex nucleus_thread_lock_mutex;
-std::thread::id nucleus_thread_lock_id;
+static std::mutex nucleus_thread_lock_mutex;
+static std::thread::id nucleus_thread_lock_id;
 
 #define SHELL_CHECK_THREAD_LOCK                                                                                            \
   {                                                                                                                        \
@@ -43,20 +43,28 @@ std::thread::id nucleus_thread_lock_id;
     }                                                                                                                      \
   }
 
-thread_local nucleus_init_t nucleus_init = nullptr;
-thread_local nucleus_window_create_t nucleus_window_create = nullptr;
-thread_local nucleus_window_destroy_t nucleus_window_destroy = nullptr;
-thread_local nucleus_loop_t nucleus_loop = nullptr;
+static thread_local nucleus_init_t nucleus_init = nullptr;
+static thread_local nucleus_window_create_t nucleus_window_create = nullptr;
+static thread_local nucleus_window_destroy_t nucleus_window_destroy = nullptr;
+static thread_local nucleus_main_t nucleus_main = nullptr;
 
-thread_local AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
-thread_local std::map<AudienceWindowHandle, std::shared_ptr<WebserverHandle>> nucleus_webserver_registry{};
+static thread_local AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
+static thread_local std::map<AudienceWindowHandle, WebserverHandle> nucleus_webserver_registry{};
+
+static thread_local AudienceEventHandler user_process_event_handler{};
+static thread_local std::map<AudienceWindowHandle, AudienceWindowEventHandler> user_window_event_handler{};
+
+static void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close);
+static void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit);
+static void _audience_on_process_will_quit(bool *prevent_quit);
+static void _audience_on_process_quit();
 
 bool audience_is_initialized()
 {
-  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_loop != nullptr;
+  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr;
 }
 
-static bool _audience_init()
+static bool _audience_init(const AudienceEventHandler *event_handler)
 {
   // perform thread lock if not locked already
   {
@@ -112,7 +120,7 @@ static bool _audience_init()
       nucleus_init = (nucleus_init_t)LookupFunction(dlh, "audience_init");
       nucleus_window_create = (nucleus_window_create_t)LookupFunction(dlh, "audience_window_create");
       nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "audience_window_destroy");
-      nucleus_loop = (nucleus_loop_t)LookupFunction(dlh, "audience_loop");
+      nucleus_main = (nucleus_main_t)LookupFunction(dlh, "audience_main");
 
       if (!audience_is_initialized())
       {
@@ -120,12 +128,16 @@ static bool _audience_init()
       }
 
       // try to initializes and negotiate protocol
-      nucleus_protocol_negotiation = {false, false, false};
+      nucleus_protocol_negotiation = {};
+      nucleus_protocol_negotiation.shell_event_handler.window_level.on_will_close = _audience_on_window_will_close;
+      nucleus_protocol_negotiation.shell_event_handler.window_level.on_close = _audience_on_window_close;
+      nucleus_protocol_negotiation.shell_event_handler.process_level.on_will_quit = _audience_on_process_will_quit;
+      nucleus_protocol_negotiation.shell_event_handler.process_level.on_quit = _audience_on_process_quit;
 
       if (audience_is_initialized() && nucleus_init(&nucleus_protocol_negotiation))
       {
         TRACEA(info, "library " << dylib << " loaded successfully");
-        return true;
+        break;
       }
       else
       {
@@ -136,7 +148,7 @@ static bool _audience_init()
       nucleus_init = nullptr;
       nucleus_window_create = nullptr;
       nucleus_window_destroy = nullptr;
-      nucleus_loop = nullptr;
+      nucleus_main = nullptr;
       nucleus_protocol_negotiation = {};
 
 #ifdef WIN32
@@ -154,15 +166,23 @@ static bool _audience_init()
     }
   }
 
-  return false;
+  // bail out in case we failed
+  if (!audience_is_initialized())
+  {
+    return false;
+  }
+
+  // copy event handler info, then we are done
+  user_process_event_handler = *event_handler;
+  return true;
 }
 
-bool audience_init()
+bool audience_init(const AudienceEventHandler *event_handler)
 {
-  return SAFE_FN(_audience_init, false)();
+  return SAFE_FN(_audience_init, false)(event_handler);
 }
 
-AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *details)
+AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
 {
   // validate thread lock
   SHELL_CHECK_THREAD_LOCK;
@@ -173,19 +193,19 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     return {};
   }
 
+  AudienceWindowHandle window_handle{};
+
   // cases which do not require an webserver
   if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_URL && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
-    return nucleus_window_create(details);
+    window_handle = nucleus_window_create(details);
   }
-
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_directory)
+  else if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_directory)
   {
-    return nucleus_window_create(details);
+    window_handle = nucleus_window_create(details);
   }
-
   // create a webserver and translate directory based webapp to url webapp
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
+  else if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
     std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
@@ -201,32 +221,42 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     TRACEW(info, L"serving app from folder " << details->webapp_location);
     TRACEW(info, L"serving app via url " << webapp_url);
 
-    // create window
-    AudienceWindowDetails new_details{
-        AUDIENCE_WEBAPP_TYPE_URL,
-        webapp_url.c_str(),
-        details->loading_title};
+    // adapt window details
+    AudienceWindowDetails new_details = *details;
+    new_details.webapp_type = AUDIENCE_WEBAPP_TYPE_URL;
+    new_details.webapp_location = webapp_url.c_str();
 
-    auto window_handle = nucleus_window_create(&new_details);
+    // create window
+    window_handle = nucleus_window_create(&new_details);
 
     if (window_handle == AudienceWindowHandle{})
     {
+      // stop the web server in case we could not create window
       webserver_stop(ws_handle);
-      return {};
     }
-
-    // attach webserver to registry
-    nucleus_webserver_registry[window_handle] = ws_handle;
-
-    return window_handle;
+    else
+    {
+      // attach webserver to registry
+      nucleus_webserver_registry[window_handle] = ws_handle;
+    }
+  }
+  else
+  {
+    throw std::invalid_argument("cannot serve web app, either unknown type or protocol insufficient");
   }
 
-  throw std::invalid_argument("cannot serve web app, either unknown type or protocol insufficient");
+  // copy event handler info
+  if (window_handle != AudienceWindowHandle{})
+  {
+    user_window_event_handler[window_handle] = *event_handler;
+  }
+
+  return window_handle;
 }
 
-AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details)
+AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
 {
-  return SAFE_FN(_audience_window_create, AudienceWindowHandle{})(details);
+  return SAFE_FN(_audience_window_create, AudienceWindowHandle{})(details, event_handler);
 }
 
 void _audience_window_destroy(AudienceWindowHandle handle)
@@ -242,14 +272,6 @@ void _audience_window_destroy(AudienceWindowHandle handle)
 
   // destroy window
   nucleus_window_destroy(handle);
-
-  // check if we have to stop a running webservice
-  auto i = nucleus_webserver_registry.find(handle);
-  if (i != nucleus_webserver_registry.end())
-  {
-    webserver_stop(i->second);
-    nucleus_webserver_registry.erase(i);
-  }
 }
 
 void audience_window_destroy(AudienceWindowHandle handle)
@@ -258,7 +280,7 @@ void audience_window_destroy(AudienceWindowHandle handle)
   (handle);
 }
 
-void _audience_loop()
+void _audience_main()
 {
   // validate thread lock
   SHELL_CHECK_THREAD_LOCK;
@@ -270,11 +292,72 @@ void _audience_loop()
   }
 
   // run loop
-  nucleus_loop();
+  nucleus_main();
 }
 
-void audience_loop()
+void audience_main()
 {
-  SAFE_FN(_audience_loop)
+  SAFE_FN(_audience_main)
   ();
+}
+
+static inline void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close)
+{
+  // call user event handler
+  auto ehi = user_window_event_handler.find(handle);
+  if (ehi != user_window_event_handler.end())
+  {
+    if (ehi->second.on_will_close.handler != nullptr)
+    {
+      ehi->second.on_will_close.handler(
+          handle,
+          ehi->second.on_will_close.context,
+          prevent_close);
+    }
+  }
+}
+
+static inline void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit)
+{
+  // call user event handler
+  auto ehi = user_window_event_handler.find(handle);
+  if (ehi != user_window_event_handler.end())
+  {
+    if (ehi->second.on_close.handler != nullptr)
+    {
+      ehi->second.on_close.handler(
+          handle,
+          ehi->second.on_close.context,
+          prevent_quit);
+    }
+  }
+
+  // check if we have to stop a running webservice
+  auto wsi = nucleus_webserver_registry.find(handle);
+  if (wsi != nucleus_webserver_registry.end())
+  {
+    webserver_stop(wsi->second);
+    nucleus_webserver_registry.erase(wsi);
+  }
+}
+
+static inline void _audience_on_process_will_quit(bool *prevent_quit)
+{
+  // call user event handler
+  if (user_process_event_handler.on_will_quit.handler != nullptr)
+  {
+    user_process_event_handler.on_will_quit.handler(
+        user_process_event_handler.on_will_quit.context,
+        prevent_quit);
+  }
+}
+
+static inline void _audience_on_process_quit()
+{
+  // call user event handler
+  if (user_process_event_handler.on_quit.handler != nullptr)
+  {
+    user_process_event_handler.on_quit.handler(
+        user_process_event_handler.on_quit.context);
+  }
 }

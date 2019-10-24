@@ -104,11 +104,11 @@ void internal_window_destroy(AudienceWindowContext context)
   if (context->window != nullptr)
   {
     DestroyWindow(context->window);
-    TRACEA(info, "window destroyed");
+    TRACEA(info, "window destroy triggered");
   }
 }
 
-void internal_loop()
+void internal_main()
 {
   MSG msg;
   while (GetMessage(&msg, nullptr, 0, 0))
@@ -116,6 +116,7 @@ void internal_loop()
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
+  ExitProcess(0);
 }
 
 #define KEY_FEATURE_BROWSER_EMULATION \
@@ -229,6 +230,8 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 
   case WM_DESTROY:
   {
+    bool prevent_quit = false;
+
     // clear timer for title updates
     KillTimer(window, 0x1);
 
@@ -237,7 +240,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     if (context_priv != nullptr)
     {
       // trigger event
-      internal_on_window_destroyed(*context_priv);
+      internal_on_window_close(*context_priv, prevent_quit);
 
       // reset referenced window and widget
       if ((*context_priv)->webview != nullptr)
@@ -259,7 +262,10 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     }
 
     // quit message loop
-    PostQuitMessage(0);
+    if (!prevent_quit)
+    {
+      PostQuitMessage(0);
+    }
   }
   break;
   }

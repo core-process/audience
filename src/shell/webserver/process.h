@@ -3,7 +3,8 @@
 #include <string>
 #include <memory>
 
-struct WebserverHandle;
+struct WebserverHandleData;
+typedef std::shared_ptr<WebserverHandleData> WebserverHandle;
 
-std::shared_ptr<WebserverHandle> webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads);
-void webserver_stop(std::shared_ptr<WebserverHandle> handle);
+WebserverHandle webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads);
+void webserver_stop(WebserverHandle &handle);

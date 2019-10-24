@@ -4,22 +4,22 @@
 #include "listener.impl.h"
 #include "process.h"
 
-struct WebserverHandle
+struct WebserverHandleData
 {
   // The io_context is required for all I/O
   boost::asio::io_context ioc;
   std::vector<std::thread> threads;
 
-  WebserverHandle(int concurrency_hint)
+  WebserverHandleData(int concurrency_hint)
       : ioc(concurrency_hint)
   {
     threads.reserve(concurrency_hint);
   }
 };
 
-std::shared_ptr<WebserverHandle> webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads)
+WebserverHandle webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads)
 {
-  auto handle = std::make_shared<WebserverHandle>(threads);
+  auto handle = std::make_shared<WebserverHandleData>(threads);
 
   // Create and launch a listening port
   auto l = std::make_shared<listener>(
@@ -44,7 +44,7 @@ std::shared_ptr<WebserverHandle> webserver_start(std::string address, unsigned s
   return handle;
 }
 
-void webserver_stop(std::shared_ptr<WebserverHandle> handle)
+void webserver_stop(WebserverHandle &handle)
 {
   handle->ioc.stop();
 
@@ -53,6 +53,8 @@ void webserver_stop(std::shared_ptr<WebserverHandle> handle)
   {
     thread.join();
   }
+
+  handle.reset();
 
   TRACEA(info, "webserver stopped");
 }

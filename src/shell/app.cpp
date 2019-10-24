@@ -81,27 +81,30 @@ int main(int argc, char **argv)
   }
 
   // create and show window
-  if (!audience_init())
+  AudienceEventHandler peh{};
+  peh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); };
+  peh.on_quit.handler = [](void *context) { TRACEA(info, "event quit"); };
+
+  if (!audience_init(&peh))
   {
     TRACEA(error, "could not initialize audience");
     return 2;
   }
 
-  AudienceWindowDetails window_details{
-      AUDIENCE_WEBAPP_TYPE_DIRECTORY,
-      app_dir.c_str(),
-      nullptr};
+  AudienceWindowDetails wd{};
+  wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
+  wd.webapp_location = app_dir.c_str();
 
-  auto window = audience_window_create(&window_details);
+  AudienceWindowEventHandler weh{};
+  weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); };
+  weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); };
 
-  if (!window)
+  if (!audience_window_create(&wd, &weh))
   {
     TRACEA(error, "could not create audience window");
     return 2;
   }
 
-  audience_loop();
-  audience_window_destroy(window);
-
-  return 0;
+  audience_main(); // calls exit by itself
+  return 0;        // just for the compiler
 }

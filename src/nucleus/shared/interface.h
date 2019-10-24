@@ -25,7 +25,7 @@ extern "C"
   AUDIENCE_EXT_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation);
   AUDIENCE_EXT_EXPORT AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
   AUDIENCE_EXT_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
-  AUDIENCE_EXT_EXPORT void audience_loop();
+  AUDIENCE_EXT_EXPORT void audience_main();
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -42,7 +42,7 @@ struct InternalWindowDetails
 bool internal_init(AudienceNucleusProtocolNegotiation *negotiation);
 AudienceWindowContext internal_window_create(const InternalWindowDetails &details);
 void internal_window_destroy(AudienceWindowContext context);
-void internal_loop();
+void internal_main();
 
 ///////////////////////////////////////////////////////////////////////
 // Bridge Implementation
@@ -51,6 +51,18 @@ void internal_loop();
 typedef boost::bimap<AudienceWindowHandle, AudienceWindowContext> InternalWindowContextMap;
 extern thread_local InternalWindowContextMap _internal_window_context_map;
 extern thread_local AudienceWindowHandle _internal_window_context_next_handle;
+
+extern thread_local AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation;
+
+static inline bool _internal_init(AudienceNucleusProtocolNegotiation *negotiation)
+{
+  auto status = internal_init(negotiation);
+  if (status)
+  {
+    _internal_protocol_negotiation = negotiation;
+  }
+  return status;
+}
 
 static inline AudienceWindowHandle _internal_window_create(const AudienceWindowDetails *details)
 {
@@ -67,7 +79,7 @@ static inline AudienceWindowHandle _internal_window_create(const AudienceWindowD
     return AudienceWindowHandle{};
   }
 
-  // allocate handle (we use defined overflow behaviour from unsinged data type here)
+  // allocate handle (we use defined overflow behaviour from unsigned data type here)
   auto handle = _internal_window_context_next_handle++;
   while (_internal_window_context_map.left.find(handle) != _internal_window_context_map.left.end())
   {
@@ -93,24 +105,84 @@ static inline void _internal_window_destroy(AudienceWindowHandle handle)
   }
   else
   {
-    TRACEA(warning, "window handle not found, window and its context already destroyed");
+    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
   }
 }
 
 ///////////////////////////////////////////////////////////////////////
-// Events
+// Event Handling
 ///////////////////////////////////////////////////////////////////////
 
-static inline void _internal_on_window_destroyed(AudienceWindowContext context)
+static inline void _internal_on_window_will_close(AudienceWindowContext context, bool &prevent_close)
 {
+  // lookup handle
+  auto ihandle = _internal_window_context_map.right.find(context);
+  if (ihandle == _internal_window_context_map.right.end())
+  {
+    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    return;
+  }
+
+  auto handle = ihandle->second;
+
+  // call shell handler
+  _internal_protocol_negotiation->shell_event_handler.window_level.on_will_close(handle, &prevent_close);
+}
+
+static inline void internal_on_window_will_close(AudienceWindowContext context, bool &prevent_close)
+{
+  NUCLEUS_SAFE_FN(_internal_on_window_will_close)
+  (context, prevent_close);
+}
+
+static inline void _internal_on_window_close(AudienceWindowContext context, bool &prevent_quit)
+{
+  // lookup handle
+  auto ihandle = _internal_window_context_map.right.find(context);
+  if (ihandle == _internal_window_context_map.right.end())
+  {
+    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    return;
+  }
+
+  auto handle = ihandle->second;
+
+  // call shell handler
+  _internal_protocol_negotiation->shell_event_handler.window_level.on_close(handle, &prevent_quit);
+
+  // remove window from context map
   _internal_window_context_map.right.erase(context);
   TRACEA(info, "window context and associated handle removed from map");
 }
 
-static inline void internal_on_window_destroyed(AudienceWindowContext context)
+static inline void internal_on_window_close(AudienceWindowContext context, bool &prevent_quit)
 {
-  NUCLEUS_SAFE_FN(_internal_on_window_destroyed)
-  (context);
+  NUCLEUS_SAFE_FN(_internal_on_window_close)
+  (context, prevent_quit);
+}
+
+static inline void _internal_on_process_will_quit(bool &prevent_quit)
+{
+  // call shell handler
+  _internal_protocol_negotiation->shell_event_handler.process_level.on_will_quit(&prevent_quit);
+}
+
+static inline void internal_on_process_will_quit(bool &prevent_quit)
+{
+  NUCLEUS_SAFE_FN(_internal_on_process_will_quit)
+  (prevent_quit);
+}
+
+static inline void _internal_on_process_quit()
+{
+  // call shell handler
+  _internal_protocol_negotiation->shell_event_handler.process_level.on_quit();
+}
+
+static inline void internal_on_process_quit()
+{
+  NUCLEUS_SAFE_FN(_internal_on_process_quit)
+  ();
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -128,7 +200,7 @@ static inline void internal_on_window_destroyed(AudienceWindowContext context)
   {                                                                   \
     AUDIENCE_EXTIMPL_RELEASEPOOL                                      \
     {                                                                 \
-      return NUCLEUS_SAFE_FN(internal_init, false)(negotiation);      \
+      return NUCLEUS_SAFE_FN(_internal_init, false)(negotiation);     \
     }                                                                 \
   }
 
@@ -151,20 +223,21 @@ static inline void internal_on_window_destroyed(AudienceWindowContext context)
     }                                                       \
   }
 
-#define AUDIENCE_EXTIMPL_LOOP        \
-  void audience_loop()               \
+#define AUDIENCE_EXTIMPL_MAIN        \
+  void audience_main()               \
   {                                  \
     AUDIENCE_EXTIMPL_RELEASEPOOL     \
     {                                \
-      NUCLEUS_SAFE_FN(internal_loop) \
+      NUCLEUS_SAFE_FN(internal_main) \
       ();                            \
     }                                \
   }
 
-#define AUDIENCE_EXTIMPL                                                                               \
-  thread_local boost::bimap<AudienceWindowHandle, AudienceWindowContext> _internal_window_context_map; \
-  thread_local AudienceWindowHandle _internal_window_context_next_handle = AudienceWindowHandle{} + 1; \
-  AUDIENCE_EXTIMPL_INIT;                                                                               \
-  AUDIENCE_EXTIMPL_WINDOW_CREATE;                                                                      \
-  AUDIENCE_EXTIMPL_WINDOW_DESTROY;                                                                     \
-  AUDIENCE_EXTIMPL_LOOP;
+#define AUDIENCE_EXTIMPL                                                                                 \
+  thread_local boost::bimap<AudienceWindowHandle, AudienceWindowContext> _internal_window_context_map{}; \
+  thread_local AudienceWindowHandle _internal_window_context_next_handle = AudienceWindowHandle{} + 1;   \
+  thread_local AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation = nullptr;             \
+  AUDIENCE_EXTIMPL_INIT;                                                                                 \
+  AUDIENCE_EXTIMPL_WINDOW_CREATE;                                                                        \
+  AUDIENCE_EXTIMPL_WINDOW_DESTROY;                                                                       \
+  AUDIENCE_EXTIMPL_MAIN;

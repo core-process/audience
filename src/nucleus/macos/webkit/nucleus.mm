@@ -8,13 +8,33 @@
 @implementation AudienceWindowContextData
 @end
 
-@interface BrowserWindow : NSWindow <NSWindowDelegate>
+@interface AudienceAppDelegate : NSObject <NSApplicationDelegate>
+- (NSApplicationTerminateReply)applicationShouldTerminate:
+    (NSApplication *)sender;
+- (void)applicationWillTerminate:(NSNotification *)notification;
+@end
+
+@implementation AudienceAppDelegate
+- (NSApplicationTerminateReply)applicationShouldTerminate:
+    (NSApplication *)sender {
+  bool prevent_quit = false;
+  internal_on_process_will_quit(prevent_quit);
+  return prevent_quit ? NSTerminateCancel : NSTerminateNow;
+}
+
+- (void)applicationWillTerminate:(NSNotification *)notification {
+  internal_on_process_quit();
+}
+@end
+
+@interface AudienceWindow : NSWindow <NSWindowDelegate>
 @property(strong) AudienceWindowContext context;
 - (void)timedWindowTitleUpdate:(NSTimer *)timer;
+- (BOOL)windowShouldClose:(NSWindow *)sender;
 - (void)windowWillClose:(NSNotification *)notification;
 @end
 
-@implementation BrowserWindow
+@implementation AudienceWindow
 - (void)timedWindowTitleUpdate:(NSTimer *)timer {
   // update window title with document title
   if (self.context != NULL && self.context.webview != NULL) {
@@ -22,10 +42,21 @@
   }
 }
 
+- (BOOL)windowShouldClose:(NSWindow *)sender {
+  // trigger event
+  bool prevent_close = false;
+  if (self.context != NULL) {
+    internal_on_window_will_close(self.context, prevent_close);
+  }
+  return !prevent_close;
+}
+
 - (void)windowWillClose:(NSNotification *)notification {
+  bool prevent_quit = false;
+
   if (self.context != NULL) {
     // trigger event
-    internal_on_window_destroyed(self.context);
+    internal_on_window_close(self.context, prevent_quit);
 
     // invalidate title timer
     if (self.context.titletimer != NULL) {
@@ -40,10 +71,17 @@
   }
 
   // post application quit event
-  [NSApp terminate:self];
+  if (!prevent_quit) {
+    dispatch_async(dispatch_get_main_queue(), ^{
+      [NSApp terminate:NULL];
+    });
+  }
+
   TRACEA(info, "window closed");
 }
 @end
+
+AudienceAppDelegate *_nucleus_app_delegate = nullptr;
 
 bool internal_init(AudienceNucleusProtocolNegotiation *negotiation) {
   // negotiate protocol
@@ -51,8 +89,12 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation) {
 
   // init shared application object
   [NSApplication sharedApplication];
-  TRACEA(info, "initialized");
 
+  // set delegate (we need a strong reference here)
+  _nucleus_app_delegate = [[AudienceAppDelegate alloc] init];
+  [NSApp setDelegate:_nucleus_app_delegate];
+
+  TRACEA(info, "initialized");
   return true;
 }
 
@@ -66,7 +108,7 @@ internal_window_create(const InternalWindowDetails &details) {
   NSRect targetRect =
       CGRectMake(0, 0, screenSize.size.width / 2, screenSize.size.height / 2);
 
-  context.window = [[BrowserWindow alloc]
+  context.window = [[AudienceWindow alloc]
       initWithContentRect:targetRect
                 styleMask:NSWindowStyleMaskTitled | NSWindowStyleMaskClosable |
                           NSWindowStyleMaskMiniaturizable |
@@ -131,10 +173,13 @@ internal_window_create(const InternalWindowDetails &details) {
 
 void internal_window_destroy(AudienceWindowContext context) {
   // perform close operation
-  if (context != NULL && context.window != NULL) {
+  if (context.window != NULL) {
     [context.window close];
     TRACEA(info, "window close triggered");
   }
 }
 
-void internal_loop() { [NSApp run]; }
+void internal_main() {
+  [NSApp run];
+  // NSApp.run() calls exit() by itself
+}
