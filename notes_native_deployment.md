@@ -8,6 +8,9 @@ Keep it for now. Throw out in case current approach works fine.
 
 Proposed Schema: audience, e.g. audience://myapp/ or audience://myapp/main.js
 
+## Unix QWebEngine
+- https://doc.qt.io/qt-5/qtwebengine-webenginewidgets-simplebrowser-example.htmlgit
+
 ## Unix Webkit
 - https://webkitgtk.org/reference/webkit2gtk/stable/WebKitWebContext.html#webkit-web-context-register-uri-scheme
 - https://stackoverflow.com/a/27586984
