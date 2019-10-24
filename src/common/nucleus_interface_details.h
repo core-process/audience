@@ -7,8 +7,8 @@
 
 struct AudienceNucleusProtocolNegotiation
 {
-  bool allow_webapp_type_directory;
-  bool allow_webapp_type_url;
+  bool nucleus_handles_webapp_type_directory;
+  bool nucleus_handles_webapp_type_url;
 };
 
 #pragma pack(pop)

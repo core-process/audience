@@ -40,7 +40,7 @@
 
 bool internal_init(AudienceNucleusProtocolNegotiation *negotiation) {
   // negotiate protocol
-  negotiation->allow_webapp_type_url = true;
+  negotiation->nucleus_handles_webapp_type_url = true;
 
   // init shared application object
   [NSApplication sharedApplication];

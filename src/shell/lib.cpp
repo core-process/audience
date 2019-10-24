@@ -133,18 +133,18 @@ void *_audience_window_create(const AudienceWindowDetails *details)
   }
 
   // cases which do not require an webserver
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_URL && nucleus_protocol_negotiation.allow_webapp_type_url)
+  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_URL && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
     return nucleus_window_create(details);
   }
 
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.allow_webapp_type_directory)
+  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_directory)
   {
     return nucleus_window_create(details);
   }
 
   // create a webserver and translate directory based webapp to url webapp
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.allow_webapp_type_url)
+  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
     std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
