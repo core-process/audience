@@ -73,8 +73,8 @@
 
   // post application quit event
   if (!prevent_quit) {
-    TRACEA(info, "calling NSApp.terminate()");
     dispatch_async(dispatch_get_main_queue(), ^{
+      TRACEA(info, "calling NSApp.terminate()");
       [NSApp terminate:NULL];
     });
   }
