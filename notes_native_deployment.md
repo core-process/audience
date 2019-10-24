@@ -1,5 +1,8 @@
 Keep it for now. Throw out in case current approach works fine.
 
+# Fallback to Browser
+- https://github.com/python/cpython/blob/3.8/Lib/webbrowser.py
+
 
 # Serve Application
 
