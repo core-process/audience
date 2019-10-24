@@ -16,6 +16,7 @@
 #include <codecvt>
 #include <locale>
 #include <map>
+#include <thread>
 
 #include <audience.h>
 
@@ -25,13 +26,29 @@
 #include "nucleus.h"
 #include "util.h"
 
-nucleus_init_t nucleus_init = nullptr;
-nucleus_window_create_t nucleus_window_create = nullptr;
-nucleus_window_destroy_t nucleus_window_destroy = nullptr;
-nucleus_loop_t nucleus_loop = nullptr;
+std::mutex nucleus_thread_lock_mutex;
+std::thread::id nucleus_thread_lock_id;
 
-AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
-std::map<void *, std::shared_ptr<WebserverHandle>> nucleus_webserver_registry{};
+#define SHELL_CHECK_THREAD_LOCK                                                                                            \
+  {                                                                                                                        \
+    std::lock_guard<std::mutex> lock(nucleus_thread_lock_mutex);                                                           \
+    if (nucleus_thread_lock_id == std::thread::id())                                                                       \
+    {                                                                                                                      \
+      throw std::runtime_error("audience needs to be locked to a specific thread (call audience_init() first)");           \
+    }                                                                                                                      \
+    if (nucleus_thread_lock_id != std::this_thread::get_id())                                                              \
+    {                                                                                                                      \
+      throw std::runtime_error("audience cannot be called from multiple threads (stick to you applications main thread)"); \
+    }                                                                                                                      \
+  }
+
+thread_local nucleus_init_t nucleus_init = nullptr;
+thread_local nucleus_window_create_t nucleus_window_create = nullptr;
+thread_local nucleus_window_destroy_t nucleus_window_destroy = nullptr;
+thread_local nucleus_loop_t nucleus_loop = nullptr;
+
+thread_local AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
+thread_local std::map<void *, std::shared_ptr<WebserverHandle>> nucleus_webserver_registry{};
 
 bool audience_is_initialized()
 {
@@ -40,11 +57,25 @@ bool audience_is_initialized()
 
 static bool _audience_init()
 {
+  // perform thread lock if not locked already
+  {
+    std::lock_guard<std::mutex> lock(nucleus_thread_lock_mutex);
+    if (nucleus_thread_lock_id == std::thread::id())
+    {
+      nucleus_thread_lock_id = std::this_thread::get_id();
+    }
+  }
+
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK;
+
+  // prevent double initialization
   if (audience_is_initialized())
   {
     return true;
   }
 
+  // nucleus library load order
   std::vector<std::string> dylibs{
 #ifdef WIN32
       "audience_windows_edge.dll",
@@ -56,8 +87,10 @@ static bool _audience_init()
 #endif
   };
 
+  // iterate libraries and stop at first successful load
   for (auto dylib : dylibs)
   {
+    // load library
     auto dylib_abs = dir_of_exe() + PATH_SEPARATOR + dylib;
     TRACEA(info, "trying to load library from path " << dylib_abs);
 #ifdef WIN32
@@ -66,6 +99,7 @@ static bool _audience_init()
     auto dlh = dlopen(dylib_abs.c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
 
+    // try to lookup symbols if loaded successfully
     if (dlh != nullptr)
     {
 #ifdef WIN32
@@ -84,6 +118,7 @@ static bool _audience_init()
         TRACEA(info, "could not find function pointer in library " << dylib);
       }
 
+      // try to initializes and negotiate protocol
       nucleus_protocol_negotiation = {false, false, false};
 
       if (audience_is_initialized() && nucleus_init(&nucleus_protocol_negotiation))
@@ -96,6 +131,7 @@ static bool _audience_init()
         TRACEA(info, "could not initialize library " << dylib);
       }
 
+      // reset function pointer and negotiation in case we failed
       nucleus_init = nullptr;
       nucleus_window_create = nullptr;
       nucleus_window_destroy = nullptr;
@@ -127,6 +163,10 @@ bool audience_init()
 
 void *_audience_window_create(const AudienceWindowDetails *details)
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK;
+
+  // ensure initialization
   if (!audience_is_initialized())
   {
     return nullptr;
@@ -191,6 +231,10 @@ void *audience_window_create(const AudienceWindowDetails *details)
 
 void _audience_window_destroy(void *handle)
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK;
+
+  // ensure initialization
   if (!audience_is_initialized())
   {
     return;
@@ -216,10 +260,16 @@ void audience_window_destroy(void *handle)
 
 void _audience_loop()
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK;
+
+  // ensure initialization
   if (!audience_is_initialized())
   {
     return;
   }
+
+  // run loop
   nucleus_loop();
 }
 
