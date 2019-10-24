@@ -24,6 +24,7 @@
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
   internal_on_process_quit();
+  TRACEA(info, "cocoa will call exit() for us now");
 }
 @end
 
@@ -72,6 +73,7 @@
 
   // post application quit event
   if (!prevent_quit) {
+    TRACEA(info, "calling NSApp.terminate()");
     dispatch_async(dispatch_get_main_queue(), ^{
       [NSApp terminate:NULL];
     });

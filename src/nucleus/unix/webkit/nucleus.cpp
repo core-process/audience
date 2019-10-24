@@ -13,7 +13,8 @@
 
 #define WIDGET_HANDLE_KEY "audience_window_handle"
 
-void widget_destroy_callback(GtkWidget *widget, gpointer arg);
+gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data);
+void window_destroy_callback(GtkWidget *widget, gpointer arg);
 void webview_title_update_callback(GtkWidget *widget, gpointer arg);
 
 bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
@@ -85,8 +86,8 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   g_object_set_data(G_OBJECT(context->webview), WIDGET_HANDLE_KEY, context_priv);
 
   // listen to destroy signal and title changed event
-  g_signal_connect(G_OBJECT(context->window), "destroy", G_CALLBACK(NUCLEUS_SAFE_FN(widget_destroy_callback)), nullptr);
-  g_signal_connect(G_OBJECT(context->webview), "destroy", G_CALLBACK(NUCLEUS_SAFE_FN(widget_destroy_callback)), nullptr);
+  g_signal_connect(G_OBJECT(context->window), "delete-event", G_CALLBACK(NUCLEUS_SAFE_FN(window_close_callback, TRUE)), nullptr);
+  g_signal_connect(G_OBJECT(context->window), "destroy", G_CALLBACK(NUCLEUS_SAFE_FN(window_destroy_callback)), nullptr);
   g_signal_connect(G_OBJECT(context->webview), "notify::title", G_CALLBACK(NUCLEUS_SAFE_FN(webview_title_update_callback)), nullptr);
 
   // TODO debugging features
@@ -115,10 +116,36 @@ void internal_window_destroy(AudienceWindowContext context)
 void internal_main()
 {
   gtk_main();
+
+  // trigger final event
+  internal_on_process_quit();
+
+  // lets quit now
+  TRACEA(info, "calling exit()");
   exit(0);
 }
 
-void widget_destroy_callback(GtkWidget *widget, gpointer arg)
+gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+  // trigger event
+  bool prevent_close = false;
+
+  auto context_priv = reinterpret_cast<AudienceWindowContext *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+  if (context_priv != nullptr)
+  {
+    internal_on_window_will_close(*context_priv, prevent_close);
+  }
+
+  // destroy window
+  if (!prevent_close)
+  {
+    gtk_widget_destroy(widget);
+  }
+
+  return TRUE;
+}
+
+void window_destroy_callback(GtkWidget *widget, gpointer arg)
 {
   bool prevent_quit = false;
 
@@ -146,10 +173,19 @@ void widget_destroy_callback(GtkWidget *widget, gpointer arg)
     TRACEA(info, "window closed and private context released");
   }
 
-  // trigger quit signal
+  // trigger further events
   if (!prevent_quit)
   {
-    gtk_main_quit();
+    // trigger process will quit event
+    prevent_quit = false;
+    internal_on_process_will_quit(prevent_quit);
+
+    // trigger quit signal
+    if (!prevent_quit)
+    {
+      TRACEA(info, "calling gtk_main_quit()");
+      gtk_main_quit();
+    }
   }
 }
 

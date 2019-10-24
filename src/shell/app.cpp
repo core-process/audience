@@ -82,7 +82,7 @@ int main(int argc, char **argv)
 
   // create and show window
   AudienceEventHandler peh{};
-  peh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); };
+  peh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); *prevent_quit = false; };
   peh.on_quit.handler = [](void *context) { TRACEA(info, "event quit"); };
 
   if (!audience_init(&peh))
@@ -96,8 +96,8 @@ int main(int argc, char **argv)
   wd.webapp_location = app_dir.c_str();
 
   AudienceWindowEventHandler weh{};
-  weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); };
-  weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); };
+  weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); *prevent_close = false; };
+  weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); *prevent_quit = false; };
 
   if (!audience_window_create(&wd, &weh))
   {
