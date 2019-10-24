@@ -26,6 +26,7 @@ extern "C"
   AUDIENCE_EXT_EXPORT AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
   AUDIENCE_EXT_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
   AUDIENCE_EXT_EXPORT void audience_main();
+  AUDIENCE_EXT_EXPORT void audience_dispatch_sync(void (*task)(void *context), void *context);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -43,16 +44,17 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation);
 AudienceWindowContext internal_window_create(const InternalWindowDetails &details);
 void internal_window_destroy(AudienceWindowContext context);
 void internal_main();
+void internal_dispatch_sync(void (*task)(void *context), void *context);
 
 ///////////////////////////////////////////////////////////////////////
 // Bridge Implementation
 ///////////////////////////////////////////////////////////////////////
 
 typedef boost::bimap<AudienceWindowHandle, AudienceWindowContext> InternalWindowContextMap;
-extern thread_local InternalWindowContextMap _internal_window_context_map;
-extern thread_local AudienceWindowHandle _internal_window_context_next_handle;
+extern InternalWindowContextMap _internal_window_context_map;
+extern AudienceWindowHandle _internal_window_context_next_handle;
 
-extern thread_local AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation;
+extern AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation;
 
 static inline bool _internal_init(AudienceNucleusProtocolNegotiation *negotiation)
 {
@@ -233,11 +235,22 @@ static inline void internal_on_process_quit()
     }                                \
   }
 
-#define AUDIENCE_EXTIMPL                                                                                 \
-  thread_local boost::bimap<AudienceWindowHandle, AudienceWindowContext> _internal_window_context_map{}; \
-  thread_local AudienceWindowHandle _internal_window_context_next_handle = AudienceWindowHandle{} + 1;   \
-  thread_local AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation = nullptr;             \
-  AUDIENCE_EXTIMPL_INIT;                                                                                 \
-  AUDIENCE_EXTIMPL_WINDOW_CREATE;                                                                        \
-  AUDIENCE_EXTIMPL_WINDOW_DESTROY;                                                                       \
-  AUDIENCE_EXTIMPL_MAIN;
+#define AUDIENCE_EXTIMPL_DISPATCH_SYNC                                    \
+  void audience_dispatch_sync(void (*task)(void *context), void *context) \
+  {                                                                       \
+    AUDIENCE_EXTIMPL_RELEASEPOOL                                          \
+    {                                                                     \
+      NUCLEUS_SAFE_FN(internal_dispatch_sync)                             \
+      (task, context);                                                    \
+    }                                                                     \
+  }
+
+#define AUDIENCE_EXTIMPL                                                                    \
+  boost::bimap<AudienceWindowHandle, AudienceWindowContext> _internal_window_context_map{}; \
+  AudienceWindowHandle _internal_window_context_next_handle = AudienceWindowHandle{} + 1;   \
+  AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation = nullptr;             \
+  AUDIENCE_EXTIMPL_INIT;                                                                    \
+  AUDIENCE_EXTIMPL_WINDOW_CREATE;                                                           \
+  AUDIENCE_EXTIMPL_WINDOW_DESTROY;                                                          \
+  AUDIENCE_EXTIMPL_MAIN;                                                                    \
+  AUDIENCE_EXTIMPL_DISPATCH_SYNC;

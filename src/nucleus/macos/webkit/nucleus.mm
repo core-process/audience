@@ -185,3 +185,14 @@ void internal_main() {
   [NSApp run];
   // NSApp.run() calls exit() by itself
 }
+
+void internal_dispatch_sync(void (*task)(void *context), void *context) {
+  if ([NSThread isMainThread]) {
+    task(context);
+  } else {
+    TRACEA(info, "dispatching task on main queue");
+    dispatch_sync(dispatch_get_main_queue(), ^{
+      task(context);
+    });
+  }
+}

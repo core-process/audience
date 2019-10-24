@@ -30,38 +30,66 @@
 static std::mutex nucleus_thread_lock_mutex;
 static std::thread::id nucleus_thread_lock_id;
 
-#define SHELL_CHECK_THREAD_LOCK                                                                                            \
-  {                                                                                                                        \
-    std::lock_guard<std::mutex> lock(nucleus_thread_lock_mutex);                                                           \
-    if (nucleus_thread_lock_id == std::thread::id())                                                                       \
-    {                                                                                                                      \
-      throw std::runtime_error("audience needs to be locked to a specific thread (call audience_init() first)");           \
-    }                                                                                                                      \
-    if (nucleus_thread_lock_id != std::this_thread::get_id())                                                              \
-    {                                                                                                                      \
-      throw std::runtime_error("audience cannot be called from multiple threads (stick to you applications main thread)"); \
-    }                                                                                                                      \
+#define SHELL_CHECK_THREAD_LOCK(on_fail)                                                                           \
+  {                                                                                                                \
+    bool thread_check_failed = false;                                                                              \
+    {                                                                                                              \
+      std::lock_guard<std::mutex> lock(nucleus_thread_lock_mutex);                                                 \
+      if (nucleus_thread_lock_id == std::thread::id())                                                             \
+      {                                                                                                            \
+        throw std::runtime_error("audience needs to be locked to a specific thread (call audience_init() first)"); \
+      }                                                                                                            \
+      if (nucleus_thread_lock_id != std::this_thread::get_id())                                                    \
+      {                                                                                                            \
+        thread_check_failed = true;                                                                                \
+      }                                                                                                            \
+    }                                                                                                              \
+    if (thread_check_failed)                                                                                       \
+    {                                                                                                              \
+      on_fail;                                                                                                     \
+    }                                                                                                              \
   }
 
-static thread_local nucleus_init_t nucleus_init = nullptr;
-static thread_local nucleus_window_create_t nucleus_window_create = nullptr;
-static thread_local nucleus_window_destroy_t nucleus_window_destroy = nullptr;
-static thread_local nucleus_main_t nucleus_main = nullptr;
+#define SHELL_CHECK_THREAD_LOCK_THROW SHELL_CHECK_THREAD_LOCK(throw std::runtime_error("audience cannot be called from multiple threads (stick to you applications main thread)"))
 
-static thread_local AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
-static thread_local std::map<AudienceWindowHandle, WebserverHandle> nucleus_webserver_registry{};
+#define SHELL_DISPATCH_SYNC(fn, return_type, ...)                                          \
+  {                                                                                        \
+    TRACEA(info, "dispatching " << #fn << " to main thread");                              \
+    return_type return_value{};                                                            \
+    auto task_lambda = [&]() { return_value = fn(__VA_ARGS__); };                          \
+    auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); }; \
+    nucleus_dispatch_sync(task, &task_lambda);                                             \
+    return return_value;                                                                   \
+  }
 
-static thread_local AudienceEventHandler user_process_event_handler{};
-static thread_local std::map<AudienceWindowHandle, AudienceWindowEventHandler> user_window_event_handler{};
+#define SHELL_DISPATCH_SYNC_VOID(fn, ...)                                                  \
+  {                                                                                        \
+    TRACEA(info, "dispatching " << #fn << " to main thread");                              \
+    auto task_lambda = [&]() { fn(__VA_ARGS__); };                                         \
+    auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); }; \
+    nucleus_dispatch_sync(task, &task_lambda);                                             \
+  }
+
+static nucleus_init_t nucleus_init = nullptr;
+static nucleus_window_create_t nucleus_window_create = nullptr;
+static nucleus_window_destroy_t nucleus_window_destroy = nullptr;
+static nucleus_main_t nucleus_main = nullptr;
+static nucleus_dispatch_sync_t nucleus_dispatch_sync = nullptr;
+
+static AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
+static std::map<AudienceWindowHandle, WebserverHandle> nucleus_webserver_registry{};
+
+static AudienceEventHandler user_process_event_handler{};
+static std::map<AudienceWindowHandle, AudienceWindowEventHandler> user_window_event_handler{};
 
 static void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close);
 static void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit);
 static void _audience_on_process_will_quit(bool *prevent_quit);
 static void _audience_on_process_quit();
 
-bool audience_is_initialized()
+static bool audience_is_initialized()
 {
-  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr;
+  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr;
 }
 
 static bool _audience_init(const AudienceEventHandler *event_handler)
@@ -76,7 +104,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
   }
 
   // validate thread lock
-  SHELL_CHECK_THREAD_LOCK;
+  SHELL_CHECK_THREAD_LOCK_THROW;
 
   // prevent double initialization
   if (audience_is_initialized())
@@ -121,6 +149,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
       nucleus_window_create = (nucleus_window_create_t)LookupFunction(dlh, "audience_window_create");
       nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "audience_window_destroy");
       nucleus_main = (nucleus_main_t)LookupFunction(dlh, "audience_main");
+      nucleus_dispatch_sync = (nucleus_dispatch_sync_t)LookupFunction(dlh, "audience_dispatch_sync");
 
       if (!audience_is_initialized())
       {
@@ -149,6 +178,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
       nucleus_window_create = nullptr;
       nucleus_window_destroy = nullptr;
       nucleus_main = nullptr;
+      nucleus_dispatch_sync = nullptr;
       nucleus_protocol_negotiation = {};
 
 #ifdef WIN32
@@ -185,7 +215,7 @@ bool audience_init(const AudienceEventHandler *event_handler)
 AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
 {
   // validate thread lock
-  SHELL_CHECK_THREAD_LOCK;
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC(audience_window_create, AudienceWindowHandle, details, event_handler));
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -262,7 +292,7 @@ AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details
 void _audience_window_destroy(AudienceWindowHandle handle)
 {
   // validate thread lock
-  SHELL_CHECK_THREAD_LOCK;
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(audience_window_destroy, handle));
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -283,7 +313,7 @@ void audience_window_destroy(AudienceWindowHandle handle)
 void _audience_main()
 {
   // validate thread lock
-  SHELL_CHECK_THREAD_LOCK;
+  SHELL_CHECK_THREAD_LOCK_THROW;
 
   // ensure initialization
   if (!audience_is_initialized())
