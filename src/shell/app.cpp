@@ -97,6 +97,7 @@ int main(int argc, char **argv)
   AudienceWindowDetails wd{};
   wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
   wd.webapp_location = app_dir.c_str();
+  wd.dev_mode = true;
 
   AudienceWindowEventHandler weh{};
   weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) {

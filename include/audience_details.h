@@ -25,6 +25,7 @@ extern "C"
     AudienceWebAppType webapp_type;
     const wchar_t *webapp_location; // cannot be nullptr
     const wchar_t *loading_title;   // defaults to "Loading..."
+    bool dev_mode;
   } AudienceWindowDetails;
 
   typedef struct

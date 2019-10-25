@@ -92,11 +92,14 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   g_signal_connect(G_OBJECT(context->window), "destroy", G_CALLBACK(NUCLEUS_SAFE_FN(window_destroy_callback)), nullptr);
   g_signal_connect(G_OBJECT(context->webview), "notify::title", G_CALLBACK(NUCLEUS_SAFE_FN(webview_title_update_callback)), nullptr);
 
-  // TODO debugging features
-  // WebKitSettings *settings =
-  //     webkit_web_view_get_settings(WEBKIT_WEB_VIEW(context->webview));
-  // webkit_settings_set_enable_write_console_messages_to_stdout(settings, true);
-  // webkit_settings_set_enable_developer_extras(settings, true);
+  // debugging features
+  if (details.dev_mode)
+  {
+    WebKitSettings *settings =
+        webkit_web_view_get_settings(WEBKIT_WEB_VIEW(context->webview));
+    webkit_settings_set_enable_write_console_messages_to_stdout(settings, true);
+    webkit_settings_set_enable_developer_extras(settings, true);
+  }
 
   // show window and trigger url load
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(context->webview), url.c_str());

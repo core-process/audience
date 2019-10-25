@@ -38,6 +38,7 @@ struct InternalWindowDetails
   AudienceWebAppType webapp_type;
   std::wstring webapp_location;
   std::wstring loading_title;
+  bool dev_mode;
 };
 
 bool internal_init(AudienceNucleusProtocolNegotiation *negotiation);
@@ -72,7 +73,8 @@ static inline AudienceWindowHandle _internal_window_create(const AudienceWindowD
   InternalWindowDetails internal_details{
       details->webapp_type,
       std::wstring(details->webapp_location),
-      std::wstring(details->loading_title != nullptr ? details->loading_title : L"Loading...")};
+      std::wstring(details->loading_title != nullptr ? details->loading_title : L"Loading..."),
+      details->dev_mode};
 
   auto context = internal_window_create(internal_details);
 

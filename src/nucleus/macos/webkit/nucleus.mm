@@ -153,9 +153,11 @@ internal_window_create(const InternalWindowDetails &details) {
       setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
 
   // enable dev tools
-  [context.webview.configuration.preferences
-      setValue:@YES
-        forKey:@"developerExtrasEnabled"];
+  if (details.dev_mode) {
+    [context.webview.configuration.preferences
+        setValue:@YES
+          forKey:@"developerExtrasEnabled"];
+  }
 
   // attach webview and put window in front
   [context.window.contentView addSubview:context.webview];
