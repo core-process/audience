@@ -95,6 +95,7 @@ endif()
 # audience app
 add_executable(audienceapp WIN32
   src/shell/app.cpp
+  src/shell/quotes.cpp
 )
 set_target_properties(audienceapp PROPERTIES CXX_STANDARD 11)
 target_link_libraries (audienceapp PRIVATE audience)

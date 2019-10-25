@@ -1,8 +1,25 @@
 <html>
-  <head>
-    <title>Ping</title>
-    <script src="/audience.js"></script>
-  </head>
-  <body>
-  </body>
+<head>
+  <title>Ping</title>
+  <script src="/audience.js"></script>
+  <script src="/jquery-3.3.1.min.js"></script>
+  <script src="/terminal/js/jquery.terminal.min.js"></script>
+  <link rel="stylesheet" type="text/css" href="/terminal/css/jquery.terminal.min.css" />
+  <style>
+    body {
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="terminal"></div>
+  <script>
+      var terminal = $('#terminal').terminal(function (command) {
+        audience.postMessage(command);
+      });
+      audience.onMessage(function (message) {
+        terminal.echo(message);
+      });
+  </script>
+</body>
 </html>

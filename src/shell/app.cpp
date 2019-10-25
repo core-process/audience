@@ -8,12 +8,16 @@
 #include <string>
 #include <locale>
 #include <codecvt>
+#include <cstdlib>
+#include <ctime>
 
 // #include <thread>
 // #include <chrono>
 
 #include <audience.h>
 #include "../common/trace.h"
+
+extern std::vector<std::string> some_quotes;
 
 #ifdef WIN32
 int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
@@ -83,6 +87,8 @@ int main(int argc, char **argv)
     app_dir = args[1];
   }
 
+  std::srand(std::time(nullptr));
+
   // create and show window
   AudienceEventHandler peh{};
   peh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); *prevent_quit = false; };
@@ -102,7 +108,7 @@ int main(int argc, char **argv)
   AudienceWindowEventHandler weh{};
   weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) {
     TRACEA(info, "event window::message -> " << message);
-    audience_window_post_message(handle, (std::string("your message: ") + message).c_str());
+    audience_window_post_message(handle, some_quotes[std::rand() % some_quotes.size()].c_str());
   };
   weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); *prevent_close = false; };
   weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); *prevent_quit = false; };
