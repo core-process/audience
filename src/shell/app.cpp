@@ -99,7 +99,10 @@ int main(int argc, char **argv)
   wd.webapp_location = app_dir.c_str();
 
   AudienceWindowEventHandler weh{};
-  weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) { TRACEA(info, "event window::message -> " << message); };
+  weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) {
+    TRACEA(info, "event window::message -> " << message);
+    audience_window_post_message(handle, (std::string("your message: ") + message).c_str());
+  };
   weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); *prevent_close = false; };
   weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); *prevent_quit = false; };
 

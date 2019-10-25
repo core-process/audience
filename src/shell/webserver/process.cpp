@@ -38,6 +38,7 @@ WebserverContext webserver_start(std::string address, unsigned short &port, std:
 void webserver_post_message(WebserverContext context, std::string message)
 {
   auto sessions = context->get_ws_sessions();
+  TRACEA(debug, "found " << sessions.size() << " valid sessions");
 
   for (auto &session : sessions)
   {

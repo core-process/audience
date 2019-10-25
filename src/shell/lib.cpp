@@ -302,6 +302,37 @@ AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details
   return SAFE_FN(_audience_window_create, AudienceWindowHandle{})(details, event_handler);
 }
 
+void _audience_window_post_message(AudienceWindowHandle handle, const char *message)
+{
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(audience_window_post_message, handle, message));
+
+  // ensure initialization
+  if (!audience_is_initialized())
+  {
+    return;
+  }
+
+  // TODO: delegate post message to nucleus, in case it is required by protocol
+
+  // post message
+  auto iws = nucleus_webserver_registry.left.find(handle);
+  if (iws != nucleus_webserver_registry.left.end())
+  {
+    TRACEA(debug, "posting message to frontend");
+    webserver_post_message(iws->second, std::string(message));
+  }
+  else
+  {
+    TRACEA(error, "could not webserver for window handle");
+  }
+}
+
+void audience_window_post_message(AudienceWindowHandle handle, const char *message)
+{
+  return SAFE_FN(_audience_window_post_message)(handle, message);
+}
+
 void _audience_window_destroy(AudienceWindowHandle handle)
 {
   // validate thread lock

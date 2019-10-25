@@ -134,6 +134,8 @@ private:
     std::lock_guard<std::mutex> lock(write_mutex_);
     if (pending_write_ == false && write_queue_.size() > 0)
     {
+      TRACEA(debug, "writing message to websocket");
+
       // pop and buffer data
       pending_write_ = true;
       pending_write_data_ = write_queue_.front();
@@ -155,6 +157,7 @@ private:
       std::size_t bytes_transferred)
   {
     boost::ignore_unused(bytes_transferred);
+    TRACEA(debug, "write operation completed");
 
     // unset pending write flag
     {
