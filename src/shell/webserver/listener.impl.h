@@ -5,20 +5,23 @@
 
 #include "../../common/trace.h"
 #include "http_session.impl.h"
+#include "context.h"
 
 // Accepts incoming connections and launches the sessions
 class listener : public std::enable_shared_from_this<listener>
 {
+  WebserverContextWeak context_;
   boost::asio::io_context &ioc_;
   boost::asio::ip::tcp::acceptor acceptor_;
   std::shared_ptr<std::string const> doc_root_;
 
 public:
   listener(
+      WebserverContextWeak context,
       boost::asio::io_context &ioc,
       boost::asio::ip::tcp::endpoint endpoint,
       std::shared_ptr<std::string const> const &doc_root)
-      : ioc_(ioc), acceptor_(boost::asio::make_strand(ioc)), doc_root_(doc_root)
+      : context_(context), ioc_(ioc), acceptor_(boost::asio::make_strand(ioc)), doc_root_(doc_root)
   {
     boost::beast::error_code ec;
 
@@ -91,6 +94,7 @@ private:
     {
       // Create the http session and run it
       std::make_shared<http_session>(
+          context_,
           std::move(socket),
           doc_root_)
           ->run();

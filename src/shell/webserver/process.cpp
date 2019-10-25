@@ -1,29 +1,20 @@
 #include <thread>
 #include <iostream>
+#include <set>
 
 #include "listener.impl.h"
 #include "process.h"
+#include "context.h"
 
-struct WebserverHandleData
+WebserverContext webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads, std::function<void(WebserverContext, std::string)> on_message_handler)
 {
-  // The io_context is required for all I/O
-  boost::asio::io_context ioc;
-  std::vector<std::thread> threads;
-
-  WebserverHandleData(int concurrency_hint)
-      : ioc(concurrency_hint)
-  {
-    threads.reserve(concurrency_hint);
-  }
-};
-
-WebserverHandle webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads)
-{
-  auto handle = std::make_shared<WebserverHandleData>(threads);
+  auto context = std::make_shared<WebserverContextData>(threads);
+  context->on_message_handler = on_message_handler;
 
   // Create and launch a listening port
   auto l = std::make_shared<listener>(
-      handle->ioc,
+      context,
+      context->ioc,
       boost::asio::ip::tcp::endpoint{boost::asio::ip::make_address(address), port},
       std::make_shared<std::string>(doc_root));
 
@@ -35,26 +26,36 @@ WebserverHandle webserver_start(std::string address, unsigned short &port, std::
   // Run the I/O service on the requested number of threads
   for (auto i = 0; i < threads; ++i)
   {
-    handle->threads.emplace_back(
-        [handle] {
-          handle->ioc.run();
+    context->threads.emplace_back(
+        [context] {
+          context->ioc.run();
         });
   }
 
-  return handle;
+  return context;
 }
 
-void webserver_stop(WebserverHandle &handle)
+void webserver_post_message(WebserverContext context, std::string message)
 {
-  handle->ioc.stop();
+  auto sessions = context->get_ws_sessions();
+
+  for (auto &session : sessions)
+  {
+    session->queue_write(message);
+  }
+}
+
+void webserver_stop(WebserverContext context)
+{
+  context->ioc.stop();
 
   // Block until all the threads exit
-  for (auto &thread : handle->threads)
+  for (auto &thread : context->threads)
   {
     thread.join();
   }
 
-  handle.reset();
+  context.reset();
 
   TRACEA(info, "webserver stopped");
 }

@@ -18,6 +18,7 @@
 #include <map>
 #include <thread>
 #include <mutex>
+#include <boost/bimap.hpp>
 
 #include <audience.h>
 
@@ -77,11 +78,12 @@ static nucleus_main_t nucleus_main = nullptr;
 static nucleus_dispatch_sync_t nucleus_dispatch_sync = nullptr;
 
 static AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
-static std::map<AudienceWindowHandle, WebserverHandle> nucleus_webserver_registry{};
+static boost::bimap<AudienceWindowHandle, WebserverContext> nucleus_webserver_registry{};
 
 static AudienceEventHandler user_process_event_handler{};
 static std::map<AudienceWindowHandle, AudienceWindowEventHandler> user_window_event_handler{};
 
+static void _audience_on_window_message(AudienceWindowHandle handle, std::string message);
 static void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close);
 static void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit);
 static void _audience_on_process_will_quit(bool *prevent_quit);
@@ -243,7 +245,18 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     std::string address = "127.0.0.1";
     unsigned short ws_port = 0;
 
-    auto ws_handle = webserver_start(address, ws_port, converter.to_bytes(details->webapp_location), 3);
+    auto ws_ctx = webserver_start(address, ws_port, converter.to_bytes(details->webapp_location), 3, [](WebserverContext context, std::string message) {
+      auto task_lambda = [&]() {
+        auto ic = nucleus_webserver_registry.right.find(context);
+        if (ic != nucleus_webserver_registry.right.end())
+        {
+          auto wh = ic->second;
+          _audience_on_window_message(wh, message);
+        }
+      };
+      auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); };
+      nucleus_dispatch_sync(task, &task_lambda);
+    });
 
     // construct url of webapp
     auto webapp_url = std::wstring(L"http://") + converter.from_bytes(address) + L":" + std::to_wstring(ws_port) + L"/";
@@ -262,12 +275,12 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     if (window_handle == AudienceWindowHandle{})
     {
       // stop the web server in case we could not create window
-      webserver_stop(ws_handle);
+      webserver_stop(ws_ctx);
     }
     else
     {
       // attach webserver to registry
-      nucleus_webserver_registry[window_handle] = ws_handle;
+      nucleus_webserver_registry.insert(boost::bimap<AudienceWindowHandle, WebserverContext>::value_type(window_handle, ws_ctx));
     }
   }
   else
@@ -331,6 +344,11 @@ void audience_main()
   ();
 }
 
+static inline void _audience_on_window_message(AudienceWindowHandle handle, std::string message)
+{
+  TRACEA(debug, "window " << std::hex << handle << " received message: " << message);
+}
+
 static inline void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close)
 {
   // call user event handler
@@ -363,11 +381,12 @@ static inline void _audience_on_window_close(AudienceWindowHandle handle, bool *
   }
 
   // check if we have to stop a running webservice
-  auto wsi = nucleus_webserver_registry.find(handle);
-  if (wsi != nucleus_webserver_registry.end())
+  auto wsi = nucleus_webserver_registry.left.find(handle);
+  if (wsi != nucleus_webserver_registry.left.end())
   {
-    webserver_stop(wsi->second);
-    nucleus_webserver_registry.erase(wsi);
+    auto ws = wsi->second;
+    nucleus_webserver_registry.left.erase(wsi);
+    webserver_stop(ws);
   }
 }
 

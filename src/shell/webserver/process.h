@@ -3,8 +3,9 @@
 #include <string>
 #include <memory>
 
-struct WebserverHandleData;
-typedef std::shared_ptr<WebserverHandleData> WebserverHandle;
+struct WebserverContextData;
+typedef std::shared_ptr<WebserverContextData> WebserverContext;
 
-WebserverHandle webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads);
-void webserver_stop(WebserverHandle &handle);
+WebserverContext webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads, std::function<void(WebserverContext, std::string)> on_message_handler);
+void webserver_post_message(WebserverContext context, std::string message);
+void webserver_stop(WebserverContext context);

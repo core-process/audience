@@ -58,6 +58,15 @@ const char* _audience_webapp_messaging_websocket_code_begin = _audience_webapp_m
 std::size_t _audience_webapp_messaging_websocket_code_length = sizeof(_audience_webapp_messaging_websocket_code);
 ")
 
+file(READ ${CMAKE_SOURCE_DIR}/src/webapp/messaging/edge.js AUDIENCE_WEBAPP_MESSAGING_EDGE_HEX HEX)
+string(REGEX REPLACE "(..)" "'\\\\x\\1', " AUDIENCE_WEBAPP_MESSAGING_EDGE_HEXLIT "${AUDIENCE_WEBAPP_MESSAGING_EDGE_HEX}")
+file(WRITE ${CMAKE_SOURCE_DIR}/src/webapp/messaging/edge.cpp "
+#include <cstddef>
+const char _audience_webapp_messaging_edge_code[] = { ${AUDIENCE_WEBAPP_MESSAGING_EDGE_HEXLIT} };
+const char* _audience_webapp_messaging_edge_code_begin = _audience_webapp_messaging_edge_code;
+std::size_t _audience_webapp_messaging_edge_code_length = sizeof(_audience_webapp_messaging_edge_code);
+")
+
 #######################################################################
 # AUDIENCE SHELL
 #######################################################################

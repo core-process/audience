@@ -98,6 +98,7 @@ class http_session : public std::enable_shared_from_this<http_session>
     }
   };
 
+  WebserverContextWeak context_;
   boost::beast::tcp_stream stream_;
   boost::beast::flat_buffer buffer_;
   std::shared_ptr<std::string const> doc_root_;
@@ -110,9 +111,10 @@ class http_session : public std::enable_shared_from_this<http_session>
 public:
   // Take ownership of the socket
   http_session(
+      WebserverContextWeak context,
       boost::asio::ip::tcp::socket &&socket,
       std::shared_ptr<std::string const> const &doc_root)
-      : stream_(std::move(socket)), doc_root_(doc_root), queue_(*this)
+      : context_(context), stream_(std::move(socket)), doc_root_(doc_root), queue_(*this)
   {
     TRACEA(info, "http session created");
   }
@@ -173,9 +175,17 @@ private:
     {
       // Create a websocket session, transferring ownership
       // of both the socket and the HTTP request.
-      std::make_shared<websocket_session>(
-          stream_.release_socket())
-          ->do_accept(parser_->release());
+      auto ws = std::make_shared<websocket_session>(
+          context_,
+          stream_.release_socket());
+      ws->do_accept(parser_->release());
+
+      auto ctx = context_.lock();
+      if (ctx)
+      {
+        ctx->add_ws_session(ws);
+      }
+
       return;
     }
 
