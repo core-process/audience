@@ -117,7 +117,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
   // nucleus library load order
   std::vector<std::string> dylibs{
 #ifdef WIN32
-      "audience_windows_edge.dll",
+      // "audience_windows_edge.dll",
       "audience_windows_ie11.dll",
 #elif __APPLE__
       "libaudience_macos_webkit.dylib",
