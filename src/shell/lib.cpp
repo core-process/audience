@@ -83,7 +83,7 @@ static boost::bimap<AudienceWindowHandle, WebserverContext> nucleus_webserver_re
 static AudienceEventHandler user_process_event_handler{};
 static std::map<AudienceWindowHandle, AudienceWindowEventHandler> user_window_event_handler{};
 
-static void _audience_on_window_message(AudienceWindowHandle handle, std::string message);
+static void _audience_on_window_message(AudienceWindowHandle handle, const char *message);
 static void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close);
 static void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit);
 static void _audience_on_process_will_quit(bool *prevent_quit);
@@ -251,7 +251,7 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
         if (ic != nucleus_webserver_registry.right.end())
         {
           auto wh = ic->second;
-          _audience_on_window_message(wh, message);
+          _audience_on_window_message(wh, message.c_str());
         }
       };
       auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); };
@@ -344,9 +344,20 @@ void audience_main()
   ();
 }
 
-static inline void _audience_on_window_message(AudienceWindowHandle handle, std::string message)
+static inline void _audience_on_window_message(AudienceWindowHandle handle, const char *message)
 {
-  TRACEA(debug, "window " << std::hex << handle << " received message: " << message);
+  // call user event handler
+  auto ehi = user_window_event_handler.find(handle);
+  if (ehi != user_window_event_handler.end())
+  {
+    if (ehi->second.on_message.handler != nullptr)
+    {
+      ehi->second.on_message.handler(
+          handle,
+          ehi->second.on_message.context,
+          message);
+    }
+  }
 }
 
 static inline void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close)

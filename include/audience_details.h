@@ -31,6 +31,11 @@ extern "C"
   {
     struct
     {
+      void (*handler)(AudienceWindowHandle handle, void *context, const char *message);
+      void *context;
+    } on_message;
+    struct
+    {
       void (*handler)(AudienceWindowHandle handle, void *context, bool *prevent_close);
       void *context;
     } on_will_close;
