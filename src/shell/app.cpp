@@ -9,6 +9,9 @@
 #include <locale>
 #include <codecvt>
 
+// #include <thread>
+// #include <chrono>
+
 #include <audience.h>
 #include "../common/trace.h"
 
@@ -104,6 +107,14 @@ int main(int argc, char **argv)
     TRACEA(error, "could not create audience window");
     return 2;
   }
+
+  // std::thread background_thread([&]() {
+  //   std::this_thread::sleep_for(std::chrono::seconds(3));
+  //   if (!audience_window_create(&wd, &weh))
+  //   {
+  //     TRACEA(error, "could not create audience window");
+  //   }
+  // });
 
   audience_main(); // calls exit by itself
   return 0;        // just for the compiler

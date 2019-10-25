@@ -5,6 +5,8 @@
 #include <locale>
 #include <codecvt>
 #include <memory>
+#include <mutex>
+#include <condition_variable>
 
 #include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
@@ -123,6 +125,38 @@ void internal_main()
   // lets quit now
   TRACEA(info, "calling exit()");
   exit(0);
+}
+
+void internal_dispatch_sync(void (*task)(void *context), void *context)
+{
+  // sync utilities
+  bool ready = false;
+  std::condition_variable condition;
+  std::mutex mutex;
+
+  // prepare wrapper
+  auto wrapper_lambda = [&]() {
+    // execute task
+    task(context);
+    // set ready signal
+    std::unique_lock<std::mutex> ready_lock(mutex);
+    ready = true;
+    ready_lock.unlock();
+    condition.notify_one();
+  };
+
+  auto wrapper = [](void *context) {
+    (*static_cast<decltype(wrapper_lambda) *>(context))();
+    return FALSE;
+  };
+
+  // execute wrapper
+  TRACEA(info, "dispatching task on main queue");
+  gdk_threads_add_idle_full(G_PRIORITY_HIGH_IDLE, wrapper, &wrapper_lambda, nullptr);
+
+  // wait for ready signal
+  std::unique_lock<std::mutex> wait_lock(mutex);
+  condition.wait(wait_lock, [&] { return ready; });
 }
 
 gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data)
