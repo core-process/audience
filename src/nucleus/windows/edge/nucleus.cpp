@@ -173,7 +173,7 @@ void internal_main()
 void internal_dispatch_sync(void (*task)(void *context), void *context)
 {
   // NOTE: We cannot use SendMessageW, because of some COM quirks. Therefore we use PostMessageW and thread based signaling.
-  
+
   // sync utilities
   bool ready = false;
   std::condition_variable condition;
@@ -192,12 +192,11 @@ void internal_dispatch_sync(void (*task)(void *context), void *context)
 
   auto wrapper = [](void *context) {
     (*static_cast<decltype(wrapper_lambda) *>(context))();
-    return FALSE;
   };
 
   // execute wrapper
   TRACEA(info, "dispatching task on main queue (sync)");
-  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)wrapper, (LPARAM)&wrapper_lambda);
+  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)(void (*)(void *))wrapper, (LPARAM)&wrapper_lambda);
 
   // wait for ready signal
   std::unique_lock<std::mutex> wait_lock(mutex);
