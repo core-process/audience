@@ -164,8 +164,25 @@ void internal_dispatch_sync(void (*task)(void *context), void *context)
 
 void internal_dispatch_async(void (*task)(void *context), void *context)
 {
+  struct wrapped_context_t
+  {
+    void (*task)(void *context);
+    void *context;
+  };
+
   TRACEA(info, "dispatching task on main queue (async)");
-  gdk_threads_add_idle_full(G_PRIORITY_HIGH_IDLE, task, context, nullptr);
+  gdk_threads_add_idle_full(
+      G_PRIORITY_HIGH_IDLE,
+      [](void *wrapped_context_void) {
+        auto wrapped_context = static_cast<wrapped_context_t *>(wrapped_context_void);
+        wrapped_context->task(wrapped_context->context);
+        return FALSE;
+      },
+      new wrapped_context_t{task, context},
+      [](void *wrapped_context_void) {
+        auto wrapped_context = static_cast<wrapped_context_t *>(wrapped_context_void);
+        delete wrapped_context;
+      });
 }
 
 gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data)
