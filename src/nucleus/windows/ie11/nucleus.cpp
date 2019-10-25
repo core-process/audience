@@ -1,5 +1,7 @@
 #include <memory>
 #include <stdexcept>
+#include <mutex>
+#include <condition_variable>
 
 #include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
@@ -9,8 +11,14 @@
 #include "webview.h"
 #include "nucleus.h"
 
+#define WM_AUDIENCE_DISPATCH (WM_APP + 1)
+
 bool fix_ie_compat_mode();
+
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
+
+HWND _audience_message_window = nullptr;
 
 bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
 {
@@ -31,6 +39,25 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
   }
 
   TRACEA(info, "COM initialization succeeded");
+
+  // create message window
+  WNDCLASSEXW wndcls = {};
+  wndcls.cbSize = sizeof(WNDCLASSEX);
+  wndcls.lpfnWndProc = NUCLEUS_SAFE_FN(MessageWndProc, 0);
+  wndcls.hInstance = hInstanceEXE;
+  wndcls.lpszClassName = L"audience_ie11_message";
+
+  if (RegisterClassExW(&wndcls) == 0)
+  {
+    return false;
+  }
+
+  _audience_message_window = CreateWindowExW(0, wndcls.lpszClassName, L"audience_ie11_message", 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
+  if (!_audience_message_window)
+  {
+    return false;
+  }
+
   return true;
 }
 
@@ -123,6 +150,55 @@ void internal_main()
   // lets quit now
   TRACEA(info, "calling ExitProcess()");
   ExitProcess(0);
+}
+
+void internal_dispatch_sync(void (*task)(void *context), void *context)
+{
+  // NOTE: We cannot use SendMessageW, because of some COM quirks. Therefore we use PostMessageW and thread based signaling.
+  
+  // sync utilities
+  bool ready = false;
+  std::condition_variable condition;
+  std::mutex mutex;
+
+  // prepare wrapper
+  auto wrapper_lambda = [&]() {
+    // execute task
+    task(context);
+    // set ready signal
+    std::unique_lock<std::mutex> ready_lock(mutex);
+    ready = true;
+    ready_lock.unlock();
+    condition.notify_one();
+  };
+
+  auto wrapper = [](void *context) {
+    (*static_cast<decltype(wrapper_lambda) *>(context))();
+    return FALSE;
+  };
+
+  // execute wrapper
+  TRACEA(info, "dispatching task on main queue");
+  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)task, (LPARAM)context);
+
+  // wait for ready signal
+  std::unique_lock<std::mutex> wait_lock(mutex);
+  condition.wait(wait_lock, [&] { return ready; });
+}
+
+LRESULT CALLBACK MessageWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
+{
+  // handle dispatched task
+  if (message == WM_AUDIENCE_DISPATCH)
+  {
+    auto task = reinterpret_cast<void (*)(void *)>(wParam);
+    auto context = reinterpret_cast<void *>(lParam);
+    task(context);
+    return 0;
+  }
+
+  // execute default window procedure
+  return DefWindowProcW(window, message, wParam, lParam);
 }
 
 #define KEY_FEATURE_BROWSER_EMULATION \
