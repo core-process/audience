@@ -27,6 +27,7 @@ extern "C"
   AUDIENCE_EXT_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
   AUDIENCE_EXT_EXPORT void audience_main();
   AUDIENCE_EXT_EXPORT void audience_dispatch_sync(void (*task)(void *context), void *context);
+  AUDIENCE_EXT_EXPORT void audience_dispatch_async(void (*task)(void *context), void *context);
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -46,6 +47,7 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
 void internal_window_destroy(AudienceWindowContext context);
 void internal_main();
 void internal_dispatch_sync(void (*task)(void *context), void *context);
+void internal_dispatch_async(void (*task)(void *context), void *context);
 
 ///////////////////////////////////////////////////////////////////////
 // Bridge Implementation
@@ -247,6 +249,16 @@ static inline void internal_on_process_quit()
     }                                                                     \
   }
 
+#define AUDIENCE_EXTIMPL_DISPATCH_ASYNC                                    \
+  void audience_dispatch_async(void (*task)(void *context), void *context) \
+  {                                                                        \
+    AUDIENCE_EXTIMPL_RELEASEPOOL                                           \
+    {                                                                      \
+      NUCLEUS_SAFE_FN(internal_dispatch_async)                             \
+      (task, context);                                                     \
+    }                                                                      \
+  }
+
 #define AUDIENCE_EXTIMPL                                                                    \
   boost::bimap<AudienceWindowHandle, AudienceWindowContext> _internal_window_context_map{}; \
   AudienceWindowHandle _internal_window_context_next_handle = AudienceWindowHandle{} + 1;   \
@@ -255,4 +267,5 @@ static inline void internal_on_process_quit()
   AUDIENCE_EXTIMPL_WINDOW_CREATE;                                                           \
   AUDIENCE_EXTIMPL_WINDOW_DESTROY;                                                          \
   AUDIENCE_EXTIMPL_MAIN;                                                                    \
-  AUDIENCE_EXTIMPL_DISPATCH_SYNC;
+  AUDIENCE_EXTIMPL_DISPATCH_SYNC;                                                           \
+  AUDIENCE_EXTIMPL_DISPATCH_ASYNC;

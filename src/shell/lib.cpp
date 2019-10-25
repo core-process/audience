@@ -76,6 +76,7 @@ static nucleus_window_create_t nucleus_window_create = nullptr;
 static nucleus_window_destroy_t nucleus_window_destroy = nullptr;
 static nucleus_main_t nucleus_main = nullptr;
 static nucleus_dispatch_sync_t nucleus_dispatch_sync = nullptr;
+static nucleus_dispatch_async_t nucleus_dispatch_async = nullptr;
 
 static AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
 static boost::bimap<AudienceWindowHandle, WebserverContext> nucleus_webserver_registry{};
@@ -91,7 +92,7 @@ static void _audience_on_process_quit();
 
 static bool audience_is_initialized()
 {
-  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr;
+  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
 }
 
 static bool _audience_init(const AudienceEventHandler *event_handler)
@@ -152,6 +153,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
       nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "audience_window_destroy");
       nucleus_main = (nucleus_main_t)LookupFunction(dlh, "audience_main");
       nucleus_dispatch_sync = (nucleus_dispatch_sync_t)LookupFunction(dlh, "audience_dispatch_sync");
+      nucleus_dispatch_async = (nucleus_dispatch_async_t)LookupFunction(dlh, "audience_dispatch_async");
 
       if (!audience_is_initialized())
       {
@@ -181,6 +183,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
       nucleus_window_destroy = nullptr;
       nucleus_main = nullptr;
       nucleus_dispatch_sync = nullptr;
+      nucleus_dispatch_async = nullptr;
       nucleus_protocol_negotiation = {};
 
 #ifdef WIN32

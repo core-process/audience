@@ -154,12 +154,18 @@ void internal_dispatch_sync(void (*task)(void *context), void *context)
   };
 
   // execute wrapper
-  TRACEA(info, "dispatching task on main queue");
+  TRACEA(info, "dispatching task on main queue (sync)");
   gdk_threads_add_idle_full(G_PRIORITY_HIGH_IDLE, wrapper, &wrapper_lambda, nullptr);
 
   // wait for ready signal
   std::unique_lock<std::mutex> wait_lock(mutex);
   condition.wait(wait_lock, [&] { return ready; });
+}
+
+void internal_dispatch_async(void (*task)(void *context), void *context)
+{
+  TRACEA(info, "dispatching task on main queue (async)");
+  gdk_threads_add_idle_full(G_PRIORITY_HIGH_IDLE, task, context, nullptr);
 }
 
 gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data)

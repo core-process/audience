@@ -8,3 +8,4 @@ typedef AudienceWindowHandle (*nucleus_window_create_t)(const AudienceWindowDeta
 typedef void (*nucleus_window_destroy_t)(AudienceWindowHandle window);
 typedef void (*nucleus_main_t)();
 typedef void (*nucleus_dispatch_sync_t)(void (*task)(void *context), void *context);
+typedef void (*nucleus_dispatch_async_t)(void (*task)(void *context), void *context);

@@ -178,12 +178,18 @@ void internal_dispatch_sync(void (*task)(void *context), void *context)
   };
 
   // execute wrapper
-  TRACEA(info, "dispatching task on main queue");
-  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)task, (LPARAM)context);
+  TRACEA(info, "dispatching task on main queue (sync)");
+  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)wrapper, (LPARAM)&wrapper_lambda);
 
   // wait for ready signal
   std::unique_lock<std::mutex> wait_lock(mutex);
   condition.wait(wait_lock, [&] { return ready; });
+}
+
+void internal_dispatch_async(void (*task)(void *context), void *context)
+{
+  TRACEA(info, "dispatching task on main queue (async)");
+  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)task, (LPARAM)context);
 }
 
 LRESULT CALLBACK MessageWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)

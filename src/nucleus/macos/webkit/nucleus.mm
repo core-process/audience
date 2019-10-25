@@ -194,12 +194,15 @@ void internal_main() {
 }
 
 void internal_dispatch_sync(void (*task)(void *context), void *context) {
-  if ([NSThread isMainThread]) {
+  TRACEA(info, "dispatching task on main queue (sync)");
+  dispatch_sync(dispatch_get_main_queue(), ^{
     task(context);
-  } else {
-    TRACEA(info, "dispatching task on main queue");
-    dispatch_sync(dispatch_get_main_queue(), ^{
-      task(context);
-    });
-  }
+  });
+}
+
+void internal_dispatch_async(void (*task)(void *context), void *context) {
+  TRACEA(info, "dispatching task on main queue (async)");
+  dispatch_async(dispatch_get_main_queue(), ^{
+    task(context);
+  });
 }
