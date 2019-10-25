@@ -46,6 +46,19 @@ ExternalProject_Add(boost
 )
 
 #######################################################################
+# AUDIENCE WEBAPP MESSAGING
+#######################################################################
+
+file(READ ${CMAKE_SOURCE_DIR}/src/webapp/messaging/websocket.js AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEX HEX)
+string(REGEX REPLACE "(..)" "'\\\\x\\1', " AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEXLIT "${AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEX}")
+file(WRITE ${CMAKE_SOURCE_DIR}/src/webapp/messaging/websocket.cpp "
+#include <cstddef>
+const char _audience_webapp_messaging_websocket_code[] = { ${AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEXLIT} };
+const char* _audience_webapp_messaging_websocket_code_begin = _audience_webapp_messaging_websocket_code;
+std::size_t _audience_webapp_messaging_websocket_code_length = sizeof(_audience_webapp_messaging_websocket_code);
+")
+
+#######################################################################
 # AUDIENCE SHELL
 #######################################################################
 
@@ -54,6 +67,7 @@ add_library(audience STATIC
   src/shell/lib.cpp
   src/shell/whereami.c
   src/shell/webserver/process.cpp
+  src/webapp/messaging/websocket.cpp
 )
 set_target_properties(audience PROPERTIES CXX_STANDARD 11)
 
