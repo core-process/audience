@@ -12,7 +12,7 @@
 
   // push routines
   function pushOutgoing() {
-    while (window.external !== undefined && window.external.notify !== undefined && qout.length > 0) {
+    while (window.external !== undefined && qout.length > 0) {
       try {
         window.external.notify(qout[0]);
         qout.shift();
@@ -42,7 +42,7 @@
   // public interface
   window.audience = {};
 
-  window.audience._incomingMessage = function (message) {
+  window._audienceIncomingMessage = function (message) {
     qin.push(message);
     pushIncoming();
   };

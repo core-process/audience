@@ -73,6 +73,7 @@ static std::thread::id nucleus_thread_lock_id;
 
 static nucleus_init_t nucleus_init = nullptr;
 static nucleus_window_create_t nucleus_window_create = nullptr;
+static nucleus_window_post_message_t nucleus_window_post_message = nullptr;
 static nucleus_window_destroy_t nucleus_window_destroy = nullptr;
 static nucleus_main_t nucleus_main = nullptr;
 static nucleus_dispatch_sync_t nucleus_dispatch_sync = nullptr;
@@ -92,7 +93,7 @@ static void _audience_on_process_quit();
 
 static bool audience_is_initialized()
 {
-  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
+  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
 }
 
 static bool _audience_init(const AudienceEventHandler *event_handler)
@@ -150,6 +151,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
 
       nucleus_init = (nucleus_init_t)LookupFunction(dlh, "audience_init");
       nucleus_window_create = (nucleus_window_create_t)LookupFunction(dlh, "audience_window_create");
+      nucleus_window_post_message = (nucleus_window_post_message_t)LookupFunction(dlh, "audience_window_post_message");
       nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "audience_window_destroy");
       nucleus_main = (nucleus_main_t)LookupFunction(dlh, "audience_main");
       nucleus_dispatch_sync = (nucleus_dispatch_sync_t)LookupFunction(dlh, "audience_dispatch_sync");
@@ -162,6 +164,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
 
       // try to initializes and negotiate protocol
       nucleus_protocol_negotiation = {};
+      nucleus_protocol_negotiation.shell_event_handler.window_level.on_message = _audience_on_window_message;
       nucleus_protocol_negotiation.shell_event_handler.window_level.on_will_close = _audience_on_window_will_close;
       nucleus_protocol_negotiation.shell_event_handler.window_level.on_close = _audience_on_window_close;
       nucleus_protocol_negotiation.shell_event_handler.process_level.on_will_quit = _audience_on_process_will_quit;
@@ -180,6 +183,7 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
       // reset function pointer and negotiation in case we failed
       nucleus_init = nullptr;
       nucleus_window_create = nullptr;
+      nucleus_window_post_message = nullptr;
       nucleus_window_destroy = nullptr;
       nucleus_main = nullptr;
       nucleus_dispatch_sync = nullptr;
@@ -316,7 +320,13 @@ void _audience_window_post_message(AudienceWindowHandle handle, const char *mess
     return;
   }
 
-  // TODO: delegate post message to nucleus, in case it is required by protocol
+  // delegate post message to nucleus, in case protocol demands
+  if (nucleus_protocol_negotiation.nucleus_handles_messaging)
+  {
+    TRACEA(debug, "delegate post message to nucleus");
+    nucleus_window_post_message(handle, message);
+    return;
+  }
 
   // post message
   auto iws = nucleus_webserver_registry.left.find(handle);
@@ -327,13 +337,14 @@ void _audience_window_post_message(AudienceWindowHandle handle, const char *mess
   }
   else
   {
-    TRACEA(error, "could not webserver for window handle");
+    TRACEA(error, "could not find webserver for window handle");
   }
 }
 
 void audience_window_post_message(AudienceWindowHandle handle, const char *message)
 {
-  return SAFE_FN(_audience_window_post_message)(handle, message);
+  SAFE_FN(_audience_window_post_message)
+  (handle, message);
 }
 
 void _audience_window_destroy(AudienceWindowHandle handle)
@@ -380,6 +391,9 @@ void audience_main()
 
 static inline void _audience_on_window_message(AudienceWindowHandle handle, const char *message)
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_window_message, handle, message));
+
   // call user event handler
   auto ehi = user_window_event_handler.find(handle);
   if (ehi != user_window_event_handler.end())
@@ -396,6 +410,9 @@ static inline void _audience_on_window_message(AudienceWindowHandle handle, cons
 
 static inline void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close)
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_window_will_close, handle, prevent_close));
+
   // call user event handler
   auto ehi = user_window_event_handler.find(handle);
   if (ehi != user_window_event_handler.end())
@@ -412,6 +429,9 @@ static inline void _audience_on_window_will_close(AudienceWindowHandle handle, b
 
 static inline void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit)
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_window_close, handle, prevent_quit));
+
   // call user event handler
   auto ehi = user_window_event_handler.find(handle);
   if (ehi != user_window_event_handler.end())
@@ -437,6 +457,9 @@ static inline void _audience_on_window_close(AudienceWindowHandle handle, bool *
 
 static inline void _audience_on_process_will_quit(bool *prevent_quit)
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_process_will_quit, prevent_quit));
+
   // call user event handler
   if (user_process_event_handler.on_will_quit.handler != nullptr)
   {
@@ -448,6 +471,9 @@ static inline void _audience_on_process_will_quit(bool *prevent_quit)
 
 static inline void _audience_on_process_quit()
 {
+  // validate thread lock
+  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_process_quit));
+
   // call user event handler
   if (user_process_event_handler.on_quit.handler != nullptr)
   {

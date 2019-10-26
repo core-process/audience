@@ -128,6 +128,8 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   return context;
 }
 
+void internal_window_post_message(AudienceWindowContext context, const char *message) {}
+
 void internal_window_destroy(AudienceWindowContext context)
 {
   // destroy window

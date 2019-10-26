@@ -129,6 +129,16 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
 
   context->webview = webview_op.GetResults();
 
+  // settings
+  context->webview.Settings().IsIndexedDBEnabled(true);
+  context->webview.Settings().IsJavaScriptEnabled(true);
+  context->webview.Settings().IsScriptNotifyAllowed(true);
+
+  // add script notify event
+  context->webview.ScriptNotify([context](auto sender, auto args) {
+    internal_on_window_message(context, winrt::to_string(args.Value()));
+  });
+
   // update position of web view
   UpdateWebViewPosition(context);
 
@@ -144,6 +154,29 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
 
   TRACEA(info, "window created successfully");
   return context;
+}
+
+void internal_window_post_message(AudienceWindowContext context, const char *message)
+{
+  auto op = context->webview.InvokeScriptAsync(L"_audienceIncomingMessage", std::vector<winrt::hstring>{winrt::to_hstring(std::string(message))});
+
+  if (op.Status() == AsyncStatus::Started)
+  {
+    auto event = CreateEventW(nullptr, false, false, nullptr);
+    op.Completed([event](auto, auto) { SetEvent(event); });
+    DWORD lpdwindex = 0;
+    if (CoWaitForMultipleHandles(
+            COWAIT_DISPATCH_WINDOW_MESSAGES | COWAIT_DISPATCH_CALLS | COWAIT_INPUTAVAILABLE,
+            INFINITE, 1, &event, &lpdwindex) != S_OK)
+    {
+      throw std::runtime_error("CoWaitForMultipleHandles failed");
+    }
+  }
+
+  if (op.Status() != AsyncStatus::Completed)
+  {
+    throw std::runtime_error("execution of javascript failed");
+  }
 }
 
 void internal_window_destroy(AudienceWindowContext context)

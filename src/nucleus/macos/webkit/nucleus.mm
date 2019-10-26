@@ -180,6 +180,8 @@ internal_window_create(const InternalWindowDetails &details) {
   return context;
 }
 
+void internal_window_post_message(AudienceWindowContext context, const char *message) {}
+
 void internal_window_destroy(AudienceWindowContext context) {
   // perform close operation
   if (context.window != NULL) {

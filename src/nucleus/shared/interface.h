@@ -24,6 +24,7 @@ extern "C"
 {
   AUDIENCE_EXT_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation);
   AUDIENCE_EXT_EXPORT AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
+  AUDIENCE_EXT_EXPORT void audience_window_post_message(AudienceWindowHandle handle, const char *message);
   AUDIENCE_EXT_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
   AUDIENCE_EXT_EXPORT void audience_main();
   AUDIENCE_EXT_EXPORT void audience_dispatch_sync(void (*task)(void *context), void *context);
@@ -44,6 +45,7 @@ struct InternalWindowDetails
 
 bool internal_init(AudienceNucleusProtocolNegotiation *negotiation);
 AudienceWindowContext internal_window_create(const InternalWindowDetails &details);
+void internal_window_post_message(AudienceWindowContext context, const char *message);
 void internal_window_destroy(AudienceWindowContext context);
 void internal_main();
 void internal_dispatch_sync(void (*task)(void *context), void *context);
@@ -99,6 +101,22 @@ static inline AudienceWindowHandle _internal_window_create(const AudienceWindowD
   return handle;
 }
 
+static inline void _internal_window_post_message(AudienceWindowHandle handle, const char *message)
+{
+  // find context
+  auto icontext = _internal_window_context_map.left.find(handle);
+
+  // post message
+  if (icontext != _internal_window_context_map.left.end())
+  {
+    return internal_window_post_message(icontext->second, message);
+  }
+  else
+  {
+    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+  }
+}
+
 static inline void _internal_window_destroy(AudienceWindowHandle handle)
 {
   // find context
@@ -118,6 +136,28 @@ static inline void _internal_window_destroy(AudienceWindowHandle handle)
 ///////////////////////////////////////////////////////////////////////
 // Event Handling
 ///////////////////////////////////////////////////////////////////////
+
+static inline void _internal_on_window_message(AudienceWindowContext context, std::string message)
+{
+  // lookup handle
+  auto ihandle = _internal_window_context_map.right.find(context);
+  if (ihandle == _internal_window_context_map.right.end())
+  {
+    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    return;
+  }
+
+  auto handle = ihandle->second;
+
+  // call shell handler
+  _internal_protocol_negotiation->shell_event_handler.window_level.on_message(handle, message.c_str());
+}
+
+static inline void internal_on_window_message(AudienceWindowContext context, std::string message)
+{
+  NUCLEUS_SAFE_FN(_internal_on_window_message)
+  (context, message);
+}
 
 static inline void _internal_on_window_will_close(AudienceWindowContext context, bool &prevent_close)
 {
@@ -219,6 +259,16 @@ static inline void internal_on_process_quit()
     }                                                                                   \
   }
 
+#define AUDIENCE_EXTIMPL_WINDOW_POST_MESSAGE                                          \
+  void audience_window_post_message(AudienceWindowHandle handle, const char *message) \
+  {                                                                                   \
+    AUDIENCE_EXTIMPL_RELEASEPOOL                                                      \
+    {                                                                                 \
+      NUCLEUS_SAFE_FN(_internal_window_post_message)                                  \
+      (handle, message);                                                              \
+    }                                                                                 \
+  }
+
 #define AUDIENCE_EXTIMPL_WINDOW_DESTROY                     \
   void audience_window_destroy(AudienceWindowHandle handle) \
   {                                                         \
@@ -265,6 +315,7 @@ static inline void internal_on_process_quit()
   AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation = nullptr;             \
   AUDIENCE_EXTIMPL_INIT;                                                                    \
   AUDIENCE_EXTIMPL_WINDOW_CREATE;                                                           \
+  AUDIENCE_EXTIMPL_WINDOW_POST_MESSAGE;                                                     \
   AUDIENCE_EXTIMPL_WINDOW_DESTROY;                                                          \
   AUDIENCE_EXTIMPL_MAIN;                                                                    \
   AUDIENCE_EXTIMPL_DISPATCH_SYNC;                                                           \

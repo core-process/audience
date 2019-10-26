@@ -14,6 +14,7 @@ struct AudienceNucleusProtocolNegotiation
   {
     struct
     {
+      void (*on_message)(AudienceWindowHandle handle, const char *message);
       void (*on_will_close)(AudienceWindowHandle handle, bool *prevent_close);
       void (*on_close)(AudienceWindowHandle handle, bool *prevent_quit);
     } window_level;
