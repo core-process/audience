@@ -2,6 +2,7 @@
 #include <mshtml.h>
 
 #include "../../../common/trace.h"
+#include "../../../common/scope_guard.h"
 #include "webview.h"
 
 bool IEWebView::Create(HWND pwnd)
@@ -38,6 +39,45 @@ bool IEWebView::Create(HWND pwnd)
   return true;
 }
 
+void IEWebView::Destroy()
+{
+  if (webview_inplace != nullptr)
+  {
+    webview_inplace->Release();
+    webview_inplace = nullptr;
+  }
+  if (webview_browser2 != nullptr)
+  {
+    webview_browser2->Release();
+    webview_browser2 = nullptr;
+  }
+  if (webview != nullptr)
+  {
+    webview->Release();
+    webview = nullptr;
+  }
+}
+
+bool IEWebView::HandleTranslateAccelerator(MSG &msg)
+{
+  scope_guard scope_always(scope_guard::execution::always);
+
+  auto browser = GetWebviewBrowser2();
+  if (browser != nullptr)
+  {
+    IOleInPlaceActiveObject *active_obj = nullptr;
+    if (FAILED(browser->QueryInterface(&active_obj)) || active_obj == nullptr)
+    {
+      return false;
+    }
+    scope_always += [active_obj] { active_obj->Release(); };
+
+    return active_obj->TranslateAccelerator(&msg) != S_FALSE;
+  }
+
+  return false;
+}
+
 bool IEWebView::Navigate(std::wstring url)
 {
   auto browser = GetWebviewBrowser2();
@@ -54,6 +94,8 @@ bool IEWebView::Navigate(std::wstring url)
 
 std::wstring IEWebView::GetDocumentTitle()
 {
+  scope_guard scope_always(scope_guard::execution::always);
+
   auto browser = GetWebviewBrowser2();
   if (browser != nullptr)
   {
@@ -62,23 +104,23 @@ std::wstring IEWebView::GetDocumentTitle()
     {
       return L"";
     }
+    scope_always += [ddoc] { ddoc->Release(); };
 
     IHTMLDocument2 *doc = nullptr;
     if (FAILED(ddoc->QueryInterface(&doc)) || doc == nullptr)
     {
       return L"";
     }
+    scope_always += [doc] { doc->Release(); };
 
     BSTR title = nullptr;
     if (FAILED(doc->get_title(&title)) || title == nullptr)
     {
       return L"";
     }
+    scope_always += [title] { SysFreeString(title); };
 
-    auto result = std::wstring(title, SysStringLen(title));
-    SysFreeString(title);
-
-    return result;
+    return std::wstring(title, SysStringLen(title));
   }
 
   return L"";

@@ -34,10 +34,11 @@ public:
   virtual ~IEWebView() {}
 
   bool Create(HWND pwnd);
+  void Destroy();
+
+  bool HandleTranslateAccelerator(MSG &msg);
   bool Navigate(std::wstring url);
-
   void UpdateWebViewPosition();
-
   std::wstring GetDocumentTitle();
 
   // ----- IUnknown -----

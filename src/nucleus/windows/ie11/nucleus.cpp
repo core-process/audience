@@ -140,6 +140,38 @@ void internal_main()
   MSG msg;
   while (GetMessage(&msg, nullptr, 0, 0))
   {
+    // special handling for web view
+    if (msg.message == WM_COMMAND || msg.message == WM_KEYDOWN || msg.message == WM_KEYUP)
+    {
+      bool skip_default = false;
+      wchar_t class_name[100]{};
+      if (GetClassNameW(msg.hwnd, class_name, sizeof(class_name) / sizeof(wchar_t)) > 0 && wcscmp(class_name, L"Internet Explorer_Server") == 0)
+      {
+        auto parent = msg.hwnd;
+        while ((parent = GetParent(parent)) != NULL)
+        {
+          if (GetClassNameW(parent, class_name, sizeof(class_name) / sizeof(wchar_t)) > 0 && wcscmp(class_name, L"audience_ie11") == 0)
+          {
+            auto context_priv = reinterpret_cast<AudienceWindowContext *>(GetWindowLongPtrW(parent, GWLP_USERDATA));
+            if (context_priv != nullptr && (*context_priv)->window != nullptr && (*context_priv)->webview != nullptr)
+            {
+              skip_default = (*context_priv)->webview->HandleTranslateAccelerator(msg);
+            }
+            else
+            {
+              TRACEA(warning, "private context invalid");
+            }
+            break;
+          }
+        }
+      }
+      if (skip_default)
+      {
+        continue;
+      }
+    }
+
+    // default message handling
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
@@ -155,7 +187,7 @@ void internal_main()
 void internal_dispatch_sync(void (*task)(void *context), void *context)
 {
   // NOTE: We cannot use SendMessageW, because of some COM quirks. Therefore we use PostMessageW and thread based signaling.
-  
+
   // sync utilities
   bool ready = false;
   std::condition_variable condition;
@@ -357,6 +389,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
       // reset referenced window and widget
       if ((*context_priv)->webview != nullptr)
       {
+        (*context_priv)->webview->Destroy();
         (*context_priv)->webview->Release();
         (*context_priv)->webview = nullptr;
       }
