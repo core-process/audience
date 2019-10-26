@@ -19,6 +19,9 @@ using namespace winrt::Windows::Foundation;
 using namespace winrt::Windows::Web::UI;
 using namespace winrt::Windows::Web::UI::Interop;
 
+#define AUDIENCE_WINDOW_CLASSNAME L"audience_edge"
+#define AUDIENCE_MESSAGE_WINDOW_CLASSNAME L"audience_edge_message"
+
 #define WM_AUDIENCE_DISPATCH (WM_APP + 1)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -47,29 +50,22 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
   TRACEA(info, "COM initialization succeeded");
 
   // create message window
-  WNDCLASSEXW wndcls = {};
-  wndcls.cbSize = sizeof(WNDCLASSEX);
-  wndcls.lpfnWndProc = NUCLEUS_SAFE_FN(MessageWndProc, 0);
-  wndcls.hInstance = hInstanceEXE;
-  wndcls.lpszClassName = L"audience_edge_message";
+  WNDCLASSEXW wndcls_msg = {};
+  wndcls_msg.cbSize = sizeof(WNDCLASSEX);
+  wndcls_msg.lpfnWndProc = NUCLEUS_SAFE_FN(MessageWndProc, 0);
+  wndcls_msg.hInstance = hInstanceEXE;
+  wndcls_msg.lpszClassName = AUDIENCE_MESSAGE_WINDOW_CLASSNAME;
 
-  if (RegisterClassExW(&wndcls) == 0)
+  if (RegisterClassExW(&wndcls_msg) == 0)
   {
     return false;
   }
 
-  _audience_message_window = CreateWindowExW(0, wndcls.lpszClassName, L"audience_edge_message", 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
+  _audience_message_window = CreateWindowExW(0, AUDIENCE_MESSAGE_WINDOW_CLASSNAME, AUDIENCE_MESSAGE_WINDOW_CLASSNAME, 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
   if (!_audience_message_window)
   {
     return false;
   }
-
-  return true;
-}
-
-AudienceWindowContext internal_window_create(const InternalWindowDetails &details)
-{
-  scope_guard scope_fail(scope_guard::execution::exception);
 
   // register window class
   WNDCLASSEXW wndcls;
@@ -85,17 +81,24 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   wndcls.hCursor = LoadCursor(nullptr, IDC_ARROW);
   wndcls.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
   wndcls.lpszMenuName = MAKEINTRESOURCEW(IDC_AUDIENCE);
-  wndcls.lpszClassName = L"audience_edge";
+  wndcls.lpszClassName = AUDIENCE_WINDOW_CLASSNAME;
 
   if (RegisterClassExW(&wndcls) == 0)
   {
-    return {};
+    return false;
   }
+
+  return true;
+}
+
+AudienceWindowContext internal_window_create(const InternalWindowDetails &details)
+{
+  scope_guard scope_fail(scope_guard::execution::exception);
 
   // create window
   AudienceWindowContext context = std::make_shared<AudienceWindowContextData>();
 
-  HWND window = CreateWindowW(wndcls.lpszClassName, details.loading_title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &context);
+  HWND window = CreateWindowW(AUDIENCE_WINDOW_CLASSNAME, details.loading_title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &context);
   if (!window)
   {
     return {};
