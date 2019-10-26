@@ -16,6 +16,11 @@ public:
 
   winrt::Windows::Foundation::IAsyncOperation<winrt::Windows::Storage::Streams::IInputStream> UriToStreamAsync(winrt::Windows::Foundation::Uri uri) const
   {
+    if (!uri)
+    {
+      throw std::invalid_argument("invalid uri");
+    }
+
     // check path
     std::wstring uri_path(uri.Path().c_str());
 
@@ -37,8 +42,16 @@ public:
     }
 
     // retrieve file and stream
-    auto file = co_await winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(winrt::hstring(path));
-    auto stream = co_await file.OpenReadAsync();
-    co_return stream;
+    try
+    {
+      auto file = co_await winrt::Windows::Storage::StorageFile::GetFileFromPathAsync(winrt::hstring(path));
+      auto stream = co_await file.OpenReadAsync();
+      co_return stream;
+    }
+    catch (const winrt::hresult_error &e)
+    {
+      TRACEE(e);
+      throw std::runtime_error(winrt::to_string(e.message()));
+    }
   }
 };
