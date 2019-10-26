@@ -112,6 +112,7 @@ if(WIN32)
     src/nucleus/windows/edge/interface.cpp
     src/nucleus/windows/shared/init.cpp
     src/nucleus/windows/shared/resource.rc
+    src/webapp/messaging/edge.cpp
   )
   set_target_properties(audience_windows_edge PROPERTIES CXX_STANDARD 17)
   target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)

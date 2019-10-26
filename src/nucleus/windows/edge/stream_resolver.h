@@ -5,6 +5,9 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include <string>
 
+extern const char *_audience_webapp_messaging_edge_code_begin;
+extern std::size_t _audience_webapp_messaging_edge_code_length;
+
 class WebViewUriToStreamResolver : public winrt::implements<WebViewUriToStreamResolver, winrt::Windows::Web::IUriToStreamResolver>
 {
 private:
@@ -29,6 +32,18 @@ public:
         uri_path.find(L"..") != std::wstring::npos)
     {
       throw std::runtime_error("illegal request target");
+    }
+
+    // handle /audience.js
+    if (uri_path == L"/audience.js")
+    {
+      winrt::Windows::Storage::Streams::InMemoryRandomAccessStream stream;
+      winrt::Windows::Storage::Streams::DataWriter dataWriter{stream};
+      dataWriter.WriteBytes(winrt::array_view((const uint8_t *)_audience_webapp_messaging_edge_code_begin, (const uint8_t *)_audience_webapp_messaging_edge_code_begin + _audience_webapp_messaging_edge_code_length));
+      co_await dataWriter.StoreAsync();
+      dataWriter.DetachStream();
+      stream.Seek(0);
+      co_return stream;
     }
 
     // assemble path
