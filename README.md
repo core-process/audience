@@ -13,7 +13,7 @@ The following screenshots show a simple web app based on [jQuery Terminal](https
 
 ## Compatibility
 
-Internally the library is split into a shell (shell, as in wrapper, not as in command shell) and multiple nuclei. All nuclei share the same internal API, and each nucleus implements a specific webview technology. The shell probes the available nuclei on after another according to a priority list.
+Internally the library is split into a shell (shell, as in wrapper, not as in command shell) and multiple nuclei. All nuclei share the same internal API, and each nucleus implements a specific webview technology. The shell probes the available nuclei one after another according to a priority list.
 
 Currently, the following nuclei are implemented:
 
