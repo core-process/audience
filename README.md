@@ -72,7 +72,7 @@ int main(int argc, char **argv)
 }
 ```
 
-See [here](src/shell/app.cpp) for a complete example.
+See [here](src/shell/app/main.cpp) for a complete example.
 
 ### Frontend
 
