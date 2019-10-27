@@ -26,9 +26,13 @@ The following nuclei will be implemented soon:
 
 Platform | Technology | Expected Restrictions | Issue #
 --- | --- | --- | ---
-All Platforms | Chrome App Mode | (1) | #8
-Unix | QtWebEngine | none | #14
-Unix | Generic Browser Fallback | (2) | #1
+All Platforms | Chrome App Mode | (1) | [#8](i8)
+Unix | QtWebEngine | none | [#14](i14)
+Unix | Generic Browser Fallback | (2) | [#1](i1)
+
+[i1]: https://github.com/core-process/audience/issues/1
+[i8]: https://github.com/core-process/audience/issues/8
+[i14]: https://github.com/core-process/audience/issues/14
 
 1. Chrome App Mode: A custom window menu and icon configuration will be ignored. Use favicon to influence the window icon.
 2. Generic Browser Fallback: Window positioning via Audience API will not be possible. A custom window menu and icon configuration will be ignored. Use favicon to influence the window icon.
@@ -139,7 +143,9 @@ window.audience.onMessage(handler /* function(string) */)
 window.audience.offMessage(handler /* function(string) or undefined */)
 ```
 
-Currently, the implementation has to be loaded via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend. We will migrate the implementation to an NPM module. See issue #10.
+Currently, the implementation has to be loaded via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend. We will migrate the implementation to an NPM module. See issue [#10](i10).
+
+[i10]: https://github.com/core-process/audience/issues/10
 
 ## Build
 
