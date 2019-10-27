@@ -26,9 +26,9 @@ The following nuclei will be implemented soon:
 
 Platform | Technology | Expected Restrictions | Issue #
 --- | --- | --- | ---
-All Platforms | Chrome App Mode | (1) | [#8](i8)
-Unix | QtWebEngine | none | [#14](i14)
-Unix | Generic Browser Fallback | (2) | [#1](i1)
+All Platforms | Chrome App Mode | (1) | [#8][i8]
+Unix | QtWebEngine | none | [#14][i14]
+Unix | Generic Browser Fallback | (2) | [#1][i1]
 
 [i1]: https://github.com/core-process/audience/issues/1
 [i8]: https://github.com/core-process/audience/issues/8
@@ -143,7 +143,7 @@ window.audience.onMessage(handler /* function(string) */)
 window.audience.offMessage(handler /* function(string) or undefined */)
 ```
 
-Currently, the implementation has to be loaded via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend. We will migrate the implementation to an NPM module. See issue [#10](i10).
+Currently, the implementation has to be loaded via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend. We will migrate the implementation to an NPM module. See issue [#10][i10].
 
 [i10]: https://github.com/core-process/audience/issues/10
 
