@@ -319,8 +319,8 @@ elseif(APPLE)
 elseif(UNIX)
 
 	find_package(PkgConfig REQUIRED)
-	pkg_check_modules(GTK3 REQUIRED gtk+-3.0)
-	pkg_check_modules(WEBKIT2 REQUIRED webkit2gtk-4.0)
+	pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
+	pkg_check_modules(WEBKIT2 REQUIRED IMPORTED_TARGET webkit2gtk-4.0)
 
   # unix/linux: webkit widget
   add_library(audience_unix_webkit SHARED
@@ -328,8 +328,8 @@ elseif(UNIX)
     src/nucleus/unix/webkit/interface.cpp
   )
 
-  target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
-  target_link_libraries(audience_unix_webkit PRIVATE boost ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES} Threads::Threads)
+  target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit)
+  target_link_libraries(audience_unix_webkit PRIVATE boost PkgConfig::GTK3 PkgConfig::WEBKIT2 Threads::Threads)
   if(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
     add_custom_command(TARGET audience_unix_webkit POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_unix_webkit>)
   endif()
