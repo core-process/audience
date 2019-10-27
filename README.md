@@ -48,14 +48,15 @@ Unix | Generic Browser Fallback | (2) | [#1][i1]
 ```c++
 int main(int argc, char **argv)
 {
-  // create and show window
+  // init audience
   AudienceEventHandler peh{};
   if (!audience_init(&peh))
     return 1;
 
+  // create and show window
   AudienceWindowDetails wd{};
   wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
-  wd.webapp_location = "./webapp";
+  wd.webapp_location = L"./webapp";
 
   AudienceWindowEventHandler weh{};
   weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) {
@@ -65,6 +66,7 @@ int main(int argc, char **argv)
   if (!audience_window_create(&wd, &weh))
     return 1;
 
+  // launch main loop
   audience_main(); // calls exit by itself
   return 0;        // just for the compiler
 }
