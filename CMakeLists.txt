@@ -234,29 +234,28 @@ std::size_t _audience_webapp_messaging_edge_code_length = sizeof(_audience_webap
 # AUDIENCE SHELL
 #######################################################################
 
+# audience library
 set(SHELL_LIB_SOURCES
   src/shell/lib.cpp
   src/shell/whereami.c
   src/shell/webserver/process.cpp
   src/webapp/messaging/websocket.cpp
 )
-
-# static audience library
 add_library(audience_static STATIC ${SHELL_LIB_SOURCES})
-target_compile_definitions(audience_static PUBLIC AUDIENCE_STATIC_LIBRARY=1)
-target_link_libraries(audience_static PRIVATE boost)
-if(UNIX)
-  target_link_libraries(audience_static PRIVATE dl)
-  target_link_libraries(audience_static PUBLIC Threads::Threads)
-endif()
-
-# shared audience library
 add_library(audience_shared SHARED ${SHELL_LIB_SOURCES})
-target_link_libraries(audience_shared PRIVATE boost)
-if(UNIX)
-  target_link_libraries(audience_shared PRIVATE dl)
-  target_link_libraries(audience_shared PUBLIC Threads::Threads)
-endif()
+
+foreach(audience_lib audience_static audience_shared)
+  target_link_libraries(${audience_lib} PRIVATE boost)
+  if(UNIX)
+    target_link_libraries(${audience_lib} PRIVATE dl)
+    target_link_libraries(${audience_lib} PUBLIC Threads::Threads)
+  endif()
+endforeach()
+
+# ... static library specifics
+target_compile_definitions(audience_static PUBLIC AUDIENCE_STATIC_LIBRARY=1)
+
+# ... shared library specifics
 if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
   add_custom_command(TARGET audience_shared POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_shared>)
 endif()
