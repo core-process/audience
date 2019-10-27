@@ -7,6 +7,8 @@ A tiny adaptive cross-platform webview window library for C/C++ to build modern 
 
 - It supports web apps provided via a filesystem folder or URL. Audience provides its custom web server and websocket service tightly integrated into the library. But if you prefer a regular http URL schema, you can use Express or any other http based framework you like.
 
+<div style="overflow: scroll; display: flex; flex-direction: row; flex-wrap: nowrap;"><img src="examples/ping/screenshots/macos.png" style="height: 400px;"><img src="examples/ping/screenshots/windows.png" style="height: 400px;"><img src="examples/ping/screenshots/ubuntu.png" style="height: 400px;"></div>
+
 ## Compatibility
 
 Internally the library is split into a shell (shell, as in wrapper, not as in command shell) and multiple nuclei. All nuclei share the same internal API, and each nucleus implements a specific webview technology. The shell probes the available nuclei on after another according to a priority list.
