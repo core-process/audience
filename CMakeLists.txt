@@ -29,21 +29,170 @@ include_directories(include)
 # AUDIENCE DEPENDENCIES
 #######################################################################
 
+set(DEPS_DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads)
+set(DEPS_BUILD_ROOT_DIR ${CMAKE_BINARY_DIR}/deps_build)
+set(DEPS_INSTALL_ROOT_DIR ${CMAKE_BINARY_DIR}/deps)
+
 include(ExternalProject)
 
-ExternalProject_Add(boost
+###################################
+# Threading Library
+
+if(UNIX)
+  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
+  set(THREADS_PREFER_PTHREAD_FLAG TRUE)
+  find_package(Threads REQUIRED)
+endif()
+
+###################################
+# Boost
+
+# ... build
+set(BOOST_ROOT ${DEPS_INSTALL_ROOT_DIR}/boost)
+set(BOOST_INCLUDE_DIR ${BOOST_ROOT}/include)
+
+ExternalProject_Add(boost_build
   URL "https://dl.bintray.com/boostorg/release/1.71.0/source/boost_1_71_0.tar.gz"
   URL_HASH SHA256=96b34f7468f26a141f6020efb813f1a2f3dfb9797ecf76a7d7cbd843cc95f5bd
-  DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads
-  PREFIX ${CMAKE_BINARY_DIR}/deps_build/boost
-  INSTALL_DIR ${CMAKE_BINARY_DIR}/deps/boost
-  BUILD_IN_SOURCE 1
-  UPDATE_COMMAND ""
-  PATCH_COMMAND ""
+  DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+  PREFIX ${DEPS_BUILD_ROOT_DIR}/boost
+  INSTALL_DIR ${BOOST_ROOT}
   CONFIGURE_COMMAND ""
   BUILD_COMMAND ""
-  INSTALL_COMMAND cmake -E copy_directory ${CMAKE_BINARY_DIR}/deps_build/boost/src/boost/boost/ ${CMAKE_BINARY_DIR}/deps/boost/boost/
+  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/boost/ ${BOOST_INCLUDE_DIR}/boost/
 )
+
+file(MAKE_DIRECTORY ${BOOST_INCLUDE_DIR})
+
+# ... import
+add_library(boost INTERFACE IMPORTED)
+add_dependencies(boost boost_build)
+target_include_directories(boost INTERFACE ${BOOST_INCLUDE_DIR})
+
+# ###################################
+# # zlib
+
+# # ... build
+# set(ZLIB_ROOT ${DEPS_INSTALL_ROOT_DIR}/zlib)
+# set(ZLIB_INCLUDE_DIR ${ZLIB_ROOT}/include)
+# set(ZLIB_LIB_DIR ${ZLIB_ROOT}/lib)
+# set(ZLIB_LIB z)
+
+# ExternalProject_Add(zlib_build
+#   URL "https://zlib.net/zlib-1.2.11.tar.gz"
+#   URL_HASH SHA256=c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
+#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+#   PREFIX ${DEPS_BUILD_ROOT_DIR}/zlib
+#   INSTALL_DIR ${ZLIB_ROOT}
+#   CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}
+#   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
+#   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
+# )
+
+# file(MAKE_DIRECTORY ${ZLIB_INCLUDE_DIR})
+
+# # ... import
+# add_library(zlib STATIC IMPORTED)
+# add_dependencies(zlib zlib_build)
+# if(WIN32)
+#   set_target_properties(zlib PROPERTIES IMPORTED_LOCATION ${ZLIB_LIB_DIR}/${ZLIB_LIB}.lib)
+# else()
+#   set_target_properties(zlib PROPERTIES IMPORTED_LOCATION ${ZLIB_LIB_DIR}/lib${ZLIB_LIB}.a)
+# endif()
+# target_include_directories(zlib INTERFACE ${ZLIB_INCLUDE_DIR})
+
+# ###################################
+# # libuv
+
+# # ... build
+# set(LIBUV_ROOT ${DEPS_INSTALL_ROOT_DIR}/libuv)
+# set(LIBUV_INCLUDE_DIR ${LIBUV_ROOT}/include)
+# set(LIBUV_LIB_DIR ${LIBUV_ROOT}/lib)
+# set(LIBUV_LIB uv_a)
+
+# ExternalProject_Add(libuv_build
+#   URL "https://github.com/libuv/libuv/archive/v1.33.1.tar.gz" DOWNLOAD_NAME "libuv-v1.33.1.tar.gz"
+#   URL_HASH SHA256=63794499bf5da1720e249d3fc14ff396b70b8736effe6ce5b4e47e0f3d476467
+#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+#   PREFIX ${DEPS_BUILD_ROOT_DIR}/libuv
+#   INSTALL_DIR ${LIBUV_ROOT}
+#   CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DLIBUV_BUILD_TESTS=OFF
+#   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
+#   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
+# )
+
+# file(MAKE_DIRECTORY ${LIBUV_INCLUDE_DIR})
+
+# # ... import
+# add_library(libuv STATIC IMPORTED)
+# add_dependencies(libuv libuv_build)
+# if(WIN32)
+#   set_target_properties(libuv PROPERTIES IMPORTED_LOCATION ${LIBUV_LIB_DIR}/${LIBUV_LIB}.lib)
+# else()
+#   set_target_properties(libuv PROPERTIES IMPORTED_LOCATION ${LIBUV_LIB_DIR}/lib${LIBUV_LIB}.a)
+# endif()
+# target_include_directories(libuv INTERFACE ${LIBUV_INCLUDE_DIR})
+
+# ###################################
+# # uSockets
+
+# # ... build
+# set(USOCKETS_ROOT ${DEPS_INSTALL_ROOT_DIR}/usockets)
+# set(USOCKETS_INCLUDE_DIR ${USOCKETS_ROOT}/include)
+# set(USOCKETS_LIB_DIR ${USOCKETS_ROOT}/lib)
+# set(USOCKETS_LIB usockets)
+
+# ExternalProject_Add(usockets_build
+#   URL "https://github.com/uNetworking/uSockets/archive/v0.3.2.tar.gz" DOWNLOAD_NAME "usockets-v0.3.2.tar.gz"
+#   URL_HASH SHA256=2bd33157cd7359f143673c94de87d10aac167392ab52bae7c7464d6d2cbb3da7
+#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+#   PREFIX ${DEPS_BUILD_ROOT_DIR}/usockets
+#   INSTALL_DIR ${USOCKETS_ROOT}
+#   PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/deps/usockets/CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt
+#   CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DLIBUV_INCLUDE_DIR=${LIBUV_INCLUDE_DIR} -DLIBUV_LIB_DIR=${LIBUV_LIB_DIR} -DLIBUV_LIB=${LIBUV_LIB}
+#   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
+#   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
+# )
+# add_dependencies(usockets_build libuv_build)
+
+# file(MAKE_DIRECTORY ${USOCKETS_INCLUDE_DIR})
+
+# # ... import
+# add_library(usockets STATIC IMPORTED)
+# add_dependencies(usockets usockets_build)
+# if(WIN32)
+#   set_target_properties(usockets PROPERTIES IMPORTED_LOCATION ${USOCKETS_LIB_DIR}/${USOCKETS_LIB}.lib)
+# else()
+#   set_target_properties(usockets PROPERTIES IMPORTED_LOCATION ${USOCKETS_LIB_DIR}/lib${USOCKETS_LIB}.a)
+# endif()
+# target_include_directories(usockets INTERFACE ${USOCKETS_INCLUDE_DIR})
+# target_link_libraries(usockets INTERFACE libuv)
+
+# ###################################
+# # uWebSockets
+
+# # ... import
+# set(UWEBSOCKETS_ROOT ${DEPS_INSTALL_ROOT_DIR}/uwebsockets)
+# set(UWEBSOCKETS_INCLUDE_DIR ${UWEBSOCKETS_ROOT}/include)
+
+# ExternalProject_Add(uwebsockets_build
+#   URL "https://github.com/uNetworking/uWebSockets/archive/v0.16.1.tar.gz" DOWNLOAD_NAME "uwebsockets-v0.16.1.tar.gz"
+#   URL_HASH SHA256=a6f6cc4c7a761294b7b7dd8978714727e39f94734a957c15d6896405099af562
+#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+#   PREFIX ${DEPS_BUILD_ROOT_DIR}/uwebsockets
+#   INSTALL_DIR ${UWEBSOCKETS_ROOT}
+#   CONFIGURE_COMMAND ""
+#   BUILD_COMMAND ""
+#   INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/src/ ${UWEBSOCKETS_INCLUDE_DIR}/uwebsockets/
+# )
+
+# file(MAKE_DIRECTORY ${UWEBSOCKETS_INCLUDE_DIR})
+
+# # ... import
+# add_library(uwebsockets INTERFACE IMPORTED)
+# add_dependencies(uwebsockets uwebsockets_build)
+# target_include_directories(uwebsockets INTERFACE ${UWEBSOCKETS_INCLUDE_DIR})
+# target_link_libraries(uwebsockets INTERFACE usockets zlib)
 
 #######################################################################
 # AUDIENCE WEBAPP MESSAGING
@@ -79,15 +228,8 @@ add_library(audience STATIC
   src/webapp/messaging/websocket.cpp
 )
 set_target_properties(audience PROPERTIES CXX_STANDARD 11)
-
-add_dependencies(audience boost)
-target_include_directories(audience PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
-
+target_link_libraries(audience PRIVATE boost)
 if(UNIX)
-  set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
-  set(THREADS_PREFER_PTHREAD_FLAG TRUE)
-  find_package(Threads REQUIRED)
-
   target_link_libraries(audience PRIVATE dl)
   target_link_libraries(audience PUBLIC Threads::Threads)
 endif()
@@ -115,12 +257,9 @@ if(WIN32)
     src/webapp/messaging/edge.cpp
   )
   set_target_properties(audience_windows_edge PROPERTIES CXX_STANDARD 17)
-  target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)
   target_compile_options(audience_windows_edge PRIVATE "/await")
-  target_link_libraries(audience_windows_edge PRIVATE WindowsApp.lib)
-
-  add_dependencies(audience_windows_edge boost)
-  target_include_directories(audience_windows_edge PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
+  target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)
+  target_link_libraries(audience_windows_edge PRIVATE boost WindowsApp.lib)
 
   # windows: ie11 widget
   add_library(audience_windows_ie11 SHARED
@@ -132,10 +271,7 @@ if(WIN32)
   )
   set_target_properties(audience_windows_ie11 PROPERTIES CXX_STANDARD 11)
   target_include_directories(audience_windows_ie11 PRIVATE src/nucleus/windows/ie11)
-  target_link_libraries(audience_windows_ie11 PRIVATE comsuppw.lib)
-
-  add_dependencies(audience_windows_ie11 boost)
-  target_include_directories(audience_windows_ie11 PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
+  target_link_libraries(audience_windows_ie11 PRIVATE boost comsuppw.lib)
 
 elseif(APPLE)
 
@@ -145,12 +281,9 @@ elseif(APPLE)
     src/nucleus/macos/webkit/interface.mm
   )
   set_target_properties(audience_macos_webkit PROPERTIES CXX_STANDARD 11)
-  target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
-  target_link_libraries(audience_macos_webkit PRIVATE "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
-
-  add_dependencies(audience_macos_webkit boost)
-  target_include_directories(audience_macos_webkit PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
+  target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
+  target_link_libraries(audience_macos_webkit PRIVATE boost "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
 
 elseif(UNIX)
 
@@ -164,11 +297,7 @@ elseif(UNIX)
     src/nucleus/unix/webkit/interface.cpp
   )
   set_target_properties(audience_unix_webkit PROPERTIES CXX_STANDARD 11)
-  target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit)
-  target_include_directories(audience_unix_webkit PRIVATE ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
-  target_link_libraries(audience_unix_webkit PRIVATE ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES} Threads::Threads)
-
-  add_dependencies(audience_unix_webkit boost)
-  target_include_directories(audience_unix_webkit PRIVATE ${CMAKE_BINARY_DIR}/deps/boost)
+  target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
+  target_link_libraries(audience_unix_webkit PRIVATE boost ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES} Threads::Threads)
 
 endif()
