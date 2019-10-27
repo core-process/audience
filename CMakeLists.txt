@@ -12,17 +12,25 @@ option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
 # AUDIENCE COMMON
 #######################################################################
 
+# enable traces for debug
 add_compile_definitions(AUDIENCE_ENABLE_TRACE=$<CONFIG:Debug>)
-add_compile_definitions(BOOST_ALL_NO_LIB=1)
 
+# msvc: link runtime statically
 if(AUDIENCE_STATIC_RUNTIME)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
+# msvc: support big object files
 if(WIN32)
   add_compile_options(/bigobj)
 endif()
 
+# symbols are hidden by default
+if(NOT WIN32)
+  add_compile_options(-fvisibility=hidden)
+endif()
+
+# public include directory
 include_directories(include)
 
 #######################################################################
@@ -68,6 +76,7 @@ file(MAKE_DIRECTORY ${BOOST_INCLUDE_DIR})
 add_library(boost INTERFACE IMPORTED)
 add_dependencies(boost boost_build)
 target_include_directories(boost INTERFACE ${BOOST_INCLUDE_DIR})
+target_compile_definitions(boost INTERFACE BOOST_ALL_NO_LIB=1)
 
 # ###################################
 # # zlib
@@ -241,6 +250,9 @@ add_executable(audienceapp WIN32
 )
 set_target_properties(audienceapp PROPERTIES CXX_STANDARD 11)
 target_link_libraries (audienceapp PRIVATE audience)
+if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+  add_custom_command(TARGET audienceapp POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audienceapp>)
+endif()
 
 #######################################################################
 # AUDIENCE NUCLEUS
@@ -284,6 +296,9 @@ elseif(APPLE)
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
   target_link_libraries(audience_macos_webkit PRIVATE boost "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
+  if(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+    add_custom_command(TARGET audience_macos_webkit POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_macos_webkit>)
+  endif()
 
 elseif(UNIX)
 
@@ -299,5 +314,8 @@ elseif(UNIX)
   set_target_properties(audience_unix_webkit PROPERTIES CXX_STANDARD 11)
   target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
   target_link_libraries(audience_unix_webkit PRIVATE boost ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES} Threads::Threads)
+  if(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+    add_custom_command(TARGET audience_unix_webkit POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_unix_webkit>)
+  endif()
 
 endif()

@@ -17,7 +17,7 @@
 #ifdef WIN32
 #define AUDIENCE_EXT_EXPORT __declspec(dllexport)
 #else
-#define AUDIENCE_EXT_EXPORT
+#define AUDIENCE_EXT_EXPORT __attribute__ ((visibility ("default")))
 #endif
 
 extern "C"

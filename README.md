@@ -1,5 +1,5 @@
 # Audience
-A tiny adaptive cross-platform webview window library for C/C++ to build modern cross-platform user interfaces.
+A small adaptive cross-platform webview window library for C/C++ to build modern cross-platform user interfaces.
 
 - It is **adaptive**: Audience adapts to its environment using the best available webview technology based on a priority list. E.g., on Windows, it can be configured to try embedding of EdgeHTML first and fall back to the embedding of IE11.
 
@@ -167,10 +167,10 @@ Currently, the implementation has to be loaded via ``<script src="/audience.js">
 ```bat
 git clone https://github.com/core-process/audience
 cd audience
-.\build.bat Release
+.\build.bat MinSizeRel
 ```
 
-- The build output will be placed in `.\build\Release`.
+- The build output will be placed in `.\build\MinSizeRel`.
 - Add `<audience_dir>/include` to your include paths and link `audience.lib`.
 - All `audience_windows_*.dll` files need to reside next to your executable.
 
@@ -179,10 +179,10 @@ cd audience
 ```sh
 git clone https://github.com/core-process/audience
 cd audience
-./build.sh Release
+./build.sh MinSizeRel
 ```
 
-- The build output will be placed in `./build/Release`.
+- The build output will be placed in `./build/MinSizeRel`.
 - Add `<audience_dir>/include` to your include paths and link `libaudience.a`.
 - All `audience_macos_*.dylib` files need to reside next to your executable.
 
@@ -191,9 +191,9 @@ cd audience
 ```sh
 git clone https://github.com/core-process/audience
 cd audience
-./build.sh Release
+./build.sh MinSizeRel
 ```
 
-- The build output will be placed in `./build/Release`.
+- The build output will be placed in `./build/MinSizeRel`.
 - Add `<audience_dir>/include` to your include paths and link `libaudience.a`.
 - All `audience_unix_*.so` files need to reside next to your executable.
