@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "../common/trace.h"
+#include "../../common/trace.h"
 #include "whereami.h"
 
 #if defined(WIN32)

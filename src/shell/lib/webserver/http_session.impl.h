@@ -3,7 +3,7 @@
 #include <boost/beast/http.hpp>
 #include <memory>
 
-#include "../../common/trace.h"
+#include "../../../common/trace.h"
 #include "websocket_session.impl.h"
 #include "handle_request.impl.h"
 

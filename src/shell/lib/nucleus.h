@@ -1,7 +1,7 @@
 #pragma once
 
 #include <audience_details.h>
-#include "../common/nucleus_interface_details.h"
+#include "../../shared/nucleus_api_details.h"
 
 typedef bool (*nucleus_init_t)(AudienceNucleusProtocolNegotiation *negotiation);
 typedef AudienceWindowHandle (*nucleus_window_create_t)(const AudienceWindowDetails *details);

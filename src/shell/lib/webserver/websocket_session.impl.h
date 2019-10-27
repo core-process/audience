@@ -6,7 +6,7 @@
 #include <memory>
 #include <queue>
 
-#include "../../common/trace.h"
+#include "../../../common/trace.h"
 #include "context.h"
 
 // Echoes back all received WebSocket messages

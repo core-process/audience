@@ -6,7 +6,7 @@
 
 #include <audience_details.h>
 
-#include "../../common/nucleus_interface_details.h"
+#include "../../shared/nucleus_api_details.h"
 #include "safefn.h"
 #include "nucleus.h"
 

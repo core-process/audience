@@ -16,7 +16,7 @@
 
 #include <audience.h>
 
-#include "../common/trace.h"
+#include "../../common/trace.h"
 
 extern std::vector<std::string> some_quotes;
 

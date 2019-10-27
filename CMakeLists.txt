@@ -236,9 +236,9 @@ std::size_t _audience_webapp_messaging_edge_code_length = sizeof(_audience_webap
 
 # audience library
 set(SHELL_LIB_SOURCES
-  src/shell/lib.cpp
-  src/shell/whereami.c
-  src/shell/webserver/process.cpp
+  src/shell/lib/lib.cpp
+  src/shell/lib/whereami.c
+  src/shell/lib/webserver/process.cpp
   src/webapp/messaging/websocket.cpp
 )
 add_library(audience_static STATIC ${SHELL_LIB_SOURCES})
@@ -262,8 +262,8 @@ endif()
 
 # audience app
 add_executable(audience WIN32
-  src/shell/app.cpp
-  src/shell/quotes.cpp
+  src/shell/app/main.cpp
+  src/shell/app/quotes.cpp
 )
 target_link_libraries (audience PRIVATE audience_shared)
 if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
