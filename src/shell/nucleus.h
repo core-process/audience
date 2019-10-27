@@ -1,6 +1,6 @@
 #pragma once
 
-#include <audience.h>
+#include <audience_details.h>
 #include "../common/nucleus_interface_details.h"
 
 typedef bool (*nucleus_init_t)(AudienceNucleusProtocolNegotiation *negotiation);

@@ -229,29 +229,44 @@ std::size_t _audience_webapp_messaging_edge_code_length = sizeof(_audience_webap
 # AUDIENCE SHELL
 #######################################################################
 
-# audience library
-add_library(audience STATIC
+set(SHELL_LIB_SOURCES
   src/shell/lib.cpp
   src/shell/whereami.c
   src/shell/webserver/process.cpp
   src/webapp/messaging/websocket.cpp
 )
-set_target_properties(audience PROPERTIES CXX_STANDARD 11)
-target_link_libraries(audience PRIVATE boost)
+
+# static audience library
+add_library(audience_static STATIC ${SHELL_LIB_SOURCES})
+set_target_properties(audience_static PROPERTIES CXX_STANDARD 11)
+target_compile_definitions(audience_static PUBLIC AUDIENCE_STATIC_LIBRARY=1)
+target_link_libraries(audience_static PRIVATE boost)
 if(UNIX)
-  target_link_libraries(audience PRIVATE dl)
-  target_link_libraries(audience PUBLIC Threads::Threads)
+  target_link_libraries(audience_static PRIVATE dl)
+  target_link_libraries(audience_static PUBLIC Threads::Threads)
+endif()
+
+# shared audience library
+add_library(audience_shared SHARED ${SHELL_LIB_SOURCES})
+set_target_properties(audience_shared PROPERTIES CXX_STANDARD 11)
+target_link_libraries(audience_shared PRIVATE boost)
+if(UNIX)
+  target_link_libraries(audience_shared PRIVATE dl)
+  target_link_libraries(audience_shared PUBLIC Threads::Threads)
+endif()
+if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+  add_custom_command(TARGET audience_shared POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_shared>)
 endif()
 
 # audience app
-add_executable(audienceapp WIN32
+add_executable(audience WIN32
   src/shell/app.cpp
   src/shell/quotes.cpp
 )
-set_target_properties(audienceapp PROPERTIES CXX_STANDARD 11)
-target_link_libraries (audienceapp PRIVATE audience)
+set_target_properties(audience PROPERTIES CXX_STANDARD 11)
+target_link_libraries (audience PRIVATE audience_shared)
 if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
-  add_custom_command(TARGET audienceapp POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audienceapp>)
+  add_custom_command(TARGET audience POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audience>)
 endif()
 
 #######################################################################

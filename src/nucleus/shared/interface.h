@@ -15,20 +15,20 @@
 ///////////////////////////////////////////////////////////////////////
 
 #ifdef WIN32
-#define AUDIENCE_EXT_EXPORT __declspec(dllexport)
+#define NUCLEUS_EXPORT __declspec(dllexport)
 #else
-#define AUDIENCE_EXT_EXPORT __attribute__ ((visibility ("default")))
+#define NUCLEUS_EXPORT __attribute__((visibility("default")))
 #endif
 
 extern "C"
 {
-  AUDIENCE_EXT_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation);
-  AUDIENCE_EXT_EXPORT AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
-  AUDIENCE_EXT_EXPORT void audience_window_post_message(AudienceWindowHandle handle, const char *message);
-  AUDIENCE_EXT_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
-  AUDIENCE_EXT_EXPORT void audience_main();
-  AUDIENCE_EXT_EXPORT void audience_dispatch_sync(void (*task)(void *context), void *context);
-  AUDIENCE_EXT_EXPORT void audience_dispatch_async(void (*task)(void *context), void *context);
+  NUCLEUS_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation);
+  NUCLEUS_EXPORT AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
+  NUCLEUS_EXPORT void audience_window_post_message(AudienceWindowHandle handle, const char *message);
+  NUCLEUS_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
+  NUCLEUS_EXPORT void audience_main();
+  NUCLEUS_EXPORT void audience_dispatch_sync(void (*task)(void *context), void *context);
+  NUCLEUS_EXPORT void audience_dispatch_async(void (*task)(void *context), void *context);
 }
 
 ///////////////////////////////////////////////////////////////////////
