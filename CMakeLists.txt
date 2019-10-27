@@ -15,6 +15,11 @@ option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
 # enable traces for debug
 add_compile_definitions(AUDIENCE_ENABLE_TRACE=$<CONFIG:Debug>)
 
+# default is c++11
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 # msvc: link runtime statically
 if(AUDIENCE_STATIC_RUNTIME)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -238,7 +243,6 @@ set(SHELL_LIB_SOURCES
 
 # static audience library
 add_library(audience_static STATIC ${SHELL_LIB_SOURCES})
-set_target_properties(audience_static PROPERTIES CXX_STANDARD 11)
 target_compile_definitions(audience_static PUBLIC AUDIENCE_STATIC_LIBRARY=1)
 target_link_libraries(audience_static PRIVATE boost)
 if(UNIX)
@@ -248,7 +252,6 @@ endif()
 
 # shared audience library
 add_library(audience_shared SHARED ${SHELL_LIB_SOURCES})
-set_target_properties(audience_shared PROPERTIES CXX_STANDARD 11)
 target_link_libraries(audience_shared PRIVATE boost)
 if(UNIX)
   target_link_libraries(audience_shared PRIVATE dl)
@@ -263,7 +266,6 @@ add_executable(audience WIN32
   src/shell/app.cpp
   src/shell/quotes.cpp
 )
-set_target_properties(audience PROPERTIES CXX_STANDARD 11)
 target_link_libraries (audience PRIVATE audience_shared)
 if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
   add_custom_command(TARGET audience POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audience>)
@@ -296,7 +298,7 @@ if(WIN32)
     src/nucleus/windows/shared/init.cpp
     src/nucleus/windows/shared/resource.rc
   )
-  set_target_properties(audience_windows_ie11 PROPERTIES CXX_STANDARD 11)
+
   target_include_directories(audience_windows_ie11 PRIVATE src/nucleus/windows/ie11)
   target_link_libraries(audience_windows_ie11 PRIVATE boost comsuppw.lib)
 
@@ -307,7 +309,7 @@ elseif(APPLE)
     src/nucleus/macos/webkit/nucleus.mm
     src/nucleus/macos/webkit/interface.mm
   )
-  set_target_properties(audience_macos_webkit PROPERTIES CXX_STANDARD 11)
+
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
   target_link_libraries(audience_macos_webkit PRIVATE boost "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
@@ -326,7 +328,7 @@ elseif(UNIX)
     src/nucleus/unix/webkit/nucleus.cpp
     src/nucleus/unix/webkit/interface.cpp
   )
-  set_target_properties(audience_unix_webkit PROPERTIES CXX_STANDARD 11)
+
   target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit ${GTK3_INCLUDE_DIRS} ${WEBKIT2_INCLUDE_DIRS})
   target_link_libraries(audience_unix_webkit PRIVATE boost ${GTK3_LIBRARIES} ${WEBKIT2_LIBRARIES} Threads::Threads)
   if(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
