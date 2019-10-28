@@ -170,8 +170,8 @@ cd audience
 .\build.bat MinSizeRel
 ```
 
-- The build output will be placed in `.\build\MinSizeRel`.
-- Add `<audience_dir>/include` to your include paths and link `audience_shared.lib` or `audience_static.lib`.
+- The build output will be placed in `<audience>\dist\MinSizeRel`.
+- Add the `include` directory to your include paths and link `audience_shared.lib` or `audience_static.lib`.
 - Define `AUDIENCE_STATIC_LIBRARY` before including `<audience.h>` in case you want to link the static library.
 - All `audience_windows_*.dll` files need to reside next to your executable. The same applies to `audience_shared.dll` in case you linked the shared library.
 
@@ -183,8 +183,8 @@ cd audience
 ./build.sh MinSizeRel
 ```
 
-- The build output will be placed in `./build/MinSizeRel`.
-- Add `<audience_dir>/include` to your include paths and link `libaudience_shared.dylib` or `libaudience_static.a`.
+- The build output will be placed in `<audience>/dist/MinSizeRel`.
+- Add the `include` directory to your include paths and link `libaudience_shared.dylib` or `libaudience_static.a`.
 - Define `AUDIENCE_STATIC_LIBRARY` before including `<audience.h>` in case you want to link the static library.
 - All `audience_macos_*.dylib` files need to reside next to your executable. The same applies to `libaudience_shared.dylib` in case you linked the shared library.
 
@@ -196,7 +196,7 @@ cd audience
 ./build.sh MinSizeRel
 ```
 
-- The build output will be placed in `./build/MinSizeRel`.
-- Add `<audience_dir>/include` to your include paths and link `libaudience_shared.so` or `libaudience_static.a`.
+- The build output will be placed in `<audience>/dist/MinSizeRel`.
+- Add the `include` directory to your include paths and link `libaudience_shared.so` or `libaudience_static.a`.
 - Define `AUDIENCE_STATIC_LIBRARY` before including `<audience.h>` in case you want to link the static library.
 - All `audience_unix_*.so` files need to reside next to your executable. The same applies to `libaudience_shared.so` in case you linked the shared library.

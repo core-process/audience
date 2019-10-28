@@ -16,10 +16,11 @@ if not exist ".\build" mkdir ".\build" || goto :error
 cd ".\build" || goto :error
 
 rem initialize cmake cache
-if not exist .\CMakeCache.txt cmake .. || goto :error
+if not exist .\CMakeCache.txt cmake -DCMAKE_INSTALL_PREFIX:PATH=..\dist .. || goto :error
 
-rem perform build
+rem perform build and install
 cmake --build . --config "%CMAKE_BUILD_TYPE%" || goto :error
+cmake --build . --config "%CMAKE_BUILD_TYPE%" --target install || goto :error
 
 rem error and success handling
 goto :EOF

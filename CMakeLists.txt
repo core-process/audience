@@ -241,10 +241,17 @@ set(SHELL_LIB_SOURCES
   src/shell/lib/webserver/process.cpp
   src/webapp/messaging/websocket.cpp
 )
+set(SHELL_LIB_PUBLIC_HEADER
+  include/audience_api.h
+  include/audience_details.h
+  include/audience.h
+)
+
 add_library(audience_static STATIC ${SHELL_LIB_SOURCES})
 add_library(audience_shared SHARED ${SHELL_LIB_SOURCES})
 
 foreach(audience_lib audience_static audience_shared)
+  set_target_properties(${audience_lib} PROPERTIES PUBLIC_HEADER "${SHELL_LIB_PUBLIC_HEADER}")
   target_link_libraries(${audience_lib} PRIVATE boost)
   if(UNIX)
     target_link_libraries(${audience_lib} PRIVATE dl)
@@ -297,7 +304,6 @@ if(WIN32)
     src/nucleus/windows/shared/init.cpp
     src/nucleus/windows/shared/resource.rc
   )
-
   target_include_directories(audience_windows_ie11 PRIVATE src/nucleus/windows/ie11)
   target_link_libraries(audience_windows_ie11 PRIVATE boost comsuppw.lib)
 
@@ -308,7 +314,6 @@ elseif(APPLE)
     src/nucleus/macos/webkit/nucleus.mm
     src/nucleus/macos/webkit/interface.mm
   )
-
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
   target_link_libraries(audience_macos_webkit PRIVATE boost "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
@@ -327,7 +332,6 @@ elseif(UNIX)
     src/nucleus/unix/webkit/nucleus.cpp
     src/nucleus/unix/webkit/interface.cpp
   )
-
   target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit)
   target_link_libraries(audience_unix_webkit PRIVATE boost PkgConfig::GTK3 PkgConfig::WEBKIT2 Threads::Threads)
   if(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
@@ -335,3 +339,20 @@ elseif(UNIX)
   endif()
 
 endif()
+
+#######################################################################
+# AUDIENCE DIST
+#######################################################################
+
+get_directory_property(all_targets BUILDSYSTEM_TARGETS)
+foreach(some_target ${all_targets})
+  if(some_target MATCHES "^audience")
+    install(TARGETS ${some_target}
+      RUNTIME DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/bin
+      LIBRARY DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/lib
+      ARCHIVE DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/lib
+      PRIVATE_HEADER DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/include
+      PUBLIC_HEADER DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/include
+    )
+  endif()
+endforeach()
