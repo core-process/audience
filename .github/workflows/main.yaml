@@ -73,6 +73,8 @@ jobs:
           sudo apt-get install cmake
           # install patchelf
           sudo apt-get install patchelf
+          # install dependencies
+          sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: bash
