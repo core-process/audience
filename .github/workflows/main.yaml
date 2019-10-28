@@ -101,10 +101,10 @@ jobs:
         run: |
           set -e
           mkdir ./dist/packed
-          tar -cfzv $PWD/dist/packed/audience-linux-x64-debug.tar.gz -C ./dist/Debug .
-          tar -cfzv $PWD/dist/packed/audience-linux-x64-release.tar.gz -C ./dist/Release .
-          tar -cfzv $PWD/dist/packed/audience-linux-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
-          tar -cfzv $PWD/dist/packed/audience-linux-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -czf $PWD/dist/packed/audience-linux-x64-debug.tar.gz -C ./dist/Debug .
+          tar -czf $PWD/dist/packed/audience-linux-x64-release.tar.gz -C ./dist/Release .
+          tar -czf $PWD/dist/packed/audience-linux-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -czf $PWD/dist/packed/audience-linux-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
@@ -140,10 +140,10 @@ jobs:
         run: |
           set -e
           mkdir ./dist/packed
-          tar -cfzv $PWD/dist/packed/audience-macos-x64-debug.tar.gz -C ./dist/Debug .
-          tar -cfzv $PWD/dist/packed/audience-macos-x64-release.tar.gz -C ./dist/Release .
-          tar -cfzv $PWD/dist/packed/audience-macos-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
-          tar -cfzv $PWD/dist/packed/audience-macos-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -czf $PWD/dist/packed/audience-macos-x64-debug.tar.gz -C ./dist/Debug .
+          tar -czf $PWD/dist/packed/audience-macos-x64-release.tar.gz -C ./dist/Release .
+          tar -czf $PWD/dist/packed/audience-macos-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -czf $PWD/dist/packed/audience-macos-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
