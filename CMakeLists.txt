@@ -6,7 +6,7 @@ project(audience)
 # AUDIENCE OPTIONS
 #######################################################################
 
-option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
+option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" OFF)
 
 #######################################################################
 # AUDIENCE COMMON
@@ -372,3 +372,8 @@ foreach(some_target ${all_targets})
     )
   endif()
 endforeach()
+
+if(NOT AUDIENCE_STATIC_RUNTIME)
+  set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/bin)
+  include(InstallRequiredSystemLibraries)
+endif()
