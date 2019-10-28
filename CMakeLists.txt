@@ -38,6 +38,9 @@ endif()
 # public include directory
 include_directories(include)
 
+# rpath handling
+SET(CMAKE_SKIP_BUILD_RPATH TRUE)
+
 #######################################################################
 # AUDIENCE DEPENDENCIES
 #######################################################################
