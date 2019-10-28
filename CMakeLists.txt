@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 cmake_policy(SET CMP0091 NEW)
 project(audience)
 
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
+
 #######################################################################
 # AUDIENCE OPTIONS
 #######################################################################
@@ -374,6 +376,7 @@ foreach(some_target ${all_targets})
 endforeach()
 
 if(NOT AUDIENCE_STATIC_RUNTIME)
+  set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
   set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/bin)
   include(InstallRequiredSystemLibraries)
 endif()
