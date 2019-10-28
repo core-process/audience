@@ -1,0 +1,183 @@
+on:
+  push: {}
+  pull_request: {}
+  release:
+    types:
+      - created
+jobs:
+  build_windows:
+    name: Build for Windows
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build Debug
+        shell: cmd
+        run: |
+          .\build.bat Debug || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Build Release
+        shell: cmd
+        run: |
+          .\build.bat Release || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Build RelWithDebInfo
+        shell: cmd
+        run: |
+          .\build.bat RelWithDebInfo || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Build MinSizeRel
+        shell: cmd
+        run: |
+          .\build.bat MinSizeRel || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Pack
+        shell: cmd
+        run: |
+          mkdir .\dist\packed || goto :error
+          7z a .\dist\packed\audience-windows-x64-debug.zip .\dist\Debug\* || goto :error
+          7z a .\dist\packed\audience-windows-x64-release.zip .\dist\Release\* || goto :error
+          7z a .\dist\packed\audience-windows-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
+          7z a .\dist\packed\audience-windows-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Upload
+        uses: actions/upload-artifact@v1
+        with:
+          name: audience-windows-x64
+          path: dist/packed
+  build_linux:
+    name: Build for Linux
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build Debug
+        shell: bash
+        run: |
+          set -e
+          ./build.sh Debug
+      - name: Build Release
+        shell: bash
+        run: |
+          set -e
+          ./build.sh Release
+      - name: Build RelWithDebInfo
+        shell: bash
+        run: |
+          set -e
+          ./build.sh RelWithDebInfo
+      - name: Build MinSizeRel
+        shell: bash
+        run: |
+          set -e
+          ./build.sh MinSizeRel
+      - name: Pack
+        shell: bash
+        run: |
+          set -e
+          mkdir ./dist/packed
+          tar -cfzv ./dist/packed/audience-linux-x64-debug.tar.gz -C ./dist/Debug .
+          tar -cfzv ./dist/packed/audience-linux-x64-release.tar.gz -C ./dist/Release .
+          tar -cfzv ./dist/packed/audience-linux-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -cfzv ./dist/packed/audience-linux-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+      - name: Upload
+        uses: actions/upload-artifact@v1
+        with:
+          name: audience-linux-x64
+          path: dist/packed
+  build_macos:
+    name: Build for macOS
+    runs-on: macOS-10.14
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build Debug
+        shell: bash
+        run: |
+          set -e
+          ./build.sh Debug
+      - name: Build Release
+        shell: bash
+        run: |
+          set -e
+          ./build.sh Release
+      - name: Build RelWithDebInfo
+        shell: bash
+        run: |
+          set -e
+          ./build.sh RelWithDebInfo
+      - name: Build MinSizeRel
+        shell: bash
+        run: |
+          set -e
+          ./build.sh MinSizeRel
+      - name: Pack
+        shell: bash
+        run: |
+          set -e
+          mkdir ./dist/packed
+          tar -cfzv ./dist/packed/audience-macos-x64-debug.tar.gz -C ./dist/Debug .
+          tar -cfzv ./dist/packed/audience-macos-x64-release.tar.gz -C ./dist/Release .
+          tar -cfzv ./dist/packed/audience-macos-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -cfzv ./dist/packed/audience-macos-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+      - name: Upload
+        uses: actions/upload-artifact@v1
+        with:
+          name: audience-macos-x64
+          path: dist/packed
+  release_upload:
+    name: Upload to Release
+    needs:
+      - build_windows
+      - build_linux
+      - build_macos
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Fetch Windows Build
+        uses: actions/download-artifact@v1
+        with:
+          name: audience-windows-x64
+      - name: Fetch Linux Build
+        uses: actions/download-artifact@v1
+        with:
+          name: audience-linux-x64
+      - name: Fetch macOS Build
+        uses: actions/download-artifact@v1
+        with:
+          name: audience-macos-x64
+      - name: Upload Files
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          # extract tag and retrieve release id
+          RELEASE_TAG=${GITHUB_REF#refs/tags/}
+          RELEASE_ID=$(curl --silent --fail -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG} | jq -r .id)
+          # upload distribution files
+          for dist_os in windows linux macos
+          do
+            dist_suffix="tar.gz"
+            dist_mimetype="application/gzip"
+            if [ "$dist_os" == "windows" ];
+            then
+              dist_suffix="zip"
+              dist_mimetype="application/zip"
+            fi
+            for dist_config in debug release release-debinfo release-minsize
+            do
+              curl --silent --fail \
+                -H "Authorization: token ${GITHUB_TOKEN}" \
+                -H "Content-Type: ${dist_mimetype}" \
+                --data-binary "@audience-${dist_os}-x64/audience-${dist_os}-x64-${dist_config}.${dist_suffix}" \
+                "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets?name=audience-${RELEASE_TAG}-${dist_os}-x64-${dist_config}.${dist_suffix}"
+            done
+          done

@@ -43,6 +43,11 @@ include_directories(include)
 # rpath handling
 SET(CMAKE_SKIP_BUILD_RPATH TRUE)
 
+# strip binaries?
+if(NOT WIN32 AND (CMAKE_BUILD_TYPE STREQUAL Release OR CMAKE_BUILD_TYPE STREQUAL MinSizeRel))
+  SET(STRIP_BINARIES TRUE)
+endif()
+
 #######################################################################
 # AUDIENCE DEPENDENCIES
 #######################################################################
@@ -268,7 +273,7 @@ endforeach()
 target_compile_definitions(audience_static PUBLIC AUDIENCE_STATIC_LIBRARY=1)
 
 # ... shared library specifics
-if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+if(STRIP_BINARIES)
   add_custom_command(TARGET audience_shared POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_shared>)
 endif()
 
@@ -278,7 +283,7 @@ add_executable(audience WIN32
   src/shell/app/quotes.cpp
 )
 target_link_libraries (audience PRIVATE audience_shared)
-if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+if(STRIP_BINARIES)
   add_custom_command(TARGET audience POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audience>)
 endif()
 if(APPLE)
@@ -335,7 +340,7 @@ elseif(APPLE)
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
   target_link_libraries(audience_macos_webkit PRIVATE boost "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
-  if(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+  if(STRIP_BINARIES)
     add_custom_command(TARGET audience_macos_webkit POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_macos_webkit>)
   endif()
 
@@ -352,7 +357,7 @@ elseif(UNIX)
   )
   target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit)
   target_link_libraries(audience_unix_webkit PRIVATE boost PkgConfig::GTK3 PkgConfig::WEBKIT2 Threads::Threads)
-  if(CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
+  if(STRIP_BINARIES)
     add_custom_command(TARGET audience_unix_webkit POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_unix_webkit>)
   endif()
 

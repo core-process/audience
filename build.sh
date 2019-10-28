@@ -20,7 +20,7 @@ cd "./build/$CMAKE_BUILD_TYPE"
 # initialize cmake cache
 if [ ! -f ./CMakeCache.txt ];
 then
-  cmake "-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE" "-DCMAKE_INSTALL_PREFIX:PATH=../../dist" ../..
+  cmake -G "Unix Makefiles" "-DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE" "-DCMAKE_INSTALL_PREFIX:PATH=../../dist" ../..
 fi
 
 # perform build and install
