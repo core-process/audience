@@ -58,6 +58,16 @@ jobs:
     name: Build for Linux
     runs-on: ubuntu-18.04
     steps:
+      - name: Install Software
+        shell: bash
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get install apt-transport-https ca-certificates gnupg software-properties-common wget
+          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | sudo apt-key add -
+          sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main'
+          sudo apt-get update
+          sudo apt-get install cmake
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: bash
@@ -84,10 +94,10 @@ jobs:
         run: |
           set -e
           mkdir ./dist/packed
-          tar -cfzv ./dist/packed/audience-linux-x64-debug.tar.gz -C ./dist/Debug .
-          tar -cfzv ./dist/packed/audience-linux-x64-release.tar.gz -C ./dist/Release .
-          tar -cfzv ./dist/packed/audience-linux-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
-          tar -cfzv ./dist/packed/audience-linux-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -cfzv $PWD/dist/packed/audience-linux-x64-debug.tar.gz -C ./dist/Debug .
+          tar -cfzv $PWD/dist/packed/audience-linux-x64-release.tar.gz -C ./dist/Release .
+          tar -cfzv $PWD/dist/packed/audience-linux-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -cfzv $PWD/dist/packed/audience-linux-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
@@ -123,10 +133,10 @@ jobs:
         run: |
           set -e
           mkdir ./dist/packed
-          tar -cfzv ./dist/packed/audience-macos-x64-debug.tar.gz -C ./dist/Debug .
-          tar -cfzv ./dist/packed/audience-macos-x64-release.tar.gz -C ./dist/Release .
-          tar -cfzv ./dist/packed/audience-macos-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
-          tar -cfzv ./dist/packed/audience-macos-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -cfzv $PWD/dist/packed/audience-macos-x64-debug.tar.gz -C ./dist/Debug .
+          tar -cfzv $PWD/dist/packed/audience-macos-x64-release.tar.gz -C ./dist/Release .
+          tar -cfzv $PWD/dist/packed/audience-macos-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -cfzv $PWD/dist/packed/audience-macos-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
       - name: Upload
         uses: actions/upload-artifact@v1
         with:

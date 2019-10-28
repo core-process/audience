@@ -8,7 +8,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 # AUDIENCE OPTIONS
 #######################################################################
 
-option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" OFF)
+option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
 
 #######################################################################
 # AUDIENCE COMMON
