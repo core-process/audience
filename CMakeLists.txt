@@ -276,6 +276,9 @@ target_link_libraries (audience PRIVATE audience_shared)
 if(NOT WIN32 AND CMAKE_BUILD_TYPE STREQUAL MinSizeRel)
   add_custom_command(TARGET audience POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audience>)
 endif()
+if(APPLE)
+  add_custom_command(TARGET audience POST_BUILD COMMAND install_name_tool -add_rpath @executable_path $<TARGET_FILE:audience>)
+endif()
 
 #######################################################################
 # AUDIENCE NUCLEUS
