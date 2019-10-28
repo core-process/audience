@@ -8,7 +8,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 # AUDIENCE OPTIONS
 #######################################################################
 
-option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" ON)
+option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" $ENV{AUDIENCE_STATIC_RUNTIME})
+option(AUDIENCE_INSTALL_RUNTIME "install shared runtime (MSVC only, ignored when using static runtime)" $ENV{AUDIENCE_INSTALL_RUNTIME})
 
 #######################################################################
 # AUDIENCE COMMON
@@ -380,8 +381,7 @@ foreach(some_target ${all_targets})
   endif()
 endforeach()
 
-if(NOT AUDIENCE_STATIC_RUNTIME)
-  set(CMAKE_INSTALL_UCRT_LIBRARIES ON)
+if(NOT AUDIENCE_STATIC_RUNTIME AND AUDIENCE_INSTALL_RUNTIME)
   set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION \${CMAKE_INSTALL_CONFIG_NAME}/bin)
   include(InstallRequiredSystemLibraries)
 endif()

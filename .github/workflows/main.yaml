@@ -5,13 +5,16 @@ on:
     types:
       - created
 jobs:
-  build_windows:
-    name: Build for Windows
+  build_windows_shrt:
+    name: Build for Windows (Shared Runtime)
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
+          AUDIENCE_INSTALL_RUNTIME: 'ON'
         run: |
           .\build.bat Debug || goto :error
           goto :EOF
@@ -19,6 +22,9 @@ jobs:
           exit /b %errorlevel%
       - name: Build Release
         shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
+          AUDIENCE_INSTALL_RUNTIME: 'ON'
         run: |
           .\build.bat Release || goto :error
           goto :EOF
@@ -26,6 +32,9 @@ jobs:
           exit /b %errorlevel%
       - name: Build RelWithDebInfo
         shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
+          AUDIENCE_INSTALL_RUNTIME: 'ON'
         run: |
           .\build.bat RelWithDebInfo || goto :error
           goto :EOF
@@ -33,6 +42,9 @@ jobs:
           exit /b %errorlevel%
       - name: Build MinSizeRel
         shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
+          AUDIENCE_INSTALL_RUNTIME: 'ON'
         run: |
           .\build.bat MinSizeRel || goto :error
           goto :EOF
@@ -42,17 +54,78 @@ jobs:
         shell: cmd
         run: |
           mkdir .\dist\packed || goto :error
-          7z a .\dist\packed\audience-windows-x64-debug.zip .\dist\Debug\* || goto :error
-          7z a .\dist\packed\audience-windows-x64-release.zip .\dist\Release\* || goto :error
-          7z a .\dist\packed\audience-windows-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
-          7z a .\dist\packed\audience-windows-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
+          7z a .\dist\packed\audience-windows-shrt-x64-debug.zip .\dist\Debug\* || goto :error
+          7z a .\dist\packed\audience-windows-shrt-x64-release.zip .\dist\Release\* || goto :error
+          7z a .\dist\packed\audience-windows-shrt-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
+          7z a .\dist\packed\audience-windows-shrt-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
           goto :EOF
           :error
           exit /b %errorlevel%
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
-          name: audience-windows-x64
+          name: audience-windows-shrt-x64
+          path: dist/packed
+  build_windows_strt:
+    name: Build for Windows (Static Runtime)
+    runs-on: windows-2019
+    steps:
+      - uses: actions/checkout@v1
+      - name: Build Debug
+        shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+          AUDIENCE_INSTALL_RUNTIME: 'OFF'
+        run: |
+          .\build.bat Debug || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Build Release
+        shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+          AUDIENCE_INSTALL_RUNTIME: 'OFF'
+        run: |
+          .\build.bat Release || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Build RelWithDebInfo
+        shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+          AUDIENCE_INSTALL_RUNTIME: 'OFF'
+        run: |
+          .\build.bat RelWithDebInfo || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Build MinSizeRel
+        shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+          AUDIENCE_INSTALL_RUNTIME: 'OFF'
+        run: |
+          .\build.bat MinSizeRel || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Pack
+        shell: cmd
+        run: |
+          mkdir .\dist\packed || goto :error
+          7z a .\dist\packed\audience-windows-strt-x64-debug.zip .\dist\Debug\* || goto :error
+          7z a .\dist\packed\audience-windows-strt-x64-release.zip .\dist\Release\* || goto :error
+          7z a .\dist\packed\audience-windows-strt-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
+          7z a .\dist\packed\audience-windows-strt-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
+      - name: Upload
+        uses: actions/upload-artifact@v1
+        with:
+          name: audience-windows-strt-x64
           path: dist/packed
   build_linux:
     name: Build for Linux
@@ -154,15 +227,20 @@ jobs:
   release_upload:
     name: Upload to Release
     needs:
-      - build_windows
+      - build_windows_shrt
+      - build_windows_strt
       - build_linux
       - build_macos
     runs-on: ubuntu-18.04
     steps:
-      - name: Fetch Windows Build
+      - name: Fetch Windows Build (Shared Runtime)
         uses: actions/download-artifact@v1
         with:
-          name: audience-windows-x64
+          name: audience-windows-shrt-x64
+      - name: Fetch Windows Build (Static Runtime)
+        uses: actions/download-artifact@v1
+        with:
+          name: audience-windows-strt-x64
       - name: Fetch Linux Build
         uses: actions/download-artifact@v1
         with:
@@ -182,11 +260,11 @@ jobs:
           RELEASE_TAG=${GITHUB_REF#refs/tags/}
           RELEASE_ID=$(curl --silent --fail -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG} | jq -r .id)
           # upload distribution files
-          for dist_os in windows linux macos
+          for dist_os in windows-shrt windows-strt linux macos
           do
             dist_suffix="tar.gz"
             dist_mimetype="application/gzip"
-            if [ "$dist_os" == "windows" ];
+            if [[ $dist_os == windows* ]];
             then
               dist_suffix="zip"
               dist_mimetype="application/zip"
