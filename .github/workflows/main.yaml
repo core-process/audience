@@ -71,6 +71,8 @@ jobs:
           sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main'
           sudo apt-get update
           sudo apt-get install cmake
+          # install patchelf
+          sudo apt-get install patchelf
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: bash
