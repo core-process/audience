@@ -139,16 +139,14 @@ jobs:
           # kill old cmake
           sudo rm $(which cmake)
           # install new cmake
-          sudo apt-get update
-          sudo apt-get install apt-transport-https ca-certificates gnupg software-properties-common wget
-          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc 2>/dev/null | sudo apt-key add -
-          sudo apt-add-repository 'deb https://apt.kitware.com/ubuntu/ bionic main'
-          sudo apt-get update
-          sudo apt-get install cmake
+          wget https://github.com/Kitware/CMake/releases/download/v3.15.4/cmake-3.15.4-Linux-x86_64.sh
+          sudo sh cmake-3.15.4-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir --skip-license
+          cmake --version
           # install patchelf
           wget http://mirrors.kernel.org/ubuntu/pool/universe/p/patchelf/patchelf_0.9+52.20180509-1_amd64.deb
           sudo dpkg -i patchelf_0.9+52.20180509-1_amd64.deb
           # install dependencies
+          sudo apt-get update
           sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev
       - uses: actions/checkout@v1
       - name: Build Debug
