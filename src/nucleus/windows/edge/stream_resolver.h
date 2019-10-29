@@ -3,6 +3,7 @@
 #include <winrt/Windows.Foundation.h>
 #include <winrt/Windows.Web.h>
 #include <winrt/Windows.Storage.Streams.h>
+#include <boost/algorithm/string/replace.hpp>
 #include <string>
 
 extern const char *_audience_frontend_library_code_begin;
@@ -55,6 +56,8 @@ public:
         c = '\\';
       }
     }
+
+    path = boost::replace_all_copy(path, "\\\\", "\\");
 
     // retrieve file and stream
     try
