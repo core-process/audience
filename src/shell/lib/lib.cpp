@@ -152,7 +152,8 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
       break;
 #endif
     default:
-      TRACEA(error, "unknown nucleus technology selector: " << tech)
+      TRACEA(error, "unknown nucleus technology selector: " << tech);
+      break;
     }
   }
 
