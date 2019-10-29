@@ -1,4 +1,3 @@
 /build
 /dist
 /downloads
-/src/webapp/messaging/*.cpp
