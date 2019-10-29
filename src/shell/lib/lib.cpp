@@ -268,9 +268,10 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
   if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY)
   {
 #if WIN32
-    wchar_t resolved_path[4096]{};
-    auto res = GetFullPathNameW(new_details.webapp_location.c_str(), sizeof(resolved_path), resolved_path, nullptr);
-    if (res == 0 || res > sizeof(resolved_path))
+    constexpr auto resolved_path_length = 4096;
+    wchar_t resolved_path[resolved_path_length]{};
+    auto res = GetFullPathNameW(new_details.webapp_location, resolved_path_length, resolved_path, nullptr);
+    if (res == 0 || res > resolved_path_length)
     {
       TRACEW(error, "could not resolve web app path: " << new_details.webapp_location);
       throw std::invalid_argument("could not resolve web app path");
