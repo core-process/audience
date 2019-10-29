@@ -1,7 +1,7 @@
 #pragma once
 
 #include <windows.h>
-#include <winrt/Windows.Web.UI.h>
+#include <winrt/Windows.Web.UI.Interop.h>
 #include <memory>
 
 ///////////////////////////////////////////////////////////////////////
@@ -11,7 +11,7 @@
 struct AudienceWindowContextData
 {
   HWND window;
-  winrt::Windows::Web::UI::IWebViewControl webview;
+  winrt::Windows::Web::UI::Interop::WebViewControl webview;
 
   AudienceWindowContextData() : window(nullptr),
                                 webview(nullptr)

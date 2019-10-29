@@ -134,7 +134,8 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   context->webview.Settings().IsJavaScriptEnabled(true);
   context->webview.Settings().IsScriptNotifyAllowed(true);
 
-  // add script notify event
+  // add integration hooks
+  context->webview.AddInitializeScript(L"window._audienceWebviewSignature = 'edge';");
   context->webview.ScriptNotify([context](auto sender, auto args) {
     internal_on_window_message(context, winrt::to_string(args.Value()));
   });
@@ -158,7 +159,7 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
 
 void internal_window_post_message(AudienceWindowContext context, const char *message)
 {
-  auto op = context->webview.InvokeScriptAsync(L"_audienceIncomingMessage", std::vector<winrt::hstring>{winrt::to_hstring(std::string(message))});
+  auto op = context->webview.InvokeScriptAsync(L"_audienceWebviewMessageHandler", std::vector<winrt::hstring>{winrt::to_hstring(std::string(message))});
 
   if (op.Status() == AsyncStatus::Started)
   {
