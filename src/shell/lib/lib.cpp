@@ -261,19 +261,50 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     return {};
   }
 
+  // translate web app location to absolute path
+  AudienceWindowDetails new_details = *details;
+
+  std::wstring webapp_dir_absolute;
+  if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY)
+  {
+#if WIN32
+    wchar_t resolved_path[4096]{};
+    auto res = GetFullPathNameW(new_details.webapp_location.c_str(), sizeof(resolved_path), resolved_path, nullptr);
+    if (res == 0 || res > sizeof(resolved_path))
+    {
+      TRACEW(error, "could not resolve web app path: " << new_details.webapp_location);
+      throw std::invalid_argument("could not resolve web app path");
+    }
+    webapp_dir_absolute = resolved_path;
+#else
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::string webapp_dir = converter.to_bytes(new_details.webapp_location);
+    char resolved_path[PATH_MAX + 1]{};
+    if (realpath(webapp_dir.c_str(), resolved_path) == nullptr)
+    {
+      TRACEA(error, "could not resolve web app path: " << webapp_dir);
+      throw std::invalid_argument("could not resolve web app path");
+    }
+    webapp_dir_absolute = converter.from_bytes(resolved_path);
+#endif
+    new_details.webapp_location = webapp_dir_absolute.c_str();
+    TRACEW(info, "resolved web app path: " << webapp_dir_absolute);
+  }
+
+  // collect window handle
   AudienceWindowHandle window_handle{};
 
   // cases which do not require an webserver
-  if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_URL && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
+  if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_URL && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
-    window_handle = nucleus_window_create(details);
+    window_handle = nucleus_window_create(&new_details);
   }
-  else if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_directory)
+  else if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_directory)
   {
-    window_handle = nucleus_window_create(details);
+    window_handle = nucleus_window_create(&new_details);
   }
   // create a webserver and translate directory based webapp to url webapp
-  else if (details->webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
+  else if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
     std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
 
@@ -281,7 +312,7 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     std::string address = "127.0.0.1";
     unsigned short ws_port = 0;
 
-    auto ws_ctx = webserver_start(address, ws_port, converter.to_bytes(details->webapp_location), 3, [](WebserverContext context, std::string message) {
+    auto ws_ctx = webserver_start(address, ws_port, converter.to_bytes(new_details.webapp_location), 3, [](WebserverContext context, std::string message) {
       auto task_lambda = [&]() {
         auto ic = nucleus_webserver_registry.right.find(context);
         if (ic != nucleus_webserver_registry.right.end())
@@ -297,11 +328,10 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     // construct url of webapp
     auto webapp_url = std::wstring(L"http://") + converter.from_bytes(address) + L":" + std::to_wstring(ws_port) + L"/";
 
-    TRACEW(info, L"serving app from folder " << details->webapp_location);
+    TRACEW(info, L"serving app from folder " << new_details.webapp_location);
     TRACEW(info, L"serving app via url " << webapp_url);
 
     // adapt window details
-    AudienceWindowDetails new_details = *details;
     new_details.webapp_type = AUDIENCE_WEBAPP_TYPE_URL;
     new_details.webapp_location = webapp_url.c_str();
 
