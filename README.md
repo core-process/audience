@@ -153,7 +153,11 @@ Currently, the implementation has to be loaded via ``<script src="/audience.js">
 
 [i10]: https://github.com/core-process/audience/issues/10
 
-## Build
+## Build and Binaries
+
+### Pre-built Binaries
+
+Pre-built binaries for a Windows, macOS and Linux are available via [GitHub Releases](https://github.com/core-process/audience/releases). Please download the `release-minsize` (=`MinSizeRel`) variant for production use.
 
 ### Requirements
 
