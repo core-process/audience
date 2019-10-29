@@ -9,6 +9,54 @@ extern "C"
 {
 #endif
 
+#pragma pack(push)
+#pragma pack(1)
+
+  enum AudienceNucleusTechWindows
+  {
+    AUDIENCE_NUCLEUS_WINDOWS_NONE = 0,
+    AUDIENCE_NUCLEUS_WINDOWS_EDGE = 1,
+    AUDIENCE_NUCLEUS_WINDOWS_IE11 = 2
+  };
+
+  enum AudienceNucleusTechMacOS
+  {
+    AUDIENCE_NUCLEUS_MACOS_NONE = 0,
+    AUDIENCE_NUCLEUS_MACOS_WEBKIT = 1
+  };
+
+  enum AudienceNucleusTechUnix
+  {
+    AUDIENCE_NUCLEUS_UNIX_NONE = 0,
+    AUDIENCE_NUCLEUS_UNIX_WEBKIT = 1
+  };
+
+  #define AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES 10
+
+  typedef struct
+  {
+    struct
+    {
+      AudienceNucleusTechWindows windows[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
+      AudienceNucleusTechMacOS macos[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
+      AudienceNucleusTechUnix unix[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
+    } load_order;
+  } AudienceDetails;
+
+  typedef struct
+  {
+    struct
+    {
+      void (*handler)(void *context, bool *prevent_quit);
+      void *context;
+    } on_will_quit;
+    struct
+    {
+      void (*handler)(void *context);
+      void *context;
+    } on_quit;
+  } AudienceEventHandler;
+
   enum AudienceWebAppType
   {
     AUDIENCE_WEBAPP_TYPE_DIRECTORY = 0,
@@ -16,9 +64,6 @@ extern "C"
   };
 
   typedef uint16_t AudienceWindowHandle;
-
-#pragma pack(push)
-#pragma pack(1)
 
   typedef struct
   {
@@ -46,20 +91,6 @@ extern "C"
       void *context;
     } on_close;
   } AudienceWindowEventHandler;
-
-  typedef struct
-  {
-    struct
-    {
-      void (*handler)(void *context, bool *prevent_quit);
-      void *context;
-    } on_will_quit;
-    struct
-    {
-      void (*handler)(void *context);
-      void *context;
-    } on_quit;
-  } AudienceEventHandler;
 
 #pragma pack(pop)
 

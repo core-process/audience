@@ -49,8 +49,14 @@ Unix | Generic Browser Fallback | (2) | [#1][i1]
 int main(int argc, char **argv)
 {
   // init audience
+  AudienceDetails pd{};
+  pd.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
+  pd.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
+  pd.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
+  pd.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
+
   AudienceEventHandler peh{};
-  if (!audience_init(&peh))
+  if (!audience_init(&pd, &peh))
     return 1;
 
   // create and show window

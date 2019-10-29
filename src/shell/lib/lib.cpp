@@ -95,7 +95,7 @@ static bool audience_is_initialized()
   return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
 }
 
-static bool _audience_init(const AudienceEventHandler *event_handler)
+static bool _audience_init(const AudienceDetails *details, const AudienceEventHandler *event_handler)
 {
   // perform thread lock if not locked already
   {
@@ -116,16 +116,45 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
   }
 
   // nucleus library load order
-  std::vector<std::string> dylibs{
+  std::vector<std::string> dylibs{};
+  for (size_t i = 0; i < AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES; ++i)
+  {
 #ifdef WIN32
-      "audience_windows_edge.dll",
-      "audience_windows_ie11.dll",
+    auto tech = details->load_order.windows[i];
 #elif __APPLE__
-      "libaudience_macos_webkit.dylib",
+    auto tech = details->load_order.macos[i];
 #else
-      "libaudience_unix_webkit.so",
+    auto tech = details->load_order.unix[i];
 #endif
-  };
+
+    switch (tech)
+    {
+#ifdef WIN32
+    case AUDIENCE_NUCLEUS_WINDOWS_NONE:
+      break;
+    case AUDIENCE_NUCLEUS_WINDOWS_EDGE:
+      dylibs.push_back("audience_windows_edge.dll");
+      break;
+    case AUDIENCE_NUCLEUS_WINDOWS_IE11:
+      dylibs.push_back("audience_windows_ie11.dll");
+      break;
+#elif __APPLE__
+    case AUDIENCE_NUCLEUS_MACOS_NONE:
+      break;
+    case AUDIENCE_NUCLEUS_MACOS_WEBKIT:
+      dylibs.push_back("libaudience_macos_webkit.dylib");
+      break;
+#else
+    case AUDIENCE_NUCLEUS_UNIX_NONE:
+      break;
+    case AUDIENCE_NUCLEUS_UNIX_WEBKIT:
+      dylibs.push_back("libaudience_unix_webkit.so");
+      break;
+#endif
+    default:
+      TRACEA(error, "unknown nucleus technology selector: " << tech)
+    }
+  }
 
   // iterate libraries and stop at first successful load
   for (auto dylib : dylibs)
@@ -215,9 +244,9 @@ static bool _audience_init(const AudienceEventHandler *event_handler)
   return true;
 }
 
-bool audience_init(const AudienceEventHandler *event_handler)
+bool audience_init(const AudienceDetails *details, const AudienceEventHandler *event_handler)
 {
-  return SAFE_FN(_audience_init, false)(event_handler);
+  return SAFE_FN(_audience_init, false)(details, event_handler);
 }
 
 AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)

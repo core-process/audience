@@ -90,17 +90,24 @@ int main(int argc, char **argv)
 
   std::srand(std::time(nullptr));
 
-  // create and show window
+  // init audience
+  AudienceDetails pd{};
+  pd.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
+  pd.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
+  pd.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
+  pd.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
+
   AudienceEventHandler peh{};
   peh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); *prevent_quit = false; };
   peh.on_quit.handler = [](void *context) { TRACEA(info, "event quit"); };
 
-  if (!audience_init(&peh))
+  if (!audience_init(&pd, &peh))
   {
     TRACEA(error, "could not initialize audience");
     return 2;
   }
 
+  // create window
   AudienceWindowDetails wd{};
   wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
   wd.webapp_location = app_dir.c_str();
