@@ -5,8 +5,8 @@
 #include <winrt/Windows.Storage.Streams.h>
 #include <string>
 
-extern const char *_audience_webapp_messaging_edge_code_begin;
-extern std::size_t _audience_webapp_messaging_edge_code_length;
+extern const char *_audience_frontend_library_code_begin;
+extern std::size_t _audience_frontend_library_code_length;
 
 class WebViewUriToStreamResolver : public winrt::implements<WebViewUriToStreamResolver, winrt::Windows::Web::IUriToStreamResolver>
 {
@@ -39,7 +39,7 @@ public:
     {
       winrt::Windows::Storage::Streams::InMemoryRandomAccessStream stream;
       winrt::Windows::Storage::Streams::DataWriter dataWriter{stream};
-      dataWriter.WriteBytes(winrt::array_view((const uint8_t *)_audience_webapp_messaging_edge_code_begin, (const uint8_t *)_audience_webapp_messaging_edge_code_begin + _audience_webapp_messaging_edge_code_length));
+      dataWriter.WriteBytes(winrt::array_view((const uint8_t *)_audience_frontend_library_code_begin, (const uint8_t *)_audience_frontend_library_code_begin + _audience_frontend_library_code_length));
       co_await dataWriter.StoreAsync();
       dataWriter.DetachStream();
       stream.Seek(0);

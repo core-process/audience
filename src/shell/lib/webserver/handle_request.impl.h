@@ -6,8 +6,8 @@
 #include "mime_type.impl.h"
 #include "path_util.impl.h"
 
-extern const char *_audience_webapp_messaging_websocket_code_begin;
-extern std::size_t _audience_webapp_messaging_websocket_code_length;
+extern const char *_audience_frontend_library_code_begin;
+extern std::size_t _audience_frontend_library_code_length;
 
 // This function produces an HTTP response for the given
 // request. The type of the response object depends on the
@@ -80,7 +80,7 @@ void handle_request(
   if (target == "/audience.js")
   {
     // Cache the size since we need it after the move
-    auto const size = _audience_webapp_messaging_websocket_code_length;
+    auto const size = _audience_frontend_library_code_length;
 
     // Respond to HEAD request
     if (req.method() == boost::beast::http::verb::head)
@@ -98,7 +98,7 @@ void handle_request(
     res.set(boost::beast::http::field::server, BOOST_BEAST_VERSION_STRING);
     res.set(boost::beast::http::field::content_type, mime_type(target));
     res.keep_alive(req.keep_alive());
-    res.body() = std::string(_audience_webapp_messaging_websocket_code_begin, size);
+    res.body() = std::string(_audience_frontend_library_code_begin, size);
     res.prepare_payload();
     return send(std::move(res));
   }

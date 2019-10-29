@@ -155,7 +155,9 @@ window.audience.onMessage(handler /* function(string) */)
 window.audience.offMessage(handler /* function(string) or undefined */)
 ```
 
-Currently, the implementation has to be loaded via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend. We will migrate the implementation to an NPM module. See issue [#10][i10].
+You can install the frontend integration library via `npm install audience-frontend --save` and import via `import "audience-frontend";`.
+
+Alternatively, you can load the library via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend.
 
 [i10]: https://github.com/core-process/audience/issues/10
 

@@ -1,0 +1,34 @@
+{
+  "name": "audience-frontend",
+  "version": "0.9.1",
+  "description": "Small adaptive cross-plattform webview window library. Frontend integration.",
+  "main": "index.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/core-process/audience.git"
+  },
+  "keywords": [
+    "webview",
+    "webui",
+    "edgehtml",
+    "edge",
+    "mshtml",
+    "ie11",
+    "webkit",
+    "native"
+  ],
+  "author": "Niklas Salmoukas <niklas@salmoukas.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/core-process/audience/issues"
+  },
+  "homepage": "https://github.com/core-process/audience#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^3.6.4"
+  }
+}

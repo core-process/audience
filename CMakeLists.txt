@@ -220,25 +220,18 @@ target_compile_definitions(boost INTERFACE BOOST_ALL_NO_LIB=1)
 # target_link_libraries(uwebsockets INTERFACE usockets zlib)
 
 #######################################################################
-# AUDIENCE WEBAPP MESSAGING
+# AUDIENCE FRONTEND LIBRARY
 #######################################################################
 
-file(READ ${CMAKE_SOURCE_DIR}/src/webapp/messaging/websocket.js AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEX HEX)
-string(REGEX REPLACE "(..)" "'\\\\x\\1', " AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEXLIT "${AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEX}")
-file(WRITE ${CMAKE_SOURCE_DIR}/src/webapp/messaging/websocket.cpp "
-#include <cstddef>
-const char _audience_webapp_messaging_websocket_code[] = { ${AUDIENCE_WEBAPP_MESSAGING_WEBSOCKET_HEXLIT} };
-const char* _audience_webapp_messaging_websocket_code_begin = _audience_webapp_messaging_websocket_code;
-std::size_t _audience_webapp_messaging_websocket_code_length = sizeof(_audience_webapp_messaging_websocket_code);
-")
+set(AUDIENCE_FRONTEND_LIBRARY_CODE_CPP ${CMAKE_BINARY_DIR}/frontend-library-code.cpp)
 
-file(READ ${CMAKE_SOURCE_DIR}/src/webapp/messaging/edge.js AUDIENCE_WEBAPP_MESSAGING_EDGE_HEX HEX)
-string(REGEX REPLACE "(..)" "'\\\\x\\1', " AUDIENCE_WEBAPP_MESSAGING_EDGE_HEXLIT "${AUDIENCE_WEBAPP_MESSAGING_EDGE_HEX}")
-file(WRITE ${CMAKE_SOURCE_DIR}/src/webapp/messaging/edge.cpp "
+file(READ ${CMAKE_SOURCE_DIR}/frontend/index.js AUDIENCE_FRONTEND_LIBRARY_HEX HEX)
+string(REGEX REPLACE "(..)" "'\\\\x\\1', " AUDIENCE_FRONTEND_LIBRARY_INNERCODE "${AUDIENCE_FRONTEND_LIBRARY_HEX}")
+file(WRITE ${AUDIENCE_FRONTEND_LIBRARY_CODE_CPP} "
 #include <cstddef>
-const char _audience_webapp_messaging_edge_code[] = { ${AUDIENCE_WEBAPP_MESSAGING_EDGE_HEXLIT} };
-const char* _audience_webapp_messaging_edge_code_begin = _audience_webapp_messaging_edge_code;
-std::size_t _audience_webapp_messaging_edge_code_length = sizeof(_audience_webapp_messaging_edge_code);
+const char _audience_frontend_library_code[] = { ${AUDIENCE_FRONTEND_LIBRARY_INNERCODE} };
+const char* _audience_frontend_library_code_begin = _audience_frontend_library_code;
+std::size_t _audience_frontend_library_code_length = sizeof(_audience_frontend_library_code);
 ")
 
 #######################################################################
@@ -250,7 +243,7 @@ set(SHELL_LIB_SOURCES
   src/shell/lib/lib.cpp
   src/shell/lib/whereami.c
   src/shell/lib/webserver/process.cpp
-  src/webapp/messaging/websocket.cpp
+  ${AUDIENCE_FRONTEND_LIBRARY_CODE_CPP}
 )
 set(SHELL_LIB_PUBLIC_HEADER
   include/audience_api.h
@@ -313,7 +306,7 @@ if(WIN32)
     src/nucleus/windows/edge/interface.cpp
     src/nucleus/windows/shared/init.cpp
     src/nucleus/windows/shared/resource.rc
-    src/webapp/messaging/edge.cpp
+    ${AUDIENCE_FRONTEND_LIBRARY_CODE_CPP}
   )
   set_target_properties(audience_windows_edge PROPERTIES CXX_STANDARD 17)
   target_compile_options(audience_windows_edge PRIVATE "/await")
