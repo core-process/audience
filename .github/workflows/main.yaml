@@ -250,15 +250,14 @@ jobs:
         with:
           name: audience-macos-x64
       - name: Upload Files
-        if: startsWith(github.ref, 'refs/tags/')
+        if: github.event_name == 'release' && github.event.action == 'created'
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ID: ${{ github.event.release.id }}
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
         run: |
           set -e
-          # extract tag and retrieve release id
-          RELEASE_TAG=${GITHUB_REF#refs/tags/}
-          RELEASE_ID=$(curl --silent --fail -H "Authorization: token ${GITHUB_TOKEN}" https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${RELEASE_TAG} | jq -r .id)
           # upload distribution files
           for dist_os in windows-shrt windows-strt linux macos
           do
@@ -275,6 +274,6 @@ jobs:
                 -H "Authorization: token ${GITHUB_TOKEN}" \
                 -H "Content-Type: ${dist_mimetype}" \
                 --data-binary "@audience-${dist_os}-x64/audience-${dist_os}-x64-${dist_config}.${dist_suffix}" \
-                "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets?name=audience-${RELEASE_TAG}-${dist_os}-x64-${dist_config}.${dist_suffix}"
+                "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets?name=audience-${RELEASE_TAG_NAME}-${dist_os}-x64-${dist_config}.${dist_suffix}"
             done
           done
