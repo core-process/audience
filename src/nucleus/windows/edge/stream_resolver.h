@@ -6,6 +6,8 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <string>
 
+#include "../../../common/fs.h"
+
 extern const char *_audience_frontend_library_code_begin;
 extern std::size_t _audience_frontend_library_code_length;
 
@@ -38,6 +40,8 @@ public:
     // handle /audience.js
     if (uri_path == L"/audience.js")
     {
+      TRACEW(debug, L"serving virtual path: " << uri_path);
+
       winrt::Windows::Storage::Streams::InMemoryRandomAccessStream stream;
       winrt::Windows::Storage::Streams::DataWriter dataWriter{stream};
       dataWriter.WriteBytes(winrt::array_view((const uint8_t *)_audience_frontend_library_code_begin, (const uint8_t *)_audience_frontend_library_code_begin + _audience_frontend_library_code_length));
@@ -48,16 +52,9 @@ public:
     }
 
     // assemble path
-    auto path = base_directory + L"\\" + uri_path.substr(1);
-    for (auto &c : path)
-    {
-      if (c == '/')
-      {
-        c = '\\';
-      }
-    }
+    auto path = normalize_path(base_directory + L"/" + uri_path.substr(1));
 
-    path = boost::replace_all_copy(path, "\\\\", "\\");
+    TRACEW(debug, L"serving file: " << path);
 
     // retrieve file and stream
     try

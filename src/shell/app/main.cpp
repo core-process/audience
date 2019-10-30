@@ -94,6 +94,11 @@ int main(int argc, char **argv)
   ad.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
   ad.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
   ad.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
+  ad.icon_set[0] = L"./examples/ping/icons/16.png";
+  ad.icon_set[1] = L"./examples/ping/icons/32.png";
+  ad.icon_set[2] = L"./examples/ping/icons/64.png";
+  ad.icon_set[3] = L"./examples/ping/icons/128.png";
+  ad.icon_set[4] = L"./examples/ping/icons/512.png";
 
   AudienceAppEventHandler aeh{};
   aeh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); *prevent_quit = false; };

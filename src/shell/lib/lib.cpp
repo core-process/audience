@@ -23,6 +23,7 @@
 #include "../../common/trace.h"
 #include "../../common/safefn.h"
 #include "../../common/utf.h"
+#include "../../common/fs.h"
 #include "webserver/process.h"
 #include "lib.h"
 #include "nucleus.h"
@@ -117,7 +118,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
   }
 
   // nucleus library load order
-  std::vector<std::string> dylibs{};
+  std::vector<std::wstring> dylibs{};
   for (size_t i = 0; i < AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES; ++i)
   {
 #ifdef WIN32
@@ -134,22 +135,22 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
     case AUDIENCE_NUCLEUS_WINDOWS_NONE:
       break;
     case AUDIENCE_NUCLEUS_WINDOWS_EDGE:
-      dylibs.push_back("audience_windows_edge.dll");
+      dylibs.push_back(L"audience_windows_edge.dll");
       break;
     case AUDIENCE_NUCLEUS_WINDOWS_IE11:
-      dylibs.push_back("audience_windows_ie11.dll");
+      dylibs.push_back(L"audience_windows_ie11.dll");
       break;
 #elif __APPLE__
     case AUDIENCE_NUCLEUS_MACOS_NONE:
       break;
     case AUDIENCE_NUCLEUS_MACOS_WEBKIT:
-      dylibs.push_back("libaudience_macos_webkit.dylib");
+      dylibs.push_back(L"libaudience_macos_webkit.dylib");
       break;
 #else
     case AUDIENCE_NUCLEUS_UNIX_NONE:
       break;
     case AUDIENCE_NUCLEUS_UNIX_WEBKIT:
-      dylibs.push_back("libaudience_unix_webkit.so");
+      dylibs.push_back(L"libaudience_unix_webkit.so");
       break;
 #endif
     default:
@@ -160,18 +161,28 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 
   // prepare internal details
   AudienceNucleusAppDetails nucleus_details{};
-  std::copy(std::begin(details->icon_set), std::end(details->icon_set), std::begin(nucleus_details.icon_set));
+
+  std::vector<std::wstring> icon_set_absolute; // ... keeps memory alive
+  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
+  {
+    if (details->icon_set[i] != nullptr)
+    {
+      icon_set_absolute.push_back(normalize_path(details->icon_set[i]));
+      TRACEW(debug, "normalized icon path: " << icon_set_absolute.back());
+      nucleus_details.icon_set[i] = icon_set_absolute.back().c_str();
+    }
+  }
 
   // iterate libraries and stop at first successful load
   for (auto dylib : dylibs)
   {
     // load library
-    auto dylib_abs = dir_of_exe() + PATH_SEPARATOR + dylib;
-    TRACEA(info, "trying to load library from path " << dylib_abs);
+    auto dylib_abs = normalize_path(dir_of_exe() + L"/" + dylib);
+    TRACEW(info, L"trying to load library from path " << dylib_abs);
 #ifdef WIN32
-    auto dlh = LoadLibraryA(dylib_abs.c_str());
+    auto dlh = LoadLibraryW(dylib_abs.c_str());
 #else
-    auto dlh = dlopen(dylib_abs.c_str(), RTLD_LAZY | RTLD_LOCAL);
+    auto dlh = dlopen(utf16_to_utf8(dylib_abs).c_str(), RTLD_LAZY | RTLD_LOCAL);
 #endif
 
     // try to lookup symbols if loaded successfully
@@ -193,7 +204,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 
       if (!audience_is_initialized())
       {
-        TRACEA(info, "could not find function pointer in library " << dylib);
+        TRACEW(info, L"could not find function pointer in library " << dylib);
       }
 
       // try to initializes and negotiate protocol
@@ -206,12 +217,12 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 
       if (audience_is_initialized() && nucleus_init(&shell_protocol_negotiation, &nucleus_details))
       {
-        TRACEA(info, "library " << dylib << " loaded successfully");
+        TRACEW(info, L"library " << dylib << L" loaded successfully");
         break;
       }
       else
       {
-        TRACEA(info, "could not initialize library " << dylib);
+        TRACEW(info, L"could not initialize library " << dylib);
       }
 
       // reset function pointer and negotiation in case we failed
@@ -232,7 +243,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
     }
     else
     {
-      TRACEA(info, "could not load library " << dylib);
+      TRACEW(info, L"could not load library " << dylib);
 #ifdef WIN32
       TRACEW(info, GetLastErrorString().c_str());
 #endif
@@ -268,32 +279,13 @@ static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWind
 
   // translate web app location to absolute path
   AudienceWindowDetails new_details = *details;
+  std::wstring webapp_dir_absolute; // ... variable from outer scope keeps memory alive
 
-  std::wstring webapp_dir_absolute;
   if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY)
   {
-#if WIN32
-    constexpr auto resolved_path_length = 4096;
-    wchar_t resolved_path[resolved_path_length]{};
-    auto res = GetFullPathNameW(new_details.webapp_location, resolved_path_length, resolved_path, nullptr);
-    if (res == 0 || res > resolved_path_length)
-    {
-      TRACEW(error, "could not resolve web app path: " << new_details.webapp_location);
-      throw std::invalid_argument("could not resolve web app path");
-    }
-    webapp_dir_absolute = resolved_path;
-#else
-    std::string webapp_dir = utf16_to_utf8(new_details.webapp_location);
-    char resolved_path[PATH_MAX + 1]{};
-    if (realpath(webapp_dir.c_str(), resolved_path) == nullptr)
-    {
-      TRACEA(error, "could not resolve web app path: " << webapp_dir);
-      throw std::invalid_argument("could not resolve web app path");
-    }
-    webapp_dir_absolute = utf8_to_utf16(resolved_path);
-#endif
+    webapp_dir_absolute = normalize_path(std::wstring(new_details.webapp_location));
+    TRACEW(info, "normalized web app path: " << webapp_dir_absolute);
     new_details.webapp_location = webapp_dir_absolute.c_str();
-    TRACEW(info, "resolved web app path: " << webapp_dir_absolute);
   }
 
   // collect window handle

@@ -3,8 +3,8 @@
 #include <boost/beast/core.hpp>
 #include <boost/beast/http.hpp>
 
+#include "../../../common/fs.h"
 #include "mime_type.impl.h"
-#include "path_util.impl.h"
 
 extern const char *_audience_frontend_library_code_begin;
 extern std::size_t _audience_frontend_library_code_length;
@@ -63,15 +63,15 @@ void handle_request(
     return send(bad_request("Unknown HTTP-method"));
 
   // Request path must be absolute and not contain "..".
-  auto target = req.target();
+  std::string target(req.target());
   if (target.empty() ||
       target[0] != '/' ||
-      target.find("..") != boost::beast::string_view::npos)
+      target.find("..") != std::string::npos)
     return send(bad_request("Illegal request-target"));
 
   // Build the path to the requested file
   auto qmi = target.find("?");
-  if (qmi != boost::beast::string_view::npos)
+  if (qmi != std::string::npos)
   {
     target = target.substr(0, qmi);
   }
@@ -79,6 +79,8 @@ void handle_request(
   // handle case: /audience.js
   if (target == "/audience.js")
   {
+    TRACEA(debug, "serving virtual path: " << target);
+
     // Cache the size since we need it after the move
     auto const size = _audience_frontend_library_code_length;
 
@@ -106,9 +108,10 @@ void handle_request(
   else
   {
     // build path
-    std::string path = path_cat(doc_root, target);
-    if (target.back() == '/')
-      path.append("index.html");
+    std::string path = utf16_to_utf8(normalize_path(utf8_to_utf16(
+        std::string(doc_root) + "/" + target + (target.back() == '/' ? "index.html" : ""))));
+
+    TRACEA(debug, "serving file: " << path);
 
     // Attempt to open the file
     boost::beast::error_code ec;
