@@ -15,7 +15,7 @@ static std::wstring normalize_path(const std::wstring& path)
 #if WIN32
     constexpr auto normalized_path_length = 4096;
     wchar_t normalized_path[normalized_path_length]{};
-    auto res = GetFullPathNameW(path, normalized_path_length, normalized_path, nullptr);
+    auto res = GetFullPathNameW(path.c_str(), normalized_path_length, normalized_path, nullptr);
     if (res == 0 || res > normalized_path_length)
     {
       TRACEW(error, "could not normalize path: " << path);
