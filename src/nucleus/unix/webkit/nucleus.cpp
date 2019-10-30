@@ -34,26 +34,22 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   //       once a certain limit is hit. For that reason it seems best to order icons
   //       by size ascending.
   std::vector<GdkPixbuf *> icons{};
-  icons.reserve(AUDIENCE_DETAILS_ICON_SET_ENTRIES);
+  icons.reserve(details.icon_set.size());
 
-  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
+  for (auto &icon_path : details.icon_set)
   {
-    if (details->icon_set[i] != nullptr)
+    TRACEW(info, "loading icon " << icon_path);
+    GError *gerror = nullptr;
+    auto icon = gdk_pixbuf_new_from_file(utf16_to_utf8(icon_path).c_str(), &gerror);
+    if (icon == nullptr)
     {
-      TRACEW(info, "loading icon " << details->icon_set[i]);
-      auto icon_path = utf16_to_utf8(details->icon_set[i]);
-      GError *gerror = nullptr;
-      auto icon = gdk_pixbuf_new_from_file(icon_path.c_str(), &gerror);
-      if (icon == nullptr)
-      {
-        TRACEA(error, "could not load icon: " << gerror->message);
-        g_error_free(gerror);
-      }
-      else
-      {
-        TRACEA(debug, "icon width = " << gdk_pixbuf_get_width(icon));
-        icons.push_back(icon);
-      }
+      TRACEA(error, "could not load icon: " << gerror->message);
+      g_error_free(gerror);
+    }
+    else
+    {
+      TRACEA(debug, "icon width = " << gdk_pixbuf_get_width(icon));
+      icons.push_back(icon);
     }
   }
 
