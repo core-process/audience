@@ -42,6 +42,13 @@ extern "C"
       AudienceNucleusTechMacOS macos[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
       AudienceNucleusTechUnix unix[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
     } load_order;
+    // icon set:
+    // - use png files, as it is supported by all implementations
+    // - provide sizes from 16x16 to 1024x1024 if required by your icon design, e.g. 16, 32, 64, 128, 256, 512, 1024
+    // - it is not necessary to provide all sizes, every implementation is capable of scaling
+    // - windows: picks smallest icon by width, larger or equal to SM_C?ICON/SM_C?SMICON metrics
+    // - unix: sorts by width ascending and builds an icon list, which gets cut off at a certain position by the underlying system when hitting a limit
+    // - macos: picks largest icon by width
     const wchar_t *icon_set[AUDIENCE_DETAILS_ICON_SET_ENTRIES];
   } AudienceDetails;
 

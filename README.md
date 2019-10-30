@@ -50,10 +50,15 @@ int main(int argc, char **argv)
 {
   // init audience
   AudienceDetails pd{};
+
   pd.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
   pd.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
   pd.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
   pd.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
+
+  pd.icon_set[0] = L"./icons/16x16.png";
+  pd.icon_set[1] = L"./icons/128x128.png";
+  pd.icon_set[2] = L"./icons/1024x1024.png";
 
   AudienceEventHandler peh{};
   if (!audience_init(&pd, &peh))

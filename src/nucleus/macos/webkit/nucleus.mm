@@ -103,7 +103,7 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation,
   _nucleus_app_delegate = [[AudienceAppDelegate alloc] init];
   [NSApp setDelegate:_nucleus_app_delegate];
 
-  // apply icon
+  // apply icon (we simply pick the largest icon available)
   NSImage *select_app_icon = nullptr;
   for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i) {
     if (details->icon_set[i] != nullptr) {
@@ -119,15 +119,13 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation,
       }
       if (select_app_icon == nullptr ||
           select_app_icon.size.width < app_icon.size.width) {
-        TRACEW(info, "selecting icon "
-                         << details->icon_set[i]
-                         << " with width = " << app_icon.size.width);
         select_app_icon = app_icon;
       }
     }
   }
 
   if (select_app_icon != nullptr) {
+    TRACEW(info, "selecting icon with width = " << select_app_icon.size.width);
     _nucleus_app_delegate.appIcon = select_app_icon;
   }
 
