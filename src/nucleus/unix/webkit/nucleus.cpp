@@ -30,6 +30,34 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
     return false;
   }
 
+  // load icons
+  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+  GList *icons = nullptr;
+  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
+  {
+    if (details->icon_set[i] != nullptr)
+    {
+      TRACEW(info, "loading icon " << details->icon_set[i]);
+      GError *gerror = nullptr;
+      auto icon_path = converter.to_bytes(details->icon_set[i]);
+      auto icon = gdk_pixbuf_new_from_file(icon_path.c_str(), &gerror);
+      if (icon == nullptr)
+      {
+        TRACEA(error, "could not load icon: " << gerror->message);
+        g_error_free(gerror);
+      }
+      else
+      {
+        TRACEA(debug, "icon width = " << gdk_pixbuf_get_width(icon));
+        icons = g_list_append(icons, icon);
+      }
+    }
+  }
+  if (icons != nullptr)
+  {
+    gtk_window_set_default_icon_list(icons);
+  }
+
   return true;
 }
 
