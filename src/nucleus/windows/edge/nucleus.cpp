@@ -32,7 +32,7 @@ void UpdateWebViewPosition(const AudienceWindowContext context);
 
 HWND _audience_message_window = nullptr;
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details)
 {
   // negotiate protocol
   negotiation->nucleus_handles_webapp_type_directory = true;

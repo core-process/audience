@@ -31,7 +31,8 @@ extern "C"
     AUDIENCE_NUCLEUS_UNIX_WEBKIT = 1
   };
 
-  #define AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES 10
+#define AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES 10
+#define AUDIENCE_DETAILS_ICON_SET_ENTRIES 20
 
   typedef struct
   {
@@ -41,6 +42,7 @@ extern "C"
       AudienceNucleusTechMacOS macos[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
       AudienceNucleusTechUnix unix[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
     } load_order;
+    const wchar_t *icon_set[AUDIENCE_DETAILS_ICON_SET_ENTRIES];
   } AudienceDetails;
 
   typedef struct

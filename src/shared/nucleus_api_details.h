@@ -26,4 +26,9 @@ struct AudienceNucleusProtocolNegotiation
   } shell_event_handler;
 };
 
+typedef struct
+{
+  const wchar_t *icon_set[AUDIENCE_DETAILS_ICON_SET_ENTRIES];
+} AudienceInternalDetails;
+
 #pragma pack(pop)

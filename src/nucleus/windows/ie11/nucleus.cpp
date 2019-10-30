@@ -23,7 +23,7 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 
 HWND _audience_message_window = nullptr;
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details)
 {
   // negotiate protocol
   negotiation->nucleus_handles_webapp_type_url = true;

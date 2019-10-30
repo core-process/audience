@@ -22,7 +22,7 @@
 
 extern "C"
 {
-  NUCLEUS_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation);
+  NUCLEUS_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details);
   NUCLEUS_EXPORT AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
   NUCLEUS_EXPORT void audience_window_post_message(AudienceWindowHandle handle, const char *message);
   NUCLEUS_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
@@ -43,7 +43,7 @@ struct InternalWindowDetails
   bool dev_mode;
 };
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation);
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details);
 AudienceWindowContext internal_window_create(const InternalWindowDetails &details);
 void internal_window_post_message(AudienceWindowContext context, const char *message);
 void internal_window_destroy(AudienceWindowContext context);
@@ -61,9 +61,9 @@ extern AudienceWindowHandle _internal_window_context_next_handle;
 
 extern AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation;
 
-static inline bool _internal_init(AudienceNucleusProtocolNegotiation *negotiation)
+static inline bool _internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details)
 {
-  auto status = internal_init(negotiation);
+  auto status = internal_init(negotiation, details);
   if (status)
   {
     _internal_protocol_negotiation = negotiation;
@@ -241,13 +241,13 @@ static inline void internal_on_process_quit()
 #define AUDIENCE_EXTIMPL_RELEASEPOOL
 #endif
 
-#define AUDIENCE_EXTIMPL_INIT                                         \
-  bool audience_init(AudienceNucleusProtocolNegotiation *negotiation) \
-  {                                                                   \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                                      \
-    {                                                                 \
-      return NUCLEUS_SAFE_FN(_internal_init, false)(negotiation);     \
-    }                                                                 \
+#define AUDIENCE_EXTIMPL_INIT                                                                                 \
+  bool audience_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details) \
+  {                                                                                                           \
+    AUDIENCE_EXTIMPL_RELEASEPOOL                                                                              \
+    {                                                                                                         \
+      return NUCLEUS_SAFE_FN(_internal_init, false)(negotiation, details);                                    \
+    }                                                                                                         \
   }
 
 #define AUDIENCE_EXTIMPL_WINDOW_CREATE                                                  \

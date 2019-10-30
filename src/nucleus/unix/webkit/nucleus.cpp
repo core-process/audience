@@ -19,7 +19,7 @@ gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user
 void window_destroy_callback(GtkWidget *widget, gpointer arg);
 void webview_title_update_callback(GtkWidget *widget, gpointer arg);
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation)
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details)
 {
   // negotiate protocol
   negotiation->nucleus_handles_webapp_type_url = true;

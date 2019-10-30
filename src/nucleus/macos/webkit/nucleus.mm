@@ -9,12 +9,18 @@
 @end
 
 @interface AudienceAppDelegate : NSObject <NSApplicationDelegate>
+@property(strong) NSImage *appIcon;
+- (void)applicationDidFinishLaunching:(NSNotification *)notification;
 - (NSApplicationTerminateReply)applicationShouldTerminate:
     (NSApplication *)sender;
 - (void)applicationWillTerminate:(NSNotification *)notification;
 @end
 
 @implementation AudienceAppDelegate
+- (void)applicationDidFinishLaunching:(NSNotification *)notification {
+  NSApp.applicationIconImage = self.appIcon;
+}
+
 - (NSApplicationTerminateReply)applicationShouldTerminate:
     (NSApplication *)sender {
   bool prevent_quit = false;
@@ -85,7 +91,8 @@
 
 AudienceAppDelegate *_nucleus_app_delegate = nullptr;
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation) {
+bool internal_init(AudienceNucleusProtocolNegotiation *negotiation,
+                   const AudienceInternalDetails *details) {
   // negotiate protocol
   negotiation->nucleus_handles_webapp_type_url = true;
 
@@ -95,6 +102,34 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation) {
   // set delegate (we need a strong reference here)
   _nucleus_app_delegate = [[AudienceAppDelegate alloc] init];
   [NSApp setDelegate:_nucleus_app_delegate];
+
+  // apply icon
+  NSImage *select_app_icon = nullptr;
+  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i) {
+    if (details->icon_set[i] != nullptr) {
+      TRACEW(info, "loading icon " << details->icon_set[i]);
+      NSImage *app_icon = [[NSImage alloc]
+          initWithContentsOfFile:
+              [[NSString alloc]
+                  initWithBytes:details->icon_set[i]
+                         length:wcslen(details->icon_set[i]) * sizeof(wchar_t)
+                       encoding:NSUTF32LittleEndianStringEncoding]];
+      if (app_icon.size.width == 0) {
+        continue;
+      }
+      if (select_app_icon == nullptr ||
+          select_app_icon.size.width < app_icon.size.width) {
+        TRACEW(info, "selecting icon "
+                         << details->icon_set[i]
+                         << " with width = " << app_icon.size.width);
+        select_app_icon = app_icon;
+      }
+    }
+  }
+
+  if (select_app_icon != nullptr) {
+    _nucleus_app_delegate.appIcon = select_app_icon;
+  }
 
   TRACEA(info, "initialized");
   return true;
@@ -180,7 +215,8 @@ internal_window_create(const InternalWindowDetails &details) {
   return context;
 }
 
-void internal_window_post_message(AudienceWindowContext context, const char *message) {}
+void internal_window_post_message(AudienceWindowContext context,
+                                  const char *message) {}
 
 void internal_window_destroy(AudienceWindowContext context) {
   // perform close operation

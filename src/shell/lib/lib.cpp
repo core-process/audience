@@ -18,6 +18,8 @@
 #include <map>
 #include <thread>
 #include <mutex>
+#include <algorithm>
+#include <iterator>
 #include <boost/bimap.hpp>
 
 #include "../../common/trace.h"
@@ -157,6 +159,10 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
     }
   }
 
+  // prepare internal details
+  AudienceInternalDetails internal_details{};
+  std::copy(std::begin(details->icon_set), std::end(details->icon_set), std::begin(internal_details.icon_set));
+
   // iterate libraries and stop at first successful load
   for (auto dylib : dylibs)
   {
@@ -199,7 +205,7 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
       nucleus_protocol_negotiation.shell_event_handler.process_level.on_will_quit = _audience_on_process_will_quit;
       nucleus_protocol_negotiation.shell_event_handler.process_level.on_quit = _audience_on_process_quit;
 
-      if (audience_is_initialized() && nucleus_init(&nucleus_protocol_negotiation))
+      if (audience_is_initialized() && nucleus_init(&nucleus_protocol_negotiation, &internal_details))
       {
         TRACEA(info, "library " << dylib << " loaded successfully");
         break;
