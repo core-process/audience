@@ -304,25 +304,25 @@ if(WIN32)
   add_library(audience_windows_edge SHARED
     src/nucleus/windows/edge/nucleus.cpp
     src/nucleus/windows/edge/interface.cpp
-    src/nucleus/windows/shared/init.cpp
-    src/nucleus/windows/shared/resource.rc
+    src/nucleus/windows/shared/load.cpp
+    src/nucleus/windows/shared/icons.cpp
     ${AUDIENCE_FRONTEND_LIBRARY_CODE_CPP}
   )
   set_target_properties(audience_windows_edge PROPERTIES CXX_STANDARD 17)
   target_compile_options(audience_windows_edge PRIVATE "/await")
   target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)
-  target_link_libraries(audience_windows_edge PRIVATE boost WindowsApp.lib)
+  target_link_libraries(audience_windows_edge PRIVATE boost WindowsApp.lib gdiplus.lib)
 
   # windows: ie11 widget
   add_library(audience_windows_ie11 SHARED
     src/nucleus/windows/ie11/nucleus.cpp
     src/nucleus/windows/ie11/webview.cpp
     src/nucleus/windows/ie11/interface.cpp
-    src/nucleus/windows/shared/init.cpp
-    src/nucleus/windows/shared/resource.rc
+    src/nucleus/windows/shared/load.cpp
+    src/nucleus/windows/shared/icons.cpp
   )
   target_include_directories(audience_windows_ie11 PRIVATE src/nucleus/windows/ie11)
-  target_link_libraries(audience_windows_ie11 PRIVATE boost comsuppw.lib)
+  target_link_libraries(audience_windows_ie11 PRIVATE boost comsuppw.lib gdiplus.lib)
 
 elseif(APPLE)
 

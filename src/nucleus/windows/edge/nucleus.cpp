@@ -9,8 +9,8 @@
 #include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
 #include "../../shared/interface.h"
-#include "../shared/init.h"
-#include "../shared/resource.h"
+#include "../shared/load.h"
+#include "../shared/icons.h"
 #include "nucleus.h"
 #include "stream_resolver.h"
 
@@ -67,6 +67,10 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
     return false;
   }
 
+  // load icon handles
+  HICON small_icon = nullptr, large_icon = nullptr;
+  load_icon_handles(details, small_icon, large_icon);
+
   // register window class
   WNDCLASSEXW wndcls;
 
@@ -76,11 +80,11 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
   wndcls.cbClsExtra = 0;
   wndcls.cbWndExtra = 0;
   wndcls.hInstance = hInstanceEXE;
-  wndcls.hIcon = LoadIcon(hInstanceDLL, MAKEINTRESOURCE(IDI_AUDIENCE));
-  wndcls.hIconSm = LoadIcon(hInstanceDLL, MAKEINTRESOURCE(IDI_AUDIENCE));
+  wndcls.hIcon = large_icon;
+  wndcls.hIconSm = small_icon;
   wndcls.hCursor = LoadCursor(nullptr, IDC_ARROW);
   wndcls.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-  wndcls.lpszMenuName = MAKEINTRESOURCEW(IDC_AUDIENCE);
+  wndcls.lpszMenuName = 0;
   wndcls.lpszClassName = AUDIENCE_WINDOW_CLASSNAME;
 
   if (RegisterClassExW(&wndcls) == 0)
@@ -286,18 +290,6 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
   {
     // install timer for title updates
     SetTimer(window, 0x1, 1000, nullptr);
-  }
-  break;
-
-  case WM_COMMAND:
-  {
-    // handle menu actions
-    switch (LOWORD(wParam))
-    {
-    case IDM_EXIT:
-      DestroyWindow(window);
-      return 0;
-    }
   }
   break;
 
