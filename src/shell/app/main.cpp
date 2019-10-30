@@ -6,8 +6,6 @@
 #include <iostream>
 #include <vector>
 #include <string>
-#include <locale>
-#include <codecvt>
 #include <cstdlib>
 #include <ctime>
 
@@ -17,8 +15,9 @@
 #include <audience.h>
 
 #include "../../common/trace.h"
+#include "../../common/utf.h"
 
-extern std::vector<std::string> some_quotes;
+extern std::vector<std::wstring> some_quotes;
 
 #ifdef WIN32
 int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
@@ -42,10 +41,9 @@ int main(int argc, char **argv)
   // prepare arguments
   std::vector<std::wstring> args;
   {
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
     for (int i = 0; i < argc; ++i)
     {
-      args.push_back(converter.from_bytes(argv[i]));
+      args.push_back(utf8_to_utf16(argv[i]));
     }
   }
 #endif
@@ -91,17 +89,17 @@ int main(int argc, char **argv)
   std::srand(std::time(nullptr));
 
   // init audience
-  AudienceDetails pd{};
-  pd.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
-  pd.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
-  pd.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
-  pd.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
+  AudienceAppDetails ad{};
+  ad.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
+  ad.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
+  ad.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
+  ad.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
 
-  AudienceEventHandler peh{};
-  peh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); *prevent_quit = false; };
-  peh.on_quit.handler = [](void *context) { TRACEA(info, "event quit"); };
+  AudienceAppEventHandler aeh{};
+  aeh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); *prevent_quit = false; };
+  aeh.on_quit.handler = [](void *context) { TRACEA(info, "event quit"); };
 
-  if (!audience_init(&pd, &peh))
+  if (!audience_init(&ad, &aeh))
   {
     TRACEA(error, "could not initialize audience");
     return 2;
@@ -114,8 +112,9 @@ int main(int argc, char **argv)
   wd.dev_mode = true;
 
   AudienceWindowEventHandler weh{};
-  weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) {
-    TRACEA(info, "event window::message -> " << message);
+  weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
+    TRACEW(info, L"event window::message -> " << message);
+    audience_window_post_message(handle, (std::wstring(L"Your command: ") + message).c_str());
     audience_window_post_message(handle, some_quotes[std::rand() % some_quotes.size()].c_str());
   };
   weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); *prevent_close = false; };

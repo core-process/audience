@@ -5,7 +5,10 @@
 
 #if AUDIENCE_ENABLE_TRACE
 
+#include <sstream>
+
 #include "demangle.h"
+#include "utf.h"
 
 #define _TRACE_STRINGIFY2(m) #m
 #define _TRACE_STRINGIFY(m) _TRACE_STRINGIFY2(m)
@@ -15,7 +18,6 @@
 #ifdef _MSC_VER
 
 #include <windows.h>
-#include <sstream>
 #define TRACEA(level, message)                        \
   try                                                 \
   {                                                   \
@@ -66,12 +68,13 @@
 #define TRACEW(level, message)                                       \
   try                                                                \
   {                                                                  \
-    std::wcerr                                                       \
+    std::wostringstream str;                                         \
+    str                                                              \
         << _TRACE_WIDE(__FILE__)                                     \
         << L"(" << _TRACE_WIDE(_TRACE_STRINGIFY(__LINE__)) << L"): " \
         << L"[" << _TRACE_WIDE(_TRACE_STRINGIFY(level)) << L"] "     \
-        << message                                                   \
-        << std::endl;                                                \
+        << message;                                                  \
+    std::cerr << utf16_to_utf8(str.str()) << std::endl;              \
   }                                                                  \
   catch (...)                                                        \
   {                                                                  \

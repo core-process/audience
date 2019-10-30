@@ -50,7 +50,7 @@ extern "C"
     // - unix: sorts by width ascending and builds an icon list, which gets cut off at a certain position by the underlying system when hitting a limit
     // - macos: picks largest icon by width
     const wchar_t *icon_set[AUDIENCE_DETAILS_ICON_SET_ENTRIES];
-  } AudienceDetails;
+  } AudienceAppDetails;
 
   typedef struct
   {
@@ -64,7 +64,7 @@ extern "C"
       void (*handler)(void *context);
       void *context;
     } on_quit;
-  } AudienceEventHandler;
+  } AudienceAppEventHandler;
 
   enum AudienceWebAppType
   {
@@ -86,7 +86,7 @@ extern "C"
   {
     struct
     {
-      void (*handler)(AudienceWindowHandle handle, void *context, const char *message);
+      void (*handler)(AudienceWindowHandle handle, void *context, const wchar_t *message);
       void *context;
     } on_message;
     struct

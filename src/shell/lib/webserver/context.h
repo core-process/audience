@@ -47,7 +47,7 @@ struct WebserverContextData
     return result;
   }
 
-  std::function<void(WebserverContext, std::string)> on_message_handler;
+  std::function<void(WebserverContext, const std::wstring&)> on_message_handler;
 
   WebserverContextData(int concurrency_hint)
       : ioc(concurrency_hint)

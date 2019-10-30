@@ -7,7 +7,7 @@
 #include "../../../common/scope_guard.h"
 #include "icons.h"
 
-void load_icon_handles(const AudienceInternalDetails *details, HICON &small_icon_handle, HICON &large_icon_handle)
+void load_icon_handles(const NucleusImplAppDetails &details, HICON &small_icon_handle, HICON &large_icon_handle)
 {
   scope_guard scope_always(scope_guard::execution::always);
 

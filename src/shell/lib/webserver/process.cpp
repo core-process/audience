@@ -6,7 +6,7 @@
 #include "process.h"
 #include "context.h"
 
-WebserverContext webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads, std::function<void(WebserverContext, std::string)> on_message_handler)
+WebserverContext webserver_start(std::string address, unsigned short &port, std::string doc_root, int threads, std::function<void(WebserverContext, const std::wstring&)> on_message_handler)
 {
   auto context = std::make_shared<WebserverContextData>(threads);
   context->on_message_handler = on_message_handler;
@@ -35,7 +35,7 @@ WebserverContext webserver_start(std::string address, unsigned short &port, std:
   return context;
 }
 
-void webserver_post_message(WebserverContext context, std::string message)
+void webserver_post_message(WebserverContext context, const std::wstring& message)
 {
   auto sessions = context->get_ws_sessions();
   TRACEA(debug, "found " << sessions.size() << " valid sessions");

@@ -7,6 +7,7 @@
 #include <queue>
 
 #include "../../../common/trace.h"
+#include "../../../common/utf.h"
 #include "context.h"
 
 // Echoes back all received WebSocket messages
@@ -16,7 +17,7 @@ class websocket_session : public std::enable_shared_from_this<websocket_session>
   boost::beast::websocket::stream<boost::beast::tcp_stream> ws_;
   boost::beast::flat_buffer read_buffer_;
 
-  std::queue<std::string> write_queue_;
+  std::queue<std::wstring> write_queue_;
   bool pending_write_;
   std::string pending_write_data_;
   std::mutex write_mutex_;
@@ -63,7 +64,7 @@ public:
   }
 
   void
-  queue_write(std::string body)
+  queue_write(const std::wstring& body)
   {
     {
       std::lock_guard<std::mutex> lock(write_mutex_);
@@ -118,7 +119,7 @@ private:
     auto ctx = context_.lock();
     if (ctx && ctx->on_message_handler)
     {
-      ctx->on_message_handler(ctx, boost::beast::buffers_to_string(read_buffer_.data()));
+      ctx->on_message_handler(ctx, utf8_to_utf16(boost::beast::buffers_to_string(read_buffer_.data())));
     }
 
     // Clear the buffer
@@ -138,7 +139,7 @@ private:
 
       // pop and buffer data
       pending_write_ = true;
-      pending_write_data_ = write_queue_.front();
+      pending_write_data_ = utf16_to_utf8(write_queue_.front());
       write_queue_.pop();
 
       // trigger write

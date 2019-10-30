@@ -32,11 +32,11 @@ void UpdateWebViewPosition(const AudienceWindowContext context);
 
 HWND _audience_message_window = nullptr;
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details)
+bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const NucleusImplAppDetails &details)
 {
   // negotiate protocol
-  negotiation->nucleus_handles_webapp_type_directory = true;
-  negotiation->nucleus_handles_messaging = true;
+  negotiation.nucleus_handles_webapp_type_directory = true;
+  negotiation.nucleus_handles_messaging = true;
 
   // initialize COM
   auto r = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
@@ -95,7 +95,7 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
   return true;
 }
 
-AudienceWindowContext internal_window_create(const InternalWindowDetails &details)
+AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails &details)
 {
   scope_guard scope_fail(scope_guard::execution::exception);
 
@@ -141,7 +141,7 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   // add integration hooks
   context->webview.AddInitializeScript(L"window._audienceWebviewSignature = 'edge';");
   context->webview.ScriptNotify([context](auto sender, auto args) {
-    internal_on_window_message(context, winrt::to_string(args.Value()));
+    emit_window_message(context, winrt::to_string(args.Value()));
   });
 
   // update position of web view
@@ -161,7 +161,7 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   return context;
 }
 
-void internal_window_post_message(AudienceWindowContext context, const char *message)
+void nucleus_impl_window_post_message(AudienceWindowContext context, const std::wstring &message)
 {
   auto op = context->webview.InvokeScriptAsync(L"_audienceWebviewMessageHandler", std::vector<winrt::hstring>{winrt::to_hstring(std::string(message))});
 
@@ -184,7 +184,7 @@ void internal_window_post_message(AudienceWindowContext context, const char *mes
   }
 }
 
-void internal_window_destroy(AudienceWindowContext context)
+void nucleus_impl_window_destroy(AudienceWindowContext context)
 {
   // destroy window
   if (context->window != nullptr)
@@ -194,7 +194,7 @@ void internal_window_destroy(AudienceWindowContext context)
   }
 }
 
-void internal_main()
+void nucleus_impl_main()
 {
   MSG msg;
   while (GetMessage(&msg, nullptr, 0, 0))
@@ -204,14 +204,14 @@ void internal_main()
   }
 
   // trigger final event
-  internal_on_process_quit();
+  emit_app_quit();
 
   // lets quit now
   TRACEA(info, "calling ExitProcess()");
   ExitProcess(0);
 }
 
-void internal_dispatch_sync(void (*task)(void *context), void *context)
+void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
 {
   // NOTE: We cannot use SendMessageW, because of some COM quirks. Therefore we use PostMessageW and thread based signaling.
 
@@ -244,7 +244,7 @@ void internal_dispatch_sync(void (*task)(void *context), void *context)
   condition.wait(wait_lock, [&] { return ready; });
 }
 
-void internal_dispatch_async(void (*task)(void *context), void *context)
+void nucleus_impl_dispatch_async(void (*task)(void *context), void *context)
 {
   TRACEA(info, "dispatching task on main queue (async)");
   PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)task, (LPARAM)context);
@@ -339,7 +339,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     auto context_priv = reinterpret_cast<AudienceWindowContext *>(GetWindowLongPtrW(window, GWLP_USERDATA));
     if (context_priv != nullptr)
     {
-      internal_on_window_will_close(*context_priv, prevent_close);
+      emit_window_will_close(*context_priv, prevent_close);
     }
     else
     {
@@ -368,7 +368,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     if (context_priv != nullptr)
     {
       // trigger event
-      internal_on_window_close(*context_priv, prevent_quit);
+      emit_window_close(*context_priv, prevent_quit);
 
       // reset referenced window and widget
       (*context_priv)->webview = nullptr;
@@ -388,9 +388,9 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     // trigger further events
     if (!prevent_quit)
     {
-      // trigger process will quit event
+      // trigger app will quit event
       prevent_quit = false;
-      internal_on_process_will_quit(prevent_quit);
+      emit_app_will_quit(prevent_quit);
 
       // quit message loop
       if (!prevent_quit)

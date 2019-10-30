@@ -14,7 +14,7 @@ struct AudienceNucleusProtocolNegotiation
   {
     struct
     {
-      void (*on_message)(AudienceWindowHandle handle, const char *message);
+      void (*on_message)(AudienceWindowHandle handle, const wchar_t *message);
       void (*on_will_close)(AudienceWindowHandle handle, bool *prevent_close);
       void (*on_close)(AudienceWindowHandle handle, bool *prevent_quit);
     } window_level;
@@ -22,13 +22,13 @@ struct AudienceNucleusProtocolNegotiation
     {
       void (*on_will_quit)(bool *prevent_quit);
       void (*on_quit)();
-    } process_level;
+    } app_level;
   } shell_event_handler;
 };
 
 typedef struct
 {
   const wchar_t *icon_set[AUDIENCE_DETAILS_ICON_SET_ENTRIES];
-} AudienceInternalDetails;
+} AudienceNucleusAppDetails;
 
 #pragma pack(pop)

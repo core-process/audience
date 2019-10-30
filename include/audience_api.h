@@ -8,9 +8,9 @@ extern "C"
 {
 #endif
 
-  AUDIENCE_API bool audience_init(const AudienceDetails *details, const AudienceEventHandler *event_handler);
+  AUDIENCE_API bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler);
   AUDIENCE_API AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler);
-  AUDIENCE_API void audience_window_post_message(AudienceWindowHandle handle, const char *message);
+  AUDIENCE_API void audience_window_post_message(AudienceWindowHandle handle, const wchar_t *message);
   AUDIENCE_API void audience_window_destroy(AudienceWindowHandle handle);
   AUDIENCE_API void audience_main();
 

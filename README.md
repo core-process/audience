@@ -49,19 +49,19 @@ Unix | Generic Browser Fallback | (2) | [#1][i1]
 int main(int argc, char **argv)
 {
   // init audience
-  AudienceDetails pd{};
+  AudienceAppDetails ad{};
 
-  pd.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
-  pd.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
-  pd.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
-  pd.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
+  ad.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
+  ad.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
+  ad.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
+  ad.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
 
-  pd.icon_set[0] = L"./icons/16x16.png";
-  pd.icon_set[1] = L"./icons/128x128.png";
-  pd.icon_set[2] = L"./icons/1024x1024.png";
+  ad.icon_set[0] = L"./icons/16x16.png";
+  ad.icon_set[1] = L"./icons/128x128.png";
+  ad.icon_set[2] = L"./icons/1024x1024.png";
 
-  AudienceEventHandler peh{};
-  if (!audience_init(&pd, &peh))
+  AudienceAppEventHandler aeh{};
+  if (!audience_init(&ad, &aeh))
     return 1;
 
   // create and show window
@@ -125,7 +125,7 @@ See [here](examples/ping/webapp/) for the complete example.
 ### Backend
 
 ```c
-bool audience_init(const AudienceEventHandler *event_handler);
+bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler);
 
 AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler);
 

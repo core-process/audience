@@ -2,14 +2,13 @@
 #include <webkit2/webkit2.h>
 
 #include <string>
-#include <locale>
-#include <codecvt>
 #include <memory>
 #include <mutex>
 #include <condition_variable>
 
 #include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
+#include "../../../common/utf.h"
 #include "../../shared/interface.h"
 #include "nucleus.h"
 
@@ -19,10 +18,10 @@ gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user
 void window_destroy_callback(GtkWidget *widget, gpointer arg);
 void webview_title_update_callback(GtkWidget *widget, gpointer arg);
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details)
+bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const NucleusImplAppDetails &details)
 {
   // negotiate protocol
-  negotiation->nucleus_handles_webapp_type_url = true;
+  negotiation.nucleus_handles_webapp_type_url = true;
 
   // init gtk
   if (gtk_init_check(0, NULL) == FALSE)
@@ -34,8 +33,6 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
   // NOTE: GDK/X11 (and maybe other implementations) too stops packing icons silently,
   //       once a certain limit is hit. For that reason it seems best to order icons
   //       by size ascending.
-  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-
   std::vector<GdkPixbuf *> icons{};
   icons.reserve(AUDIENCE_DETAILS_ICON_SET_ENTRIES);
 
@@ -44,7 +41,7 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
     if (details->icon_set[i] != nullptr)
     {
       TRACEW(info, "loading icon " << details->icon_set[i]);
-      auto icon_path = converter.to_bytes(details->icon_set[i]);
+      auto icon_path = utf16_to_utf8(details->icon_set[i]);
       GError *gerror = nullptr;
       auto icon = gdk_pixbuf_new_from_file(icon_path.c_str(), &gerror);
       if (icon == nullptr)
@@ -80,7 +77,7 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
   return true;
 }
 
-AudienceWindowContext internal_window_create(const InternalWindowDetails &details)
+AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails &details)
 {
   scope_guard scope_fail(scope_guard::execution::exception);
 
@@ -88,9 +85,8 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   auto context = std::make_shared<AudienceWindowContextData>();
 
   // convert input parameter
-  std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-  auto title = converter.to_bytes(details.loading_title);
-  auto url = converter.to_bytes(details.webapp_location);
+  auto title = utf16_to_utf8(details.loading_title);
+  auto url = utf16_to_utf8(details.webapp_location);
 
   // retrieve screen dimensions
   GdkRectangle workarea = {0};
@@ -156,9 +152,9 @@ AudienceWindowContext internal_window_create(const InternalWindowDetails &detail
   return context;
 }
 
-void internal_window_post_message(AudienceWindowContext context, const char *message) {}
+void nucleus_impl_window_post_message(AudienceWindowContext context, const std::wstring &message) {}
 
-void internal_window_destroy(AudienceWindowContext context)
+void nucleus_impl_window_destroy(AudienceWindowContext context)
 {
   if (context->window != nullptr)
   {
@@ -167,19 +163,19 @@ void internal_window_destroy(AudienceWindowContext context)
   }
 }
 
-void internal_main()
+void nucleus_impl_main()
 {
   gtk_main();
 
   // trigger final event
-  internal_on_process_quit();
+  emit_app_quit();
 
   // lets quit now
   TRACEA(info, "calling exit()");
   exit(0);
 }
 
-void internal_dispatch_sync(void (*task)(void *context), void *context)
+void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
 {
   // sync utilities
   bool ready = false;
@@ -211,7 +207,7 @@ void internal_dispatch_sync(void (*task)(void *context), void *context)
   condition.wait(wait_lock, [&] { return ready; });
 }
 
-void internal_dispatch_async(void (*task)(void *context), void *context)
+void nucleus_impl_dispatch_async(void (*task)(void *context), void *context)
 {
   struct wrapped_context_t
   {
@@ -242,7 +238,7 @@ gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user
   auto context_priv = reinterpret_cast<AudienceWindowContext *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (context_priv != nullptr)
   {
-    internal_on_window_will_close(*context_priv, prevent_close);
+    emit_window_will_close(*context_priv, prevent_close);
   }
 
   // destroy window
@@ -262,7 +258,7 @@ void window_destroy_callback(GtkWidget *widget, gpointer arg)
   if (context_priv != nullptr)
   {
     // trigger event
-    internal_on_window_close(*context_priv, prevent_quit);
+    emit_window_close(*context_priv, prevent_quit);
 
     // remove context pointer from widgets
     if ((*context_priv)->window != nullptr)
@@ -285,9 +281,9 @@ void window_destroy_callback(GtkWidget *widget, gpointer arg)
   // trigger further events
   if (!prevent_quit)
   {
-    // trigger process will quit event
+    // trigger app will quit event
     prevent_quit = false;
-    internal_on_process_will_quit(prevent_quit);
+    emit_app_will_quit(prevent_quit);
 
     // trigger quit signal
     if (!prevent_quit)

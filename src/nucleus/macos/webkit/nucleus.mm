@@ -24,12 +24,12 @@
 - (NSApplicationTerminateReply)applicationShouldTerminate:
     (NSApplication *)sender {
   bool prevent_quit = false;
-  internal_on_process_will_quit(prevent_quit);
+  emit_app_will_quit(prevent_quit);
   return prevent_quit ? NSTerminateCancel : NSTerminateNow;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
-  internal_on_process_quit();
+  emit_app_quit();
   TRACEA(info, "cocoa will call exit() for us now");
 }
 @end
@@ -53,7 +53,7 @@
   // trigger event
   bool prevent_close = false;
   if (self.context != NULL) {
-    internal_on_window_will_close(self.context, prevent_close);
+    emit_window_will_close(self.context, prevent_close);
   }
   return !prevent_close;
 }
@@ -63,7 +63,7 @@
 
   if (self.context != NULL) {
     // trigger event
-    internal_on_window_close(self.context, prevent_quit);
+    emit_window_close(self.context, prevent_quit);
 
     // invalidate title timer
     if (self.context.titletimer != NULL) {
@@ -91,10 +91,10 @@
 
 AudienceAppDelegate *_nucleus_app_delegate = nullptr;
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation,
-                   const AudienceInternalDetails *details) {
+bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation,
+                       const NucleusImplAppDetails &details) {
   // negotiate protocol
-  negotiation->nucleus_handles_webapp_type_url = true;
+  negotiation.nucleus_handles_webapp_type_url = true;
 
   // init shared application object
   [NSApplication sharedApplication];
@@ -105,22 +105,19 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation,
 
   // apply icon (we simply pick the largest icon available)
   NSImage *select_app_icon = nullptr;
-  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i) {
-    if (details->icon_set[i] != nullptr) {
-      TRACEW(info, "loading icon " << details->icon_set[i]);
-      NSImage *app_icon = [[NSImage alloc]
-          initWithContentsOfFile:
-              [[NSString alloc]
-                  initWithBytes:details->icon_set[i]
-                         length:wcslen(details->icon_set[i]) * sizeof(wchar_t)
-                       encoding:NSUTF32LittleEndianStringEncoding]];
-      if (app_icon.size.width == 0) {
-        continue;
-      }
-      if (select_app_icon == nullptr ||
-          select_app_icon.size.width < app_icon.size.width) {
-        select_app_icon = app_icon;
-      }
+  for (auto &icon_path : details.icon_set) {
+    TRACEW(info, "loading icon " << icon_path);
+    NSImage *app_icon = [[NSImage alloc]
+        initWithContentsOfFile:
+            [[NSString alloc] initWithBytes:icon_path.c_str()
+                                     length:icon_path.length() * sizeof(wchar_t)
+                                   encoding:NSUTF32LittleEndianStringEncoding]];
+    if (app_icon.size.width == 0) {
+      continue;
+    }
+    if (select_app_icon == nullptr ||
+        select_app_icon.size.width < app_icon.size.width) {
+      select_app_icon = app_icon;
     }
   }
 
@@ -134,7 +131,7 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation,
 }
 
 AudienceWindowContext
-internal_window_create(const InternalWindowDetails &details) {
+nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
   // prepare context object
   AudienceWindowContext context = [[AudienceWindowContextData alloc] init];
 
@@ -213,10 +210,10 @@ internal_window_create(const InternalWindowDetails &details) {
   return context;
 }
 
-void internal_window_post_message(AudienceWindowContext context,
-                                  const char *message) {}
+void nucleus_impl_window_post_message(AudienceWindowContext context,
+                                      const std::wstring &message) {}
 
-void internal_window_destroy(AudienceWindowContext context) {
+void nucleus_impl_window_destroy(AudienceWindowContext context) {
   // perform close operation
   if (context.window != NULL) {
     [context.window close];
@@ -224,19 +221,19 @@ void internal_window_destroy(AudienceWindowContext context) {
   }
 }
 
-void internal_main() {
+void nucleus_impl_main() {
   [NSApp run];
   // NSApp.run() calls exit() by itself
 }
 
-void internal_dispatch_sync(void (*task)(void *context), void *context) {
+void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context) {
   TRACEA(info, "dispatching task on main queue (sync)");
   dispatch_sync(dispatch_get_main_queue(), ^{
     task(context);
   });
 }
 
-void internal_dispatch_async(void (*task)(void *context), void *context) {
+void nucleus_impl_dispatch_async(void (*task)(void *context), void *context) {
   TRACEA(info, "dispatching task on main queue (async)");
   dispatch_async(dispatch_get_main_queue(), ^{
     task(context);

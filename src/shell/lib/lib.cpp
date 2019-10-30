@@ -13,8 +13,6 @@
 
 #include <vector>
 #include <string>
-#include <codecvt>
-#include <locale>
 #include <map>
 #include <thread>
 #include <mutex>
@@ -24,24 +22,25 @@
 
 #include "../../common/trace.h"
 #include "../../common/safefn.h"
+#include "../../common/utf.h"
 #include "webserver/process.h"
 #include "lib.h"
 #include "nucleus.h"
 #include "util.h"
 
-static std::mutex nucleus_thread_lock_mutex;
-static std::thread::id nucleus_thread_lock_id;
+static std::mutex shell_thread_binding_mutex;
+static std::thread::id shell_thread_binding_id;
 
-#define SHELL_CHECK_THREAD_LOCK(on_fail)                                                                           \
+#define SHELL_CHECK_THREAD_BINDING(on_fail)                                                                        \
   {                                                                                                                \
     bool thread_check_failed = false;                                                                              \
     {                                                                                                              \
-      std::lock_guard<std::mutex> lock(nucleus_thread_lock_mutex);                                                 \
-      if (nucleus_thread_lock_id == std::thread::id())                                                             \
+      std::lock_guard<std::mutex> lock(shell_thread_binding_mutex);                                                \
+      if (shell_thread_binding_id == std::thread::id())                                                            \
       {                                                                                                            \
         throw std::runtime_error("audience needs to be locked to a specific thread (call audience_init() first)"); \
       }                                                                                                            \
-      if (nucleus_thread_lock_id != std::this_thread::get_id())                                                    \
+      if (shell_thread_binding_id != std::this_thread::get_id())                                                   \
       {                                                                                                            \
         thread_check_failed = true;                                                                                \
       }                                                                                                            \
@@ -52,7 +51,7 @@ static std::thread::id nucleus_thread_lock_id;
     }                                                                                                              \
   }
 
-#define SHELL_CHECK_THREAD_LOCK_THROW SHELL_CHECK_THREAD_LOCK(throw std::runtime_error("audience cannot be called from multiple threads (stick to you applications main thread)"))
+#define SHELL_CHECK_THREAD_BINDING_THROW SHELL_CHECK_THREAD_BINDING(throw std::runtime_error("audience cannot be called from multiple threads (stick to your applications main thread)"))
 
 #define SHELL_DISPATCH_SYNC(fn, return_type, ...)                                          \
   {                                                                                        \
@@ -80,36 +79,36 @@ static nucleus_main_t nucleus_main = nullptr;
 static nucleus_dispatch_sync_t nucleus_dispatch_sync = nullptr;
 static nucleus_dispatch_async_t nucleus_dispatch_async = nullptr;
 
-static AudienceNucleusProtocolNegotiation nucleus_protocol_negotiation{};
-static boost::bimap<AudienceWindowHandle, WebserverContext> nucleus_webserver_registry{};
+static AudienceNucleusProtocolNegotiation shell_protocol_negotiation{};
+static boost::bimap<AudienceWindowHandle, WebserverContext> shell_webserver_registry{};
 
-static AudienceEventHandler user_process_event_handler{};
-static std::map<AudienceWindowHandle, AudienceWindowEventHandler> user_window_event_handler{};
+static AudienceAppEventHandler audience_app_event_handler{};
+static std::map<AudienceWindowHandle, AudienceWindowEventHandler> audience_window_event_handler{};
 
-static void _audience_on_window_message(AudienceWindowHandle handle, const char *message);
-static void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close);
-static void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit);
-static void _audience_on_process_will_quit(bool *prevent_quit);
-static void _audience_on_process_quit();
+static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, const wchar_t *message);
+static inline void shell_unsafe_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close);
+static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool *prevent_quit);
+static inline void shell_unsafe_on_app_will_quit(bool *prevent_quit);
+static inline void shell_unsafe_on_app_quit();
 
-static bool audience_is_initialized()
+static inline bool audience_is_initialized()
 {
   return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
 }
 
-static bool _audience_init(const AudienceDetails *details, const AudienceEventHandler *event_handler)
+static inline bool shell_unsafe_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
 {
-  // perform thread lock if not locked already
+  // perform thread binding if not bound already
   {
-    std::lock_guard<std::mutex> lock(nucleus_thread_lock_mutex);
-    if (nucleus_thread_lock_id == std::thread::id())
+    std::lock_guard<std::mutex> lock(shell_thread_binding_mutex);
+    if (shell_thread_binding_id == std::thread::id())
     {
-      nucleus_thread_lock_id = std::this_thread::get_id();
+      shell_thread_binding_id = std::this_thread::get_id();
     }
   }
 
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK_THROW;
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING_THROW;
 
   // prevent double initialization
   if (audience_is_initialized())
@@ -160,8 +159,8 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
   }
 
   // prepare internal details
-  AudienceInternalDetails internal_details{};
-  std::copy(std::begin(details->icon_set), std::end(details->icon_set), std::begin(internal_details.icon_set));
+  AudienceNucleusAppDetails nucleus_details{};
+  std::copy(std::begin(details->icon_set), std::end(details->icon_set), std::begin(nucleus_details.icon_set));
 
   // iterate libraries and stop at first successful load
   for (auto dylib : dylibs)
@@ -184,13 +183,13 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
 #define LookupFunction dlsym
 #endif
 
-      nucleus_init = (nucleus_init_t)LookupFunction(dlh, "audience_init");
-      nucleus_window_create = (nucleus_window_create_t)LookupFunction(dlh, "audience_window_create");
-      nucleus_window_post_message = (nucleus_window_post_message_t)LookupFunction(dlh, "audience_window_post_message");
-      nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "audience_window_destroy");
-      nucleus_main = (nucleus_main_t)LookupFunction(dlh, "audience_main");
-      nucleus_dispatch_sync = (nucleus_dispatch_sync_t)LookupFunction(dlh, "audience_dispatch_sync");
-      nucleus_dispatch_async = (nucleus_dispatch_async_t)LookupFunction(dlh, "audience_dispatch_async");
+      nucleus_init = (nucleus_init_t)LookupFunction(dlh, "nucleus_init");
+      nucleus_window_create = (nucleus_window_create_t)LookupFunction(dlh, "nucleus_window_create");
+      nucleus_window_post_message = (nucleus_window_post_message_t)LookupFunction(dlh, "nucleus_window_post_message");
+      nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "nucleus_window_destroy");
+      nucleus_main = (nucleus_main_t)LookupFunction(dlh, "nucleus_main");
+      nucleus_dispatch_sync = (nucleus_dispatch_sync_t)LookupFunction(dlh, "nucleus_dispatch_sync");
+      nucleus_dispatch_async = (nucleus_dispatch_async_t)LookupFunction(dlh, "nucleus_dispatch_async");
 
       if (!audience_is_initialized())
       {
@@ -198,14 +197,14 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
       }
 
       // try to initializes and negotiate protocol
-      nucleus_protocol_negotiation = {};
-      nucleus_protocol_negotiation.shell_event_handler.window_level.on_message = _audience_on_window_message;
-      nucleus_protocol_negotiation.shell_event_handler.window_level.on_will_close = _audience_on_window_will_close;
-      nucleus_protocol_negotiation.shell_event_handler.window_level.on_close = _audience_on_window_close;
-      nucleus_protocol_negotiation.shell_event_handler.process_level.on_will_quit = _audience_on_process_will_quit;
-      nucleus_protocol_negotiation.shell_event_handler.process_level.on_quit = _audience_on_process_quit;
+      shell_protocol_negotiation = {};
+      shell_protocol_negotiation.shell_event_handler.window_level.on_message = SAFE_FN(shell_unsafe_on_window_message);
+      shell_protocol_negotiation.shell_event_handler.window_level.on_will_close = SAFE_FN(shell_unsafe_on_window_will_close);
+      shell_protocol_negotiation.shell_event_handler.window_level.on_close = SAFE_FN(shell_unsafe_on_window_close);
+      shell_protocol_negotiation.shell_event_handler.app_level.on_will_quit = SAFE_FN(shell_unsafe_on_app_will_quit);
+      shell_protocol_negotiation.shell_event_handler.app_level.on_quit = SAFE_FN(shell_unsafe_on_app_quit);
 
-      if (audience_is_initialized() && nucleus_init(&nucleus_protocol_negotiation, &internal_details))
+      if (audience_is_initialized() && nucleus_init(&shell_protocol_negotiation, &nucleus_details))
       {
         TRACEA(info, "library " << dylib << " loaded successfully");
         break;
@@ -223,7 +222,7 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
       nucleus_main = nullptr;
       nucleus_dispatch_sync = nullptr;
       nucleus_dispatch_async = nullptr;
-      nucleus_protocol_negotiation = {};
+      shell_protocol_negotiation = {};
 
 #ifdef WIN32
       FreeLibrary(dlh);
@@ -247,19 +246,19 @@ static bool _audience_init(const AudienceDetails *details, const AudienceEventHa
   }
 
   // copy event handler info, then we are done
-  user_process_event_handler = *event_handler;
+  audience_app_event_handler = *event_handler;
   return true;
 }
 
-bool audience_init(const AudienceDetails *details, const AudienceEventHandler *event_handler)
+bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
 {
-  return SAFE_FN(_audience_init, false)(details, event_handler);
+  return SAFE_FN(shell_unsafe_init, false)(details, event_handler);
 }
 
-AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
+static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC(audience_window_create, AudienceWindowHandle, details, event_handler));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC(audience_window_create, AudienceWindowHandle, details, event_handler));
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -284,15 +283,14 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     }
     webapp_dir_absolute = resolved_path;
 #else
-    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-    std::string webapp_dir = converter.to_bytes(new_details.webapp_location);
+    std::string webapp_dir = utf16_to_utf8(new_details.webapp_location);
     char resolved_path[PATH_MAX + 1]{};
     if (realpath(webapp_dir.c_str(), resolved_path) == nullptr)
     {
       TRACEA(error, "could not resolve web app path: " << webapp_dir);
       throw std::invalid_argument("could not resolve web app path");
     }
-    webapp_dir_absolute = converter.from_bytes(resolved_path);
+    webapp_dir_absolute = utf8_to_utf16(resolved_path);
 #endif
     new_details.webapp_location = webapp_dir_absolute.c_str();
     TRACEW(info, "resolved web app path: " << webapp_dir_absolute);
@@ -302,30 +300,28 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
   AudienceWindowHandle window_handle{};
 
   // cases which do not require an webserver
-  if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_URL && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
+  if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_URL && shell_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
     window_handle = nucleus_window_create(&new_details);
   }
-  else if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_directory)
+  else if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && shell_protocol_negotiation.nucleus_handles_webapp_type_directory)
   {
     window_handle = nucleus_window_create(&new_details);
   }
   // create a webserver and translate directory based webapp to url webapp
-  else if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && nucleus_protocol_negotiation.nucleus_handles_webapp_type_url)
+  else if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY && shell_protocol_negotiation.nucleus_handles_webapp_type_url)
   {
-    std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t> converter;
-
     // start webserver on available port
     std::string address = "127.0.0.1";
     unsigned short ws_port = 0;
 
-    auto ws_ctx = webserver_start(address, ws_port, converter.to_bytes(new_details.webapp_location), 3, [](WebserverContext context, std::string message) {
+    auto ws_ctx = webserver_start(address, ws_port, utf16_to_utf8(new_details.webapp_location), 3, [](WebserverContext context, std::wstring message) {
       auto task_lambda = [&]() {
-        auto ic = nucleus_webserver_registry.right.find(context);
-        if (ic != nucleus_webserver_registry.right.end())
+        auto ic = shell_webserver_registry.right.find(context);
+        if (ic != shell_webserver_registry.right.end())
         {
           auto wh = ic->second;
-          _audience_on_window_message(wh, message.c_str());
+          shell_unsafe_on_window_message(wh, message.c_str());
         }
       };
       auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); };
@@ -333,7 +329,7 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     });
 
     // construct url of webapp
-    auto webapp_url = std::wstring(L"http://") + converter.from_bytes(address) + L":" + std::to_wstring(ws_port) + L"/";
+    auto webapp_url = std::wstring(L"http://") + utf8_to_utf16(address) + L":" + std::to_wstring(ws_port) + L"/";
 
     TRACEW(info, L"serving app from folder " << new_details.webapp_location);
     TRACEW(info, L"serving app via url " << webapp_url);
@@ -353,7 +349,7 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
     else
     {
       // attach webserver to registry
-      nucleus_webserver_registry.insert(boost::bimap<AudienceWindowHandle, WebserverContext>::value_type(window_handle, ws_ctx));
+      shell_webserver_registry.insert(boost::bimap<AudienceWindowHandle, WebserverContext>::value_type(window_handle, ws_ctx));
     }
   }
   else
@@ -364,7 +360,7 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
   // copy event handler info
   if (window_handle != AudienceWindowHandle{})
   {
-    user_window_event_handler[window_handle] = *event_handler;
+    audience_window_event_handler[window_handle] = *event_handler;
   }
 
   return window_handle;
@@ -372,13 +368,13 @@ AudienceWindowHandle _audience_window_create(const AudienceWindowDetails *detail
 
 AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
 {
-  return SAFE_FN(_audience_window_create, AudienceWindowHandle{})(details, event_handler);
+  return SAFE_FN(shell_unsafe_window_create, AudienceWindowHandle{})(details, event_handler);
 }
 
-void _audience_window_post_message(AudienceWindowHandle handle, const char *message)
+static inline void shell_unsafe_window_post_message(AudienceWindowHandle handle, const wchar_t *message)
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(audience_window_post_message, handle, message));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_post_message, handle, message));
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -387,7 +383,7 @@ void _audience_window_post_message(AudienceWindowHandle handle, const char *mess
   }
 
   // delegate post message to nucleus, in case protocol demands
-  if (nucleus_protocol_negotiation.nucleus_handles_messaging)
+  if (shell_protocol_negotiation.nucleus_handles_messaging)
   {
     TRACEA(debug, "delegate post message to nucleus");
     nucleus_window_post_message(handle, message);
@@ -395,11 +391,11 @@ void _audience_window_post_message(AudienceWindowHandle handle, const char *mess
   }
 
   // post message
-  auto iws = nucleus_webserver_registry.left.find(handle);
-  if (iws != nucleus_webserver_registry.left.end())
+  auto iws = shell_webserver_registry.left.find(handle);
+  if (iws != shell_webserver_registry.left.end())
   {
     TRACEA(debug, "posting message to frontend");
-    webserver_post_message(iws->second, std::string(message));
+    webserver_post_message(iws->second, std::wstring(message));
   }
   else
   {
@@ -407,16 +403,16 @@ void _audience_window_post_message(AudienceWindowHandle handle, const char *mess
   }
 }
 
-void audience_window_post_message(AudienceWindowHandle handle, const char *message)
+void audience_window_post_message(AudienceWindowHandle handle, const wchar_t *message)
 {
-  SAFE_FN(_audience_window_post_message)
+  SAFE_FN(shell_unsafe_window_post_message)
   (handle, message);
 }
 
-void _audience_window_destroy(AudienceWindowHandle handle)
+static inline void shell_unsafe_window_destroy(AudienceWindowHandle handle)
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(audience_window_destroy, handle));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_destroy, handle));
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -430,14 +426,14 @@ void _audience_window_destroy(AudienceWindowHandle handle)
 
 void audience_window_destroy(AudienceWindowHandle handle)
 {
-  SAFE_FN(_audience_window_destroy)
+  SAFE_FN(shell_unsafe_window_destroy)
   (handle);
 }
 
-void _audience_main()
+static inline void shell_unsafe_main()
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK_THROW;
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING_THROW;
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -451,18 +447,18 @@ void _audience_main()
 
 void audience_main()
 {
-  SAFE_FN(_audience_main)
+  SAFE_FN(shell_unsafe_main)
   ();
 }
 
-static inline void _audience_on_window_message(AudienceWindowHandle handle, const char *message)
+static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, const wchar_t *message)
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_window_message, handle, message));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_message, handle, message));
 
   // call user event handler
-  auto ehi = user_window_event_handler.find(handle);
-  if (ehi != user_window_event_handler.end())
+  auto ehi = audience_window_event_handler.find(handle);
+  if (ehi != audience_window_event_handler.end())
   {
     if (ehi->second.on_message.handler != nullptr)
     {
@@ -474,14 +470,14 @@ static inline void _audience_on_window_message(AudienceWindowHandle handle, cons
   }
 }
 
-static inline void _audience_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close)
+static inline void shell_unsafe_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close)
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_window_will_close, handle, prevent_close));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_will_close, handle, prevent_close));
 
   // call user event handler
-  auto ehi = user_window_event_handler.find(handle);
-  if (ehi != user_window_event_handler.end())
+  auto ehi = audience_window_event_handler.find(handle);
+  if (ehi != audience_window_event_handler.end())
   {
     if (ehi->second.on_will_close.handler != nullptr)
     {
@@ -493,14 +489,14 @@ static inline void _audience_on_window_will_close(AudienceWindowHandle handle, b
   }
 }
 
-static inline void _audience_on_window_close(AudienceWindowHandle handle, bool *prevent_quit)
+static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool *prevent_quit)
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_window_close, handle, prevent_quit));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_close, handle, prevent_quit));
 
   // call user event handler
-  auto ehi = user_window_event_handler.find(handle);
-  if (ehi != user_window_event_handler.end())
+  auto ehi = audience_window_event_handler.find(handle);
+  if (ehi != audience_window_event_handler.end())
   {
     if (ehi->second.on_close.handler != nullptr)
     {
@@ -512,38 +508,38 @@ static inline void _audience_on_window_close(AudienceWindowHandle handle, bool *
   }
 
   // check if we have to stop a running webservice
-  auto wsi = nucleus_webserver_registry.left.find(handle);
-  if (wsi != nucleus_webserver_registry.left.end())
+  auto wsi = shell_webserver_registry.left.find(handle);
+  if (wsi != shell_webserver_registry.left.end())
   {
     auto ws = wsi->second;
-    nucleus_webserver_registry.left.erase(wsi);
+    shell_webserver_registry.left.erase(wsi);
     webserver_stop(ws);
   }
 }
 
-static inline void _audience_on_process_will_quit(bool *prevent_quit)
+static inline void shell_unsafe_on_app_will_quit(bool *prevent_quit)
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_process_will_quit, prevent_quit));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_app_will_quit, prevent_quit));
 
   // call user event handler
-  if (user_process_event_handler.on_will_quit.handler != nullptr)
+  if (audience_app_event_handler.on_will_quit.handler != nullptr)
   {
-    user_process_event_handler.on_will_quit.handler(
-        user_process_event_handler.on_will_quit.context,
+    audience_app_event_handler.on_will_quit.handler(
+        audience_app_event_handler.on_will_quit.context,
         prevent_quit);
   }
 }
 
-static inline void _audience_on_process_quit()
+static inline void shell_unsafe_on_app_quit()
 {
-  // validate thread lock
-  SHELL_CHECK_THREAD_LOCK(SHELL_DISPATCH_SYNC_VOID(_audience_on_process_quit));
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_app_quit));
 
   // call user event handler
-  if (user_process_event_handler.on_quit.handler != nullptr)
+  if (audience_app_event_handler.on_quit.handler != nullptr)
   {
-    user_process_event_handler.on_quit.handler(
-        user_process_event_handler.on_quit.context);
+    audience_app_event_handler.on_quit.handler(
+        audience_app_event_handler.on_quit.context);
   }
 }

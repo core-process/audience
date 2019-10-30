@@ -22,20 +22,25 @@
 
 extern "C"
 {
-  NUCLEUS_EXPORT bool audience_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details);
-  NUCLEUS_EXPORT AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details);
-  NUCLEUS_EXPORT void audience_window_post_message(AudienceWindowHandle handle, const char *message);
-  NUCLEUS_EXPORT void audience_window_destroy(AudienceWindowHandle handle);
-  NUCLEUS_EXPORT void audience_main();
-  NUCLEUS_EXPORT void audience_dispatch_sync(void (*task)(void *context), void *context);
-  NUCLEUS_EXPORT void audience_dispatch_async(void (*task)(void *context), void *context);
+  NUCLEUS_EXPORT bool nucleus_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceNucleusAppDetails *details);
+  NUCLEUS_EXPORT AudienceWindowHandle nucleus_window_create(const AudienceWindowDetails *details);
+  NUCLEUS_EXPORT void nucleus_window_post_message(AudienceWindowHandle handle, const wchar_t *message);
+  NUCLEUS_EXPORT void nucleus_window_destroy(AudienceWindowHandle handle);
+  NUCLEUS_EXPORT void nucleus_main();
+  NUCLEUS_EXPORT void nucleus_dispatch_sync(void (*task)(void *context), void *context);
+  NUCLEUS_EXPORT void nucleus_dispatch_async(void (*task)(void *context), void *context);
 }
 
 ///////////////////////////////////////////////////////////////////////
 // Internal Declaration
 ///////////////////////////////////////////////////////////////////////
 
-struct InternalWindowDetails
+struct NucleusImplAppDetails
+{
+  std::vector<std::wstring> icon_set;
+};
+
+struct NucleusImplWindowDetails
 {
   AudienceWebAppType webapp_type;
   std::wstring webapp_location;
@@ -43,44 +48,58 @@ struct InternalWindowDetails
   bool dev_mode;
 };
 
-bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details);
-AudienceWindowContext internal_window_create(const InternalWindowDetails &details);
-void internal_window_post_message(AudienceWindowContext context, const char *message);
-void internal_window_destroy(AudienceWindowContext context);
-void internal_main();
-void internal_dispatch_sync(void (*task)(void *context), void *context);
-void internal_dispatch_async(void (*task)(void *context), void *context);
+bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const NucleusImplAppDetails &details);
+AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails &details);
+void nucleus_impl_window_post_message(AudienceWindowContext context, const std::wstring &message);
+void nucleus_impl_window_destroy(AudienceWindowContext context);
+void nucleus_impl_main();
+void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context);
+void nucleus_impl_dispatch_async(void (*task)(void *context), void *context);
 
 ///////////////////////////////////////////////////////////////////////
 // Bridge Implementation
 ///////////////////////////////////////////////////////////////////////
 
-typedef boost::bimap<AudienceWindowHandle, AudienceWindowContext> InternalWindowContextMap;
-extern InternalWindowContextMap _internal_window_context_map;
-extern AudienceWindowHandle _internal_window_context_next_handle;
+typedef boost::bimap<AudienceWindowHandle, AudienceWindowContext> NucleusWindowContextMap;
+extern NucleusWindowContextMap nucleus_window_context_map;
+extern AudienceWindowHandle nucleus_window_context_next_handle;
 
-extern AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation;
+extern AudienceNucleusProtocolNegotiation *nucleus_protocol_negotiation;
 
-static inline bool _internal_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details)
+static inline bool bridge_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceNucleusAppDetails *details)
 {
-  auto status = internal_init(negotiation, details);
+  // translate details
+  NucleusImplAppDetails impl_details{};
+
+  impl_details.icon_set.reserve(AUDIENCE_DETAILS_ICON_SET_ENTRIES);
+  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
+  {
+    if (details->icon_set[i] != nullptr)
+    {
+      impl_details.icon_set.push_back(details->icon_set[i]);
+    }
+  }
+
+  // init
+  auto status = nucleus_impl_init(*negotiation, impl_details);
   if (status)
   {
-    _internal_protocol_negotiation = negotiation;
+    nucleus_protocol_negotiation = negotiation;
   }
   return status;
 }
 
-static inline AudienceWindowHandle _internal_window_create(const AudienceWindowDetails *details)
+static inline AudienceWindowHandle bridge_window_create(const AudienceWindowDetails *details)
 {
-  // create window
-  InternalWindowDetails internal_details{
+  // translate details
+  NucleusImplWindowDetails impl_details{
       details->webapp_type,
       std::wstring(details->webapp_location),
       std::wstring(details->loading_title != nullptr ? details->loading_title : L"Loading..."),
       details->dev_mode};
 
-  auto context = internal_window_create(internal_details);
+  // create window
+  auto context = nucleus_impl_window_create(impl_details);
 
   if (!context)
   {
@@ -88,28 +107,28 @@ static inline AudienceWindowHandle _internal_window_create(const AudienceWindowD
   }
 
   // allocate handle (we use defined overflow behaviour from unsigned data type here)
-  auto handle = _internal_window_context_next_handle++;
-  while (_internal_window_context_map.left.find(handle) != _internal_window_context_map.left.end())
+  auto handle = nucleus_window_context_next_handle++;
+  while (nucleus_window_context_map.left.find(handle) != nucleus_window_context_map.left.end())
   {
-    handle = _internal_window_context_next_handle++;
+    handle = nucleus_window_context_next_handle++;
   }
 
   // add context to map
-  _internal_window_context_map.insert(InternalWindowContextMap::value_type(handle, context));
+  nucleus_window_context_map.insert(NucleusWindowContextMap::value_type(handle, context));
   TRACEA(info, "window context and associated handle added to map");
 
   return handle;
 }
 
-static inline void _internal_window_post_message(AudienceWindowHandle handle, const char *message)
+static inline void bridge_window_post_message(AudienceWindowHandle handle, const wchar_t *message)
 {
   // find context
-  auto icontext = _internal_window_context_map.left.find(handle);
+  auto icontext = nucleus_window_context_map.left.find(handle);
 
   // post message
-  if (icontext != _internal_window_context_map.left.end())
+  if (icontext != nucleus_window_context_map.left.end())
   {
-    return internal_window_post_message(icontext->second, message);
+    return nucleus_impl_window_post_message(icontext->second, std::wstring(message));
   }
   else
   {
@@ -117,15 +136,15 @@ static inline void _internal_window_post_message(AudienceWindowHandle handle, co
   }
 }
 
-static inline void _internal_window_destroy(AudienceWindowHandle handle)
+static inline void bridge_window_destroy(AudienceWindowHandle handle)
 {
   // find context
-  auto icontext = _internal_window_context_map.left.find(handle);
+  auto icontext = nucleus_window_context_map.left.find(handle);
 
   // destroy window
-  if (icontext != _internal_window_context_map.left.end())
+  if (icontext != nucleus_window_context_map.left.end())
   {
-    return internal_window_destroy(icontext->second);
+    return nucleus_impl_window_destroy(icontext->second);
   }
   else
   {
@@ -137,11 +156,11 @@ static inline void _internal_window_destroy(AudienceWindowHandle handle)
 // Event Handling
 ///////////////////////////////////////////////////////////////////////
 
-static inline void _internal_on_window_message(AudienceWindowContext context, std::string message)
+static inline void emit_unsafe_window_message(AudienceWindowContext context, const std::wstring &message)
 {
   // lookup handle
-  auto ihandle = _internal_window_context_map.right.find(context);
-  if (ihandle == _internal_window_context_map.right.end())
+  auto ihandle = nucleus_window_context_map.right.find(context);
+  if (ihandle == nucleus_window_context_map.right.end())
   {
     TRACEA(warning, "window handle/context not found, window and its context already destroyed");
     return;
@@ -150,20 +169,20 @@ static inline void _internal_on_window_message(AudienceWindowContext context, st
   auto handle = ihandle->second;
 
   // call shell handler
-  _internal_protocol_negotiation->shell_event_handler.window_level.on_message(handle, message.c_str());
+  nucleus_protocol_negotiation->shell_event_handler.window_level.on_message(handle, message.c_str());
 }
 
-static inline void internal_on_window_message(AudienceWindowContext context, std::string message)
+static inline void emit_window_message(AudienceWindowContext context, const std::wstring &message)
 {
-  NUCLEUS_SAFE_FN(_internal_on_window_message)
+  NUCLEUS_SAFE_FN(emit_unsafe_window_message)
   (context, message);
 }
 
-static inline void _internal_on_window_will_close(AudienceWindowContext context, bool &prevent_close)
+static inline void emit_unsafe_window_will_close(AudienceWindowContext context, bool &prevent_close)
 {
   // lookup handle
-  auto ihandle = _internal_window_context_map.right.find(context);
-  if (ihandle == _internal_window_context_map.right.end())
+  auto ihandle = nucleus_window_context_map.right.find(context);
+  if (ihandle == nucleus_window_context_map.right.end())
   {
     TRACEA(warning, "window handle/context not found, window and its context already destroyed");
     return;
@@ -172,20 +191,20 @@ static inline void _internal_on_window_will_close(AudienceWindowContext context,
   auto handle = ihandle->second;
 
   // call shell handler
-  _internal_protocol_negotiation->shell_event_handler.window_level.on_will_close(handle, &prevent_close);
+  nucleus_protocol_negotiation->shell_event_handler.window_level.on_will_close(handle, &prevent_close);
 }
 
-static inline void internal_on_window_will_close(AudienceWindowContext context, bool &prevent_close)
+static inline void emit_window_will_close(AudienceWindowContext context, bool &prevent_close)
 {
-  NUCLEUS_SAFE_FN(_internal_on_window_will_close)
+  NUCLEUS_SAFE_FN(emit_unsafe_window_will_close)
   (context, prevent_close);
 }
 
-static inline void _internal_on_window_close(AudienceWindowContext context, bool &prevent_quit)
+static inline void emit_unsafe_window_close(AudienceWindowContext context, bool &prevent_quit)
 {
   // lookup handle
-  auto ihandle = _internal_window_context_map.right.find(context);
-  if (ihandle == _internal_window_context_map.right.end())
+  auto ihandle = nucleus_window_context_map.right.find(context);
+  if (ihandle == nucleus_window_context_map.right.end())
   {
     TRACEA(warning, "window handle/context not found, window and its context already destroyed");
     return;
@@ -194,40 +213,40 @@ static inline void _internal_on_window_close(AudienceWindowContext context, bool
   auto handle = ihandle->second;
 
   // call shell handler
-  _internal_protocol_negotiation->shell_event_handler.window_level.on_close(handle, &prevent_quit);
+  nucleus_protocol_negotiation->shell_event_handler.window_level.on_close(handle, &prevent_quit);
 
   // remove window from context map
-  _internal_window_context_map.right.erase(context);
+  nucleus_window_context_map.right.erase(context);
   TRACEA(info, "window context and associated handle removed from map");
 }
 
-static inline void internal_on_window_close(AudienceWindowContext context, bool &prevent_quit)
+static inline void emit_window_close(AudienceWindowContext context, bool &prevent_quit)
 {
-  NUCLEUS_SAFE_FN(_internal_on_window_close)
+  NUCLEUS_SAFE_FN(emit_unsafe_window_close)
   (context, prevent_quit);
 }
 
-static inline void _internal_on_process_will_quit(bool &prevent_quit)
+static inline void emit_unsafe_app_will_quit(bool &prevent_quit)
 {
   // call shell handler
-  _internal_protocol_negotiation->shell_event_handler.process_level.on_will_quit(&prevent_quit);
+  nucleus_protocol_negotiation->shell_event_handler.app_level.on_will_quit(&prevent_quit);
 }
 
-static inline void internal_on_process_will_quit(bool &prevent_quit)
+static inline void emit_app_will_quit(bool &prevent_quit)
 {
-  NUCLEUS_SAFE_FN(_internal_on_process_will_quit)
+  NUCLEUS_SAFE_FN(emit_unsafe_app_will_quit)
   (prevent_quit);
 }
 
-static inline void _internal_on_process_quit()
+static inline void emit_unsafe_app_quit()
 {
   // call shell handler
-  _internal_protocol_negotiation->shell_event_handler.process_level.on_quit();
+  nucleus_protocol_negotiation->shell_event_handler.app_level.on_quit();
 }
 
-static inline void internal_on_process_quit()
+static inline void emit_app_quit()
 {
-  NUCLEUS_SAFE_FN(_internal_on_process_quit)
+  NUCLEUS_SAFE_FN(emit_unsafe_app_quit)
   ();
 }
 
@@ -236,87 +255,87 @@ static inline void internal_on_process_quit()
 ///////////////////////////////////////////////////////////////////////
 
 #ifdef __OBJC__
-#define AUDIENCE_EXTIMPL_RELEASEPOOL @autoreleasepool
+#define NUCLEUS_RELEASEPOOL @autoreleasepool
 #else
-#define AUDIENCE_EXTIMPL_RELEASEPOOL
+#define NUCLEUS_RELEASEPOOL
 #endif
 
-#define AUDIENCE_EXTIMPL_INIT                                                                                 \
-  bool audience_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceInternalDetails *details) \
-  {                                                                                                           \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                                                                              \
-    {                                                                                                         \
-      return NUCLEUS_SAFE_FN(_internal_init, false)(negotiation, details);                                    \
-    }                                                                                                         \
+#define NUCLEUS_PUBIMPL_INIT                                                                                   \
+  bool nucleus_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceNucleusAppDetails *details) \
+  {                                                                                                            \
+    NUCLEUS_RELEASEPOOL                                                                                        \
+    {                                                                                                          \
+      return NUCLEUS_SAFE_FN(bridge_init, false)(negotiation, details);                                        \
+    }                                                                                                          \
   }
 
-#define AUDIENCE_EXTIMPL_WINDOW_CREATE                                                  \
-  AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details)     \
+#define NUCLEUS_PUBIMPL_WINDOW_CREATE                                                \
+  AudienceWindowHandle nucleus_window_create(const AudienceWindowDetails *details)   \
+  {                                                                                  \
+    NUCLEUS_RELEASEPOOL                                                              \
+    {                                                                                \
+      return NUCLEUS_SAFE_FN(bridge_window_create, AudienceWindowHandle{})(details); \
+    }                                                                                \
+  }
+
+#define NUCLEUS_PUBIMPL_WINDOW_POST_MESSAGE                                             \
+  void nucleus_window_post_message(AudienceWindowHandle handle, const wchar_t *message) \
   {                                                                                     \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                                                        \
+    NUCLEUS_RELEASEPOOL                                                                 \
     {                                                                                   \
-      return NUCLEUS_SAFE_FN(_internal_window_create, AudienceWindowHandle{})(details); \
+      NUCLEUS_SAFE_FN(bridge_window_post_message)                                       \
+      (handle, message);                                                                \
     }                                                                                   \
   }
 
-#define AUDIENCE_EXTIMPL_WINDOW_POST_MESSAGE                                          \
-  void audience_window_post_message(AudienceWindowHandle handle, const char *message) \
-  {                                                                                   \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                                                      \
-    {                                                                                 \
-      NUCLEUS_SAFE_FN(_internal_window_post_message)                                  \
-      (handle, message);                                                              \
-    }                                                                                 \
+#define NUCLEUS_PUBIMPL_WINDOW_DESTROY                     \
+  void nucleus_window_destroy(AudienceWindowHandle handle) \
+  {                                                        \
+    NUCLEUS_RELEASEPOOL                                    \
+    {                                                      \
+      NUCLEUS_SAFE_FN(bridge_window_destroy)               \
+      (handle);                                            \
+    }                                                      \
   }
 
-#define AUDIENCE_EXTIMPL_WINDOW_DESTROY                     \
-  void audience_window_destroy(AudienceWindowHandle handle) \
-  {                                                         \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                            \
-    {                                                       \
-      NUCLEUS_SAFE_FN(_internal_window_destroy)             \
-      (handle);                                             \
-    }                                                       \
+#define NUCLEUS_PUBIMPL_MAIN             \
+  void nucleus_main()                    \
+  {                                      \
+    NUCLEUS_RELEASEPOOL                  \
+    {                                    \
+      NUCLEUS_SAFE_FN(nucleus_impl_main) \
+      ();                                \
+    }                                    \
   }
 
-#define AUDIENCE_EXTIMPL_MAIN        \
-  void audience_main()               \
-  {                                  \
-    AUDIENCE_EXTIMPL_RELEASEPOOL     \
-    {                                \
-      NUCLEUS_SAFE_FN(internal_main) \
-      ();                            \
-    }                                \
+#define NUCLEUS_PUBIMPL_DISPATCH_SYNC                                    \
+  void nucleus_dispatch_sync(void (*task)(void *context), void *context) \
+  {                                                                      \
+    NUCLEUS_RELEASEPOOL                                                  \
+    {                                                                    \
+      NUCLEUS_SAFE_FN(nucleus_impl_dispatch_sync)                        \
+      (task, context);                                                   \
+    }                                                                    \
   }
 
-#define AUDIENCE_EXTIMPL_DISPATCH_SYNC                                    \
-  void audience_dispatch_sync(void (*task)(void *context), void *context) \
+#define NUCLEUS_PUBIMPL_DISPATCH_ASYNC                                    \
+  void nucleus_dispatch_async(void (*task)(void *context), void *context) \
   {                                                                       \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                                          \
+    NUCLEUS_RELEASEPOOL                                                   \
     {                                                                     \
-      NUCLEUS_SAFE_FN(internal_dispatch_sync)                             \
+      NUCLEUS_SAFE_FN(nucleus_impl_dispatch_async)                        \
       (task, context);                                                    \
     }                                                                     \
   }
 
-#define AUDIENCE_EXTIMPL_DISPATCH_ASYNC                                    \
-  void audience_dispatch_async(void (*task)(void *context), void *context) \
-  {                                                                        \
-    AUDIENCE_EXTIMPL_RELEASEPOOL                                           \
-    {                                                                      \
-      NUCLEUS_SAFE_FN(internal_dispatch_async)                             \
-      (task, context);                                                     \
-    }                                                                      \
-  }
-
-#define AUDIENCE_EXTIMPL                                                                    \
-  boost::bimap<AudienceWindowHandle, AudienceWindowContext> _internal_window_context_map{}; \
-  AudienceWindowHandle _internal_window_context_next_handle = AudienceWindowHandle{} + 1;   \
-  AudienceNucleusProtocolNegotiation *_internal_protocol_negotiation = nullptr;             \
-  AUDIENCE_EXTIMPL_INIT;                                                                    \
-  AUDIENCE_EXTIMPL_WINDOW_CREATE;                                                           \
-  AUDIENCE_EXTIMPL_WINDOW_POST_MESSAGE;                                                     \
-  AUDIENCE_EXTIMPL_WINDOW_DESTROY;                                                          \
-  AUDIENCE_EXTIMPL_MAIN;                                                                    \
-  AUDIENCE_EXTIMPL_DISPATCH_SYNC;                                                           \
-  AUDIENCE_EXTIMPL_DISPATCH_ASYNC;
+#define NUCLEUS_PUBIMPL                                                                   \
+  boost::bimap<AudienceWindowHandle, AudienceWindowContext> nucleus_window_context_map{}; \
+  AudienceWindowHandle nucleus_window_context_next_handle = AudienceWindowHandle{} + 1;   \
+  AudienceNucleusProtocolNegotiation *nucleus_protocol_negotiation = nullptr;             \
+  NUCLEUS_PUBIMPL_INIT;                                                                   \
+  NUCLEUS_PUBIMPL_WINDOW_CREATE;                                                          \
+  NUCLEUS_PUBIMPL_WINDOW_POST_MESSAGE;                                                    \
+  NUCLEUS_PUBIMPL_WINDOW_DESTROY;                                                         \
+  NUCLEUS_PUBIMPL_MAIN;                                                                   \
+  NUCLEUS_PUBIMPL_DISPATCH_SYNC;                                                          \
+  NUCLEUS_PUBIMPL_DISPATCH_ASYNC;
