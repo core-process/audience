@@ -31,15 +31,21 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
   }
 
   // load icons
+  // NOTE: GDK/X11 (and maybe other implementations) too stops packing icons silently,
+  //       once a certain limit is hit. For that reason it seems best to order icons
+  //       by size ascending.
   std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-  GList *icons = nullptr;
+
+  std::vector<GdkPixbuf *> icons{};
+  icons.reserve(AUDIENCE_DETAILS_ICON_SET_ENTRIES);
+
   for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
   {
     if (details->icon_set[i] != nullptr)
     {
       TRACEW(info, "loading icon " << details->icon_set[i]);
-      GError *gerror = nullptr;
       auto icon_path = converter.to_bytes(details->icon_set[i]);
+      GError *gerror = nullptr;
       auto icon = gdk_pixbuf_new_from_file(icon_path.c_str(), &gerror);
       if (icon == nullptr)
       {
@@ -49,13 +55,26 @@ bool internal_init(AudienceNucleusProtocolNegotiation *negotiation, const Audien
       else
       {
         TRACEA(debug, "icon width = " << gdk_pixbuf_get_width(icon));
-        icons = g_list_append(icons, icon);
+        icons.push_back(icon);
       }
     }
   }
-  if (icons != nullptr)
+
+  std::sort(icons.begin(), icons.end(),
+            [](const GdkPixbuf *a, const GdkPixbuf *b) -> bool {
+              return gdk_pixbuf_get_width(a) < gdk_pixbuf_get_width(b);
+            });
+
+  GList *icon_list = nullptr;
+  for (auto icon : icons)
   {
-    gtk_window_set_default_icon_list(icons);
+    icon_list = g_list_append(icon_list, icon);
+  }
+
+  if (icon_list != nullptr)
+  {
+    TRACEA(debug, "setting default icon list");
+    gtk_window_set_default_icon_list(icon_list);
   }
 
   return true;
