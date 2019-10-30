@@ -30,7 +30,7 @@ endif()
 
 # msvc: support big object files
 if(WIN32)
-  add_compile_options(/bigobj)
+  add_compile_options(/bigobj /utf-8)
 endif()
 
 # symbols are hidden by default

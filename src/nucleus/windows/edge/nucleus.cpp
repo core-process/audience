@@ -141,7 +141,7 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   // add integration hooks
   context->webview.AddInitializeScript(L"window._audienceWebviewSignature = 'edge';");
   context->webview.ScriptNotify([context](auto sender, auto args) {
-    emit_window_message(context, winrt::to_string(args.Value()));
+    emit_window_message(context, std::wstring(args.Value()));
   });
 
   // update position of web view
@@ -163,7 +163,7 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
 
 void nucleus_impl_window_post_message(AudienceWindowContext context, const std::wstring &message)
 {
-  auto op = context->webview.InvokeScriptAsync(L"_audienceWebviewMessageHandler", std::vector<winrt::hstring>{winrt::to_hstring(std::string(message))});
+  auto op = context->webview.InvokeScriptAsync(L"_audienceWebviewMessageHandler", std::vector<winrt::hstring>{winrt::hstring(message)});
 
   if (op.Status() == AsyncStatus::Started)
   {

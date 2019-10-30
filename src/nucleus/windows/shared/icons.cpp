@@ -24,24 +24,21 @@ void load_icon_handles(const NucleusImplAppDetails &details, HICON &small_icon_h
 
   // load icons
   std::vector<Gdiplus::Bitmap *> icons;
-  icons.reserve(AUDIENCE_DETAILS_ICON_SET_ENTRIES);
+  icons.reserve(details.icon_set.size());
 
-  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
+  for (auto &icon_path : details.icon_set)
   {
-    if (details->icon_set[i] != nullptr)
+    TRACEW(info, "loading icon " << icon_path);
+    Gdiplus::Bitmap *icon = Gdiplus::Bitmap::FromFile(icon_path.c_str());
+    if (icon->GetLastStatus() != Gdiplus::Ok)
     {
-      TRACEW(info, "loading icon " << details->icon_set[i]);
-      Gdiplus::Bitmap *icon = Gdiplus::Bitmap::FromFile(details->icon_set[i]);
-      if (icon->GetLastStatus() != Gdiplus::Ok)
-      {
-        TRACEA(error, "could not load icon");
-        delete icon;
-      }
-      else
-      {
-        TRACEA(debug, "icon width = " << icon->GetWidth());
-        icons.push_back(icon);
-      }
+      TRACEA(error, "could not load icon");
+      delete icon;
+    }
+    else
+    {
+      TRACEA(debug, "icon width = " << icon->GetWidth());
+      icons.push_back(icon);
     }
   }
 
