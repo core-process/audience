@@ -73,7 +73,10 @@ static std::thread::id shell_thread_binding_id;
   }
 
 static nucleus_init_t nucleus_init = nullptr;
+static nucleus_screen_list_t nucleus_screen_list = nullptr;
+static nucleus_window_list_t nucleus_window_list = nullptr;
 static nucleus_window_create_t nucleus_window_create = nullptr;
+static nucleus_window_update_position_t nucleus_window_update_position = nullptr;
 static nucleus_window_post_message_t nucleus_window_post_message = nullptr;
 static nucleus_window_destroy_t nucleus_window_destroy = nullptr;
 static nucleus_main_t nucleus_main = nullptr;
@@ -94,7 +97,7 @@ static inline void shell_unsafe_on_app_quit();
 
 static inline bool audience_is_initialized()
 {
-  return nucleus_init != nullptr && nucleus_window_create != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
+  return nucleus_init != nullptr && nucleus_screen_list != nullptr && nucleus_window_list != nullptr && nucleus_window_create != nullptr && nucleus_window_update_position != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
 }
 
 static inline bool shell_unsafe_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
@@ -195,7 +198,10 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 #endif
 
       nucleus_init = (nucleus_init_t)LookupFunction(dlh, "nucleus_init");
+      nucleus_screen_list = (nucleus_screen_list_t)LookupFunction(dlh, "nucleus_screen_list");
+      nucleus_window_list = (nucleus_window_list_t)LookupFunction(dlh, "nucleus_window_list");
       nucleus_window_create = (nucleus_window_create_t)LookupFunction(dlh, "nucleus_window_create");
+      nucleus_window_update_position = (nucleus_window_update_position_t)LookupFunction(dlh, "nucleus_window_update_position");
       nucleus_window_post_message = (nucleus_window_post_message_t)LookupFunction(dlh, "nucleus_window_post_message");
       nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "nucleus_window_destroy");
       nucleus_main = (nucleus_main_t)LookupFunction(dlh, "nucleus_main");
@@ -263,7 +269,47 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 
 bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
 {
-  return SAFE_FN(shell_unsafe_init, false)(details, event_handler);
+  return SAFE_FN(shell_unsafe_init, SAFE_FN_DEFAULT(bool))(details, event_handler);
+}
+
+static inline AudienceScreenList shell_unsafe_screen_list()
+{
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_screen_list));
+
+  // ensure initialization
+  if (!audience_is_initialized())
+  {
+    return AudienceScreenList{};
+  }
+
+  // get screen list
+  return nucleus_screen_list();
+}
+
+AudienceScreenList audience_screen_list()
+{
+  return SAFE_FN(shell_unsafe_screen_list, SAFE_FN_DEFAULT(AudienceScreenList))();
+}
+
+static inline AudienceWindowList shell_unsafe_window_list()
+{
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_list));
+
+  // ensure initialization
+  if (!audience_is_initialized())
+  {
+    return AudienceWindowList{};
+  }
+
+  // get window list
+  return nucleus_window_list();
+}
+
+AudienceWindowList audience_window_list()
+{
+  return SAFE_FN(shell_unsafe_window_list, SAFE_FN_DEFAULT(AudienceWindowList))();
 }
 
 static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
@@ -360,7 +406,27 @@ static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWind
 
 AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler)
 {
-  return SAFE_FN(shell_unsafe_window_create, AudienceWindowHandle{})(details, event_handler);
+  return SAFE_FN(shell_unsafe_window_create, SAFE_FN_DEFAULT(AudienceWindowHandle))(details, event_handler);
+}
+
+static inline void shell_unsafe_window_update_position(AudienceWindowHandle handle, AudienceRect position)
+{
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_update_position, handle, position));
+
+  // ensure initialization
+  if (!audience_is_initialized())
+  {
+    return;
+  }
+
+  // update window position
+  return nucleus_window_update_position(handle, position);
+}
+
+void audience_window_update_position(AudienceWindowHandle handle, AudienceRect position)
+{
+  return SAFE_FN(shell_unsafe_window_update_position)(handle, position);
 }
 
 static inline void shell_unsafe_window_post_message(AudienceWindowHandle handle, const wchar_t *message)
@@ -378,8 +444,7 @@ static inline void shell_unsafe_window_post_message(AudienceWindowHandle handle,
   if (shell_protocol_negotiation.nucleus_handles_messaging)
   {
     TRACEA(debug, "delegate post message to nucleus");
-    nucleus_window_post_message(handle, message);
-    return;
+    return nucleus_window_post_message(handle, message);
   }
 
   // post message
@@ -387,18 +452,18 @@ static inline void shell_unsafe_window_post_message(AudienceWindowHandle handle,
   if (iws != shell_webserver_registry.left.end())
   {
     TRACEA(debug, "posting message to frontend");
-    webserver_post_message(iws->second, std::wstring(message));
+    return webserver_post_message(iws->second, std::wstring(message));
   }
   else
   {
     TRACEA(error, "could not find webserver for window handle");
+    return;
   }
 }
 
 void audience_window_post_message(AudienceWindowHandle handle, const wchar_t *message)
 {
-  SAFE_FN(shell_unsafe_window_post_message)
-  (handle, message);
+  return SAFE_FN(shell_unsafe_window_post_message)(handle, message);
 }
 
 static inline void shell_unsafe_window_destroy(AudienceWindowHandle handle)
@@ -413,13 +478,12 @@ static inline void shell_unsafe_window_destroy(AudienceWindowHandle handle)
   }
 
   // destroy window
-  nucleus_window_destroy(handle);
+  return nucleus_window_destroy(handle);
 }
 
 void audience_window_destroy(AudienceWindowHandle handle)
 {
-  SAFE_FN(shell_unsafe_window_destroy)
-  (handle);
+  return SAFE_FN(shell_unsafe_window_destroy)(handle);
 }
 
 static inline void shell_unsafe_main()
@@ -434,13 +498,12 @@ static inline void shell_unsafe_main()
   }
 
   // run loop
-  nucleus_main();
+  return nucleus_main();
 }
 
 void audience_main()
 {
-  SAFE_FN(shell_unsafe_main)
-  ();
+  return SAFE_FN(shell_unsafe_main)();
 }
 
 static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, const wchar_t *message)

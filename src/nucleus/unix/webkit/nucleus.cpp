@@ -127,7 +127,8 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   g_object_set_data(G_OBJECT(context->webview), WIDGET_HANDLE_KEY, context_priv);
 
   // listen to destroy signal and title changed event
-  g_signal_connect(G_OBJECT(context->window), "delete-event", G_CALLBACK(NUCLEUS_SAFE_FN(window_close_callback, TRUE)), nullptr);
+  static constexpr gboolean window_close_callback_default_return = TRUE;
+  g_signal_connect(G_OBJECT(context->window), "delete-event", G_CALLBACK(NUCLEUS_SAFE_FN(window_close_callback, &window_close_callback_default_return)), nullptr);
   g_signal_connect(G_OBJECT(context->window), "destroy", G_CALLBACK(NUCLEUS_SAFE_FN(window_destroy_callback)), nullptr);
   g_signal_connect(G_OBJECT(context->webview), "notify::title", G_CALLBACK(NUCLEUS_SAFE_FN(webview_title_update_callback)), nullptr);
 

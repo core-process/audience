@@ -8,6 +8,7 @@
 #include <string>
 #include <cstdlib>
 #include <ctime>
+#include <sstream>
 
 // #include <thread>
 // #include <chrono>
@@ -116,11 +117,116 @@ int main(int argc, char **argv)
   wd.webapp_location = app_dir.c_str();
   wd.dev_mode = true;
 
+  // wd.styles.not_decorated = true;
+  // wd.styles.not_resizable = true;
+  // wd.styles.always_on_top = true;
+
+  {
+    auto screens = audience_screen_list();
+    auto workspace = screens.screens[screens.focused].workspace;
+
+    TRACEA(debug, "workspace: origin="
+                      << workspace.origin.x << "," << workspace.origin.y << " size="
+                      << workspace.size.width << "x" << workspace.size.height);
+
+    wd.position = {workspace.origin, {workspace.size.width * 0.5, workspace.size.height}};
+  }
+
   AudienceWindowEventHandler weh{};
   weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
     TRACEW(info, L"event window::message -> " << message);
-    audience_window_post_message(handle, (std::wstring(L"Your command: ") + message).c_str());
-    audience_window_post_message(handle, some_quotes[std::rand() % some_quotes.size()].c_str());
+    std::wstring command(message);
+    if (command == L"quote")
+    {
+      audience_window_post_message(handle, some_quotes[std::rand() % some_quotes.size()].c_str());
+    }
+    else if (command.substr(0, 4) == L"pos:")
+    {
+      auto where = command.substr(4);
+      auto screens = audience_screen_list();
+      auto workspace = screens.screens[screens.focused].workspace;
+      if (where == L"left")
+      {
+        audience_window_update_position(handle, {workspace.origin, {workspace.size.width * 0.5, workspace.size.height}});
+      }
+      else if (where == L"top")
+      {
+        audience_window_update_position(handle, {workspace.origin,
+                                                 {workspace.size.width, workspace.size.height * 0.5}});
+      }
+      else if (where == L"right")
+      {
+        audience_window_update_position(handle, {{workspace.origin.x + workspace.size.width * 0.5,
+                                                  workspace.origin.y},
+                                                 {workspace.size.width * 0.5, workspace.size.height}});
+      }
+      else if (where == L"bottom")
+      {
+        audience_window_update_position(handle, {{workspace.origin.x,
+                                                  workspace.origin.y + workspace.size.height * 0.5},
+                                                 {workspace.size.width, workspace.size.height * 0.5}});
+      }
+      else
+      {
+        audience_window_post_message(handle, (std::wstring(L"Unknown position: ") + where).c_str());
+      }
+    }
+    else if (command == L"screens")
+    {
+      auto screens = audience_screen_list();
+      std::wostringstream str;
+      for (size_t i = 0; i < screens.count; ++i)
+      {
+        str << std::endl;
+        str << L"Screen " << i << std::endl;
+        if (i == screens.primary)
+        {
+          str << L"- Primary Screen" << std::endl;
+        }
+        if (i == screens.focused)
+        {
+          str << L"- Focused Screen" << std::endl;
+        }
+        str << L"- Frame: origin=" << screens.screens[i].frame.origin.x
+            << L"," << screens.screens[i].frame.origin.y
+            << L" size=" << screens.screens[i].frame.size.width
+            << L"x" << screens.screens[i].frame.size.height << std::endl;
+        str << L"- Workspace: origin=" << screens.screens[i].workspace.origin.x
+            << L"," << screens.screens[i].workspace.origin.y
+            << L" size=" << screens.screens[i].workspace.size.width
+            << L"x" << screens.screens[i].workspace.size.height << std::endl;
+      }
+      audience_window_post_message(handle, str.str().c_str());
+    }
+    else if (command == L"windows")
+    {
+      auto windows = audience_window_list();
+      std::wostringstream str;
+      for (size_t i = 0; i < windows.count; ++i)
+      {
+        str << std::endl;
+        str << L"Window " << i << L" with handle 0x" << std::hex << windows.windows[i].handle << std::dec << std::endl;
+        if (i == windows.focused)
+        {
+          str << L"- Focused Window" << std::endl;
+        }
+        str << L"- Frame: origin=" << windows.windows[i].frame.origin.x
+            << L"," << windows.windows[i].frame.origin.y
+            << L" size=" << windows.windows[i].frame.size.width
+            << L"x" << windows.windows[i].frame.size.height << std::endl;
+        str << L"- Workspace: size=" << windows.windows[i].workspace.width
+            << L"x" << windows.windows[i].workspace.height << std::endl;
+      }
+      audience_window_post_message(handle, str.str().c_str());
+    }
+    else if (command == L"quit")
+    {
+      audience_window_destroy(handle);
+    }
+    else
+    {
+      audience_window_post_message(handle, (std::wstring(L"Unknown command: ") + command).c_str());
+    }
   };
   weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); *prevent_close = false; };
   weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); *prevent_quit = false; };
@@ -130,6 +236,12 @@ int main(int argc, char **argv)
     TRACEA(error, "could not create audience window");
     return 2;
   }
+
+  // if (!audience_window_create(&wd, &weh))
+  // {
+  //   TRACEA(error, "could not create audience window");
+  //   return 2;
+  // }
 
   // std::thread background_thread([&]() {
   //   std::this_thread::sleep_for(std::chrono::seconds(3));

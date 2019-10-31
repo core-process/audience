@@ -4,6 +4,16 @@
 #include "trace.h"
 
 #define SAFE_FN(fn, ...) SafeFn<decltype(&fn), &fn>::Catch<__VA_ARGS__>::exec
+#define SAFE_FN_DEFAULT(type) &SafeFnDefault<type>::default_value
+
+template <typename T>
+struct SafeFnDefault
+{
+  static T default_value;
+};
+
+template <typename T>
+T SafeFnDefault<T>::default_value = T{};
 
 template <typename FnT, FnT fn>
 struct SafeFn;
@@ -11,7 +21,7 @@ struct SafeFn;
 template <typename RetT, typename... ArgTn, RetT (*fn)(ArgTn...)>
 struct SafeFn<RetT (*)(ArgTn...), fn>
 {
-  template <RetT return_value, typename... ExceptionTn>
+  template <RetT *return_value, typename... ExceptionTn>
   struct Catch
   {
     static inline RetT exec(ArgTn... argn)
@@ -23,20 +33,20 @@ struct SafeFn<RetT (*)(ArgTn...), fn>
       catch (const std::exception &e)
       {
         TRACEE(e);
-        return return_value;
+        return *return_value;
       }
       catch (...)
       {
         TRACEA(error, "unknown exception");
-        return return_value;
+        return *return_value;
       }
     }
   };
 
-  template <RetT return_value, typename... ExceptionTn>
+  template <RetT *return_value, typename... ExceptionTn>
   struct _Catch;
 
-  template <RetT return_value, typename ExceptionT1, typename... ExceptionTn>
+  template <RetT *return_value, typename ExceptionT1, typename... ExceptionTn>
   struct _Catch<return_value, ExceptionT1, ExceptionTn...>
   {
     static inline RetT exec(ArgTn... argn)
@@ -48,12 +58,12 @@ struct SafeFn<RetT (*)(ArgTn...), fn>
       catch (const ExceptionT1 &e)
       {
         TRACEE(e);
-        return return_value;
+        return *return_value;
       }
     }
   };
 
-  template <RetT return_value>
+  template <RetT *return_value>
   struct _Catch<return_value>
   {
     static inline RetT exec(ArgTn... argn)

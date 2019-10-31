@@ -5,6 +5,15 @@
 #include "../../shared/interface.h"
 #include "nucleus.h"
 
+#define NUCLEUS_COORD_FLIP_Y(rect)                                             \
+  {                                                                            \
+    {rect.origin.x, (NSScreen.screens[0].frame.size.height -                   \
+                     rect.size.height - rect.origin.y)},                       \
+    {                                                                          \
+      rect.size.width, rect.size.height                                        \
+    }                                                                          \
+  }
+
 @implementation AudienceWindowContextData
 @end
 
@@ -130,6 +139,37 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation,
   return true;
 }
 
+AudienceScreenList nucleus_impl_screen_list() {
+  AudienceScreenList result{};
+
+  for (NSScreen *screen in NSScreen.screens) {
+    if (result.count >= AUDIENCE_SCREEN_LIST_ENTRIES) {
+      break;
+    }
+
+    if (screen == NSScreen.mainScreen) {
+      result.focused = result.count;
+    }
+
+    // NOTE: first screen in array is always primary screen, no need to set
+    //       anything
+
+    AudienceRect frame{{screen.frame.origin.x, screen.frame.origin.y},
+                       {screen.frame.size.width, screen.frame.size.height}};
+
+    AudienceRect workspace{
+        {screen.visibleFrame.origin.x, screen.visibleFrame.origin.y},
+        {screen.visibleFrame.size.width, screen.visibleFrame.size.height}};
+
+    result.screens[result.count].frame = NUCLEUS_COORD_FLIP_Y(frame);
+    result.screens[result.count].workspace = NUCLEUS_COORD_FLIP_Y(workspace);
+
+    result.count += 1;
+  }
+
+  return result;
+}
+
 AudienceWindowContext
 nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
   // prepare context object
@@ -146,8 +186,7 @@ nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
                           NSWindowStyleMaskMiniaturizable |
                           NSWindowStyleMaskResizable
                   backing:NSBackingStoreBuffered
-                    defer:NO
-                   screen:NSScreen.mainScreen];
+                    defer:NO];
 
   [context.window setReleasedWhenClosed:NO];
 
@@ -189,14 +228,35 @@ nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
           forKey:@"developerExtrasEnabled"];
   }
 
-  // attach webview and put window in front
+  // attach webview
   [context.window.contentView addSubview:context.webview];
-  [context.window orderFrontRegardless];
 
-  // activate and finish launching
-  [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-  [NSApp finishLaunching];
-  [NSApp activateIgnoringOtherApps:YES];
+  // set window styles
+  if (details.styles.not_decorated) {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wdeprecated-declarations"
+    context.window.styleMask |= NSFullSizeContentViewWindowMask;
+#pragma clang diagnostic pop
+    context.window.titlebarAppearsTransparent = TRUE;
+    context.window.titleVisibility = NSWindowTitleHidden;
+    [context.window standardWindowButton:NSWindowCloseButton].hidden = TRUE;
+    [context.window standardWindowButton:NSWindowMiniaturizeButton].hidden =
+        TRUE;
+    [context.window standardWindowButton:NSWindowZoomButton].hidden = TRUE;
+  }
+
+  if (details.styles.not_resizable) {
+    context.window.styleMask &= ~NSWindowStyleMaskResizable;
+  }
+
+  if (details.styles.always_on_top) {
+    context.window.level = NSFloatingWindowLevel;
+  }
+
+  // position window
+  if (details.position.size.width > 0 && details.position.size.height > 0) {
+    nucleus_impl_window_update_position(context, details.position);
+  }
 
   // create title update timer
   context.titletimer =
@@ -206,8 +266,46 @@ nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
                                      userInfo:NULL
                                       repeats:YES];
 
+  // show window and activate app
+  [context.window orderFrontRegardless];
+  [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+  [NSApp activateIgnoringOtherApps:YES];
+
   TRACEA(info, "window created");
   return context;
+}
+
+NucleusImplWindowStatus
+nucleus_impl_window_status(AudienceWindowContext context) {
+  NucleusImplWindowStatus result{};
+
+  result.has_focus = context.window.isKeyWindow;
+
+  AudienceRect frame{
+      {context.window.frame.origin.x, context.window.frame.origin.y},
+      {context.window.frame.size.width, context.window.frame.size.height}};
+
+  result.frame = NUCLEUS_COORD_FLIP_Y(frame);
+
+  result.workspace = {context.window.contentView.frame.size.width,
+                      context.window.contentView.frame.size.height};
+
+  return result;
+}
+
+void nucleus_impl_window_update_position(AudienceWindowContext context,
+                                         AudienceRect position) {
+
+  TRACEA(debug, "window_update_position: origin="
+                    << position.origin.x << "," << position.origin.y << " size="
+                    << position.size.width << "x" << position.size.height);
+
+  NSRect frame{{position.origin.x, position.origin.y},
+               {position.size.width, position.size.height}};
+
+  frame = NUCLEUS_COORD_FLIP_Y(frame);
+
+  [context.window setFrame:frame display:TRUE];
 }
 
 void nucleus_impl_window_post_message(AudienceWindowContext context,
@@ -215,10 +313,12 @@ void nucleus_impl_window_post_message(AudienceWindowContext context,
 
 void nucleus_impl_window_destroy(AudienceWindowContext context) {
   // perform close operation
-  if (context.window != NULL) {
-    [context.window close];
-    TRACEA(info, "window close triggered");
-  }
+  dispatch_async(dispatch_get_main_queue(), ^{
+    if (context.window != NULL) {
+      [context.window close];
+      TRACEA(info, "window close triggered");
+    }
+  });
 }
 
 void nucleus_impl_main() {

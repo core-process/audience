@@ -52,7 +52,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   // create message window
   WNDCLASSEXW wndcls_msg = {};
   wndcls_msg.cbSize = sizeof(WNDCLASSEX);
-  wndcls_msg.lpfnWndProc = NUCLEUS_SAFE_FN(MessageWndProc, 0);
+  wndcls_msg.lpfnWndProc = NUCLEUS_SAFE_FN(MessageWndProc, SAFE_FN_DEFAULT(LRESULT));
   wndcls_msg.hInstance = hInstanceEXE;
   wndcls_msg.lpszClassName = AUDIENCE_MESSAGE_WINDOW_CLASSNAME;
 
@@ -76,7 +76,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   wndcls.cbSize = sizeof(WNDCLASSEX);
   wndcls.style = CS_HREDRAW | CS_VREDRAW;
-  wndcls.lpfnWndProc = NUCLEUS_SAFE_FN(WndProc, 0);
+  wndcls.lpfnWndProc = NUCLEUS_SAFE_FN(WndProc, SAFE_FN_DEFAULT(LRESULT));
   wndcls.cbClsExtra = 0;
   wndcls.cbWndExtra = 0;
   wndcls.hInstance = hInstanceEXE;

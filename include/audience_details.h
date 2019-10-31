@@ -38,14 +38,14 @@ extern "C"
 
   typedef struct
   {
-    float x;
-    float y;
+    double x;
+    double y;
   } AudiencePoint;
 
   typedef struct
   {
-    float width;
-    float height;
+    double width;
+    double height;
   } AudienceSize;
 
   typedef struct
@@ -120,16 +120,20 @@ extern "C"
 
   typedef struct
   {
+    bool not_decorated;
+    bool not_resizable;
+    bool always_on_top;
+  } AudienceWindowStyles;
+
+  typedef struct
+  {
     AudienceWebAppType webapp_type;
     const wchar_t *webapp_location; // cannot be nullptr
     const wchar_t *loading_title;   // defaults to "Loading..."
     AudienceRect position;
-    typedef struct
-    {
-      bool not_decorated;
-      bool not_resizable;
-    } styles;
-    AudienceWindowHandle modal_parent; // becomes a modal of parent, if set
+    AudienceWindowStyles styles;
+    // TO BE IMPLEMENTED:
+    // AudienceWindowHandle modal_parent; // becomes a modal of parent, if set
     bool dev_mode;
   } AudienceWindowDetails;
 
