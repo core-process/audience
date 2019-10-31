@@ -127,9 +127,15 @@ See [here](examples/ping/webapp/) for the complete example.
 ```c
 bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler);
 
+AudienceScreenList audience_screen_list();
+
+AudienceWindowList audience_window_list();
+
 AudienceWindowHandle audience_window_create(const AudienceWindowDetails *details, const AudienceWindowEventHandler *event_handler);
 
-void audience_window_post_message(AudienceWindowHandle handle, const char* message);
+void audience_window_update_position(AudienceWindowHandle handle, AudienceRect position);
+
+void audience_window_post_message(AudienceWindowHandle handle, const wchar_t *message);
 
 void audience_window_destroy(AudienceWindowHandle handle);
 
