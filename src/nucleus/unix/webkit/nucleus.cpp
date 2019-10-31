@@ -5,6 +5,7 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <cmath>
 
 #include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
@@ -14,9 +15,12 @@
 
 #define WIDGET_HANDLE_KEY "audience_window_handle"
 
+void window_resize_callback(GtkWidget *widget, GdkRectangle *allocation, gpointer user_data);
 gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 void window_destroy_callback(GtkWidget *widget, gpointer arg);
 void webview_title_update_callback(GtkWidget *widget, gpointer arg);
+
+static gboolean window_close_callback_default_return = TRUE;
 
 bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const NucleusImplAppDetails &details)
 {
@@ -73,6 +77,74 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   return true;
 }
 
+AudienceScreenList nucleus_impl_screen_list()
+{
+  AudienceScreenList result{};
+
+  // find focused monitor
+  auto display = gdk_display_get_default();
+  auto screen = gdk_display_get_default_screen(display);
+  GdkMonitor *focused_monitor = nullptr;
+  {
+    GdkWindow *focused_window = nullptr;
+    auto window_list = gdk_screen_get_window_stack(screen);
+    for (auto i = window_list; i != nullptr; i = i->next)
+    {
+      auto window_state = gdk_window_get_state(GDK_WINDOW(i->data));
+      if ((window_state & GDK_WINDOW_STATE_FOCUSED) != 0)
+      {
+        focused_window = GDK_WINDOW(i->data);
+        break;
+      }
+    }
+    if (focused_window != nullptr)
+    {
+      focused_monitor = gdk_display_get_monitor_at_window(display, focused_window);
+    }
+    for (auto i = window_list; i != nullptr; i = i->next)
+    {
+      g_object_unref(G_OBJECT(i->data));
+    }
+    g_list_free(window_list);
+  }
+
+  // iterate monitors
+  for (int monitor_count = gdk_display_get_n_monitors(display), i = 0; i < monitor_count && result.count < AUDIENCE_SCREEN_LIST_ENTRIES; ++i)
+  {
+    auto monitor = gdk_display_get_monitor(display, i);
+    if (monitor == nullptr)
+    {
+      TRACEA(warning, "invalid monitor no " << i);
+      continue;
+    }
+
+    if (gdk_monitor_is_primary(monitor))
+    {
+      result.primary = result.count;
+    }
+
+    if (monitor == focused_monitor)
+    {
+      result.focused = result.count;
+    }
+
+    GdkRectangle frame{}, workspace{};
+
+    gdk_monitor_get_geometry(monitor, &frame);
+    gdk_monitor_get_workarea(monitor, &workspace);
+
+    result.screens[result.count].frame = {{(double)frame.x, (double)frame.y},
+                                          {(double)frame.width, (double)frame.height}};
+
+    result.screens[result.count].workspace = {{(double)workspace.x, (double)workspace.y},
+                                              {(double)workspace.width, (double)workspace.height}};
+
+    result.count += 1;
+  }
+
+  return result;
+}
+
 AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails &details)
 {
   scope_guard scope_fail(scope_guard::execution::exception);
@@ -127,7 +199,7 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   g_object_set_data(G_OBJECT(context->webview), WIDGET_HANDLE_KEY, context_priv);
 
   // listen to destroy signal and title changed event
-  static constexpr gboolean window_close_callback_default_return = TRUE;
+  g_signal_connect(G_OBJECT(context->window), "size-allocate", G_CALLBACK(NUCLEUS_SAFE_FN(window_resize_callback)), nullptr);
   g_signal_connect(G_OBJECT(context->window), "delete-event", G_CALLBACK(NUCLEUS_SAFE_FN(window_close_callback, &window_close_callback_default_return)), nullptr);
   g_signal_connect(G_OBJECT(context->window), "destroy", G_CALLBACK(NUCLEUS_SAFE_FN(window_destroy_callback)), nullptr);
   g_signal_connect(G_OBJECT(context->webview), "notify::title", G_CALLBACK(NUCLEUS_SAFE_FN(webview_title_update_callback)), nullptr);
@@ -141,12 +213,84 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
     webkit_settings_set_enable_developer_extras(settings, true);
   }
 
+  // set window styles
+  if (details.styles.not_decorated)
+  {
+    gtk_window_set_decorated(GTK_WINDOW(context->window), FALSE);
+  }
+
+  if (details.styles.not_resizable)
+  {
+    gtk_window_set_resizable(GTK_WINDOW(context->window), FALSE);
+  }
+
+  if (details.styles.always_on_top)
+  {
+    gtk_window_set_keep_above(GTK_WINDOW(context->window), TRUE);
+  }
+
+  // position window
+  if (details.position.size.width > 0 && details.position.size.height > 0)
+  {
+    nucleus_impl_window_update_position(context, details.position);
+  }
+
   // show window and trigger url load
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(context->webview), url.c_str());
   gtk_widget_show_all(GTK_WIDGET(context->window));
 
   TRACEA(info, "window created");
   return context;
+}
+
+NucleusImplWindowStatus
+nucleus_impl_window_status(AudienceWindowContext context)
+{
+  NucleusImplWindowStatus result{};
+
+  // has focus?
+  result.has_focus = !!gtk_window_has_toplevel_focus(GTK_WINDOW(context->window));
+
+  // retrieve frame
+  gint wx = 0, wy = 0, ww = 0, wh = 0;
+  gtk_window_get_position(GTK_WINDOW(context->window), &wx, &wy);
+  gtk_window_get_size(GTK_WINDOW(context->window), &ww, &wh);
+
+  result.frame = {{(double)wx, (double)wy}, {(double)ww, (double)wh}};
+
+  // retrieve workspace
+  GtkAllocation walloc{};
+  gtk_widget_get_allocation(GTK_WIDGET(context->webview), &walloc);
+
+  result.workspace = {(double)walloc.width, (double)walloc.height};
+
+  return result;
+}
+
+void nucleus_impl_window_update_position(AudienceWindowContext context,
+                                         AudienceRect position)
+{
+
+  TRACEA(debug, "window_update_position: origin="
+                    << position.origin.x << "," << position.origin.y << " size="
+                    << position.size.width << "x" << position.size.height);
+
+  // write positioning info to context
+  context->last_positioning = std::chrono::steady_clock::now();
+  context->last_positioning_data = position;
+
+  // try move
+  gtk_window_move(GTK_WINDOW(context->window), (gint)std::ceil(position.origin.x), (gint)std::ceil(position.origin.y));
+
+  // resize
+  if (gtk_window_get_resizable(GTK_WINDOW(context->window)))
+  {
+    gtk_window_resize(GTK_WINDOW(context->window), (gint)std::floor(position.size.width), (gint)std::floor(position.size.height));
+  }
+  else
+  {
+    gtk_widget_set_size_request(GTK_WIDGET(context->window), (gint)std::floor(position.size.width), (gint)std::floor(position.size.height));
+  }
 }
 
 void nucleus_impl_window_post_message(AudienceWindowContext context, const std::wstring &message) {}
@@ -225,6 +369,23 @@ void nucleus_impl_dispatch_async(void (*task)(void *context), void *context)
         auto wrapped_context = static_cast<wrapped_context_t *>(wrapped_context_void);
         delete wrapped_context;
       });
+}
+
+void window_resize_callback(GtkWidget *widget, GdkRectangle *allocation, gpointer user_data)
+{
+  auto context_priv = reinterpret_cast<AudienceWindowContext *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
+  if (context_priv != nullptr)
+  {
+    std::chrono::duration<double> time_delta = std::chrono::steady_clock::now() - (*context_priv)->last_positioning;
+    if (time_delta.count() <= 1)
+    {
+      TRACEA(debug, "delayed window move in resize event");
+      gtk_window_move(
+          GTK_WINDOW((*context_priv)->window),
+          (gint)std::ceil((*context_priv)->last_positioning_data.origin.x),
+          (gint)std::ceil((*context_priv)->last_positioning_data.origin.y));
+    }
+  }
 }
 
 gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data)

@@ -185,7 +185,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 #ifdef WIN32
     auto dlh = LoadLibraryW(dylib_abs.c_str());
 #else
-    auto dlh = dlopen(utf16_to_utf8(dylib_abs).c_str(), RTLD_LAZY | RTLD_LOCAL);
+    auto dlh = dlopen(utf16_to_utf8(dylib_abs).c_str(), RTLD_NOW | RTLD_LOCAL);
 #endif
 
     // try to lookup symbols if loaded successfully

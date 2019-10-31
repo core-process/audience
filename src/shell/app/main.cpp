@@ -166,6 +166,12 @@ int main(int argc, char **argv)
                                                   workspace.origin.y + workspace.size.height * 0.5},
                                                  {workspace.size.width, workspace.size.height * 0.5}});
       }
+      else if (where == L"center")
+      {
+        audience_window_update_position(handle, {{workspace.origin.x + workspace.size.width * 0.25,
+                                                  workspace.origin.y + workspace.size.height * 0.25},
+                                                 {workspace.size.width * 0.5, workspace.size.height * 0.5}});
+      }
       else
       {
         audience_window_post_message(handle, (std::wstring(L"Unknown position: ") + where).c_str());
