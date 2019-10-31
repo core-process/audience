@@ -89,6 +89,70 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   return true;
 }
 
+AudienceScreenList nucleus_impl_screen_list()
+{
+  AudienceScreenList result{};
+
+  HMONITOR primary_monitor = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY);
+  HMONITOR focused_monitor = nullptr;
+
+  HWND foreground_window = GetForegroundWindow();
+  if (foreground_window != nullptr)
+  {
+    focused_monitor = MonitorFromWindow(foreground_window, MONITOR_DEFAULTTONEAREST);
+  }
+
+  auto monitor_enum_proc_lambda = [&](
+                                      HMONITOR hMonitor,
+                                      HDC hdcMonitor,
+                                      LPRECT lprcMonitor) {
+    if (result.count >= AUDIENCE_SCREEN_LIST_ENTRIES)
+    {
+      return;
+    }
+
+    MONITORINFO monitor_info{};
+    monitor_info.cbSize = sizeof(monitor_info);
+
+    if (!GetMonitorInfoW(hMonitor, &monitor_info))
+    {
+      TRACEA(error, "could not retrieve info of monitor... skipping");
+      return;
+    }
+
+    if (hMonitor == primary_monitor)
+    {
+      result.primary = result.count;
+    }
+
+    if (hMonitor == focused_monitor)
+    {
+      result.focused = result.count;
+    }
+
+    result.screens[result.count].frame = {{(double)monitor_info.rcMonitor.left, (double)monitor_info.rcMonitor.top},
+                                          {(double)monitor_info.rcMonitor.right - (double)monitor_info.rcMonitor.left, (double)monitor_info.rcMonitor.bottom - (double)monitor_info.rcMonitor.top}};
+
+    result.screens[result.count].workspace = {{(double)monitor_info.rcWork.left, (double)monitor_info.rcWork.top},
+                                              {(double)monitor_info.rcWork.right - (double)monitor_info.rcWork.left, (double)monitor_info.rcWork.bottom - (double)monitor_info.rcWork.top}};
+
+    result.count += 1;
+  };
+
+  auto monitor_enum_proc = [](
+                               HMONITOR hMonitor,
+                               HDC hdcMonitor,
+                               LPRECT lprcMonitor,
+                               LPARAM dwData) {
+    (*static_cast<decltype(monitor_enum_proc_lambda) *>((void *)dwData))(hMonitor, hdcMonitor, lprcMonitor);
+    return TRUE;
+  };
+
+  EnumDisplayMonitors(NULL, NULL, (BOOL(*)(HMONITOR, HDC, LPRECT, LPARAM))monitor_enum_proc, (LPARAM)&monitor_enum_proc_lambda);
+
+  return result;
+}
+
 AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails &details)
 {
   scope_guard scope_fail(scope_guard::execution::exception);
@@ -121,15 +185,101 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
     throw std::runtime_error("creation of web view failed");
   }
 
+  // set window styles
+  if (details.styles.not_decorated)
+  {
+    LONG window_style = GetWindowLongPtr(context->window, GWL_STYLE) & ~WS_CAPTION;
+    if (window_style != 0)
+    {
+      SetWindowLongPtr(context->window, GWL_STYLE, window_style);
+      SetWindowPos(context->window, 0, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_DRAWFRAME);
+    }
+    else
+    {
+      TRACEA(error, "GetWindowLongPtr failed");
+    }
+  }
+
+  if (details.styles.not_resizable)
+  {
+    LONG window_style = GetWindowLongPtr(context->window, GWL_STYLE) & ~(WS_THICKFRAME | WS_MINIMIZEBOX | WS_MAXIMIZEBOX);
+    if (window_style != 0)
+    {
+      SetWindowLongPtr(context->window, GWL_STYLE, window_style);
+      SetWindowPos(context->window, 0, 0, 0, 0, 0, SWP_NOZORDER | SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_DRAWFRAME);
+    }
+    else
+    {
+      TRACEA(error, "GetWindowLongPtr failed");
+    }
+  }
+
+  if (details.styles.always_on_top)
+  {
+    SetWindowPos(context->window, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+  }
+
+  // position window
+  if (details.position.size.width > 0 && details.position.size.height > 0)
+  {
+    nucleus_impl_window_update_position(context, details.position);
+  }
+
   // navigate to url
   context->webview->Navigate(details.webapp_location.c_str());
 
   // show window
   ShowWindow(window, SW_SHOW);
   UpdateWindow(window);
+  SetActiveWindow(window);
 
   TRACEA(info, "window created successfully");
   return context;
+}
+
+NucleusImplWindowStatus
+nucleus_impl_window_status(AudienceWindowContext context)
+{
+  NucleusImplWindowStatus result{};
+
+  result.has_focus = GetForegroundWindow() == context->window;
+
+  RECT rect{};
+  if (!GetWindowRect(context->window, &rect))
+  {
+    TRACEA(error, "could not retrieve window rect");
+  }
+  else
+  {
+    result.frame = {
+        {(double)rect.left, (double)rect.top},
+        {(double)rect.right - (double)rect.left, (double)rect.bottom - (double)rect.top}};
+  }
+
+  if (!GetClientRect(context->window, &rect))
+  {
+    TRACEA(error, "could not retrieve client rect");
+  }
+  else
+  {
+    result.workspace = {(double)rect.right - (double)rect.left, (double)rect.bottom - (double)rect.top};
+  }
+
+  return result;
+}
+
+void nucleus_impl_window_update_position(AudienceWindowContext context,
+                                         AudienceRect position)
+{
+
+  TRACEA(debug, "window_update_position: origin="
+                    << position.origin.x << "," << position.origin.y << " size="
+                    << position.size.width << "x" << position.size.height);
+
+  if (!MoveWindow(context->window, position.origin.x, position.origin.y, position.size.width, position.size.height, TRUE))
+  {
+    TRACEA(error, "could not move window");
+  }
 }
 
 void nucleus_impl_window_post_message(AudienceWindowContext context, const std::wstring &message) {}
@@ -139,8 +289,8 @@ void nucleus_impl_window_destroy(AudienceWindowContext context)
   // destroy window
   if (context->window != nullptr)
   {
-    DestroyWindow(context->window);
-    TRACEA(info, "window destroy triggered");
+    PostMessage(context->window, WM_CLOSE, 0, 0);
+    TRACEA(info, "window close triggered");
   }
 }
 
