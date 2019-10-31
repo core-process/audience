@@ -71,8 +71,8 @@ static inline bool bridge_init(AudienceNucleusProtocolNegotiation *negotiation, 
   // translate details
   NucleusImplAppDetails impl_details{};
 
-  impl_details.icon_set.reserve(AUDIENCE_DETAILS_ICON_SET_ENTRIES);
-  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
+  impl_details.icon_set.reserve(AUDIENCE_APP_DETAILS_ICON_SET_ENTRIES);
+  for (size_t i = 0; i < AUDIENCE_APP_DETAILS_ICON_SET_ENTRIES; ++i)
   {
     if (details->icon_set[i] != nullptr)
     {

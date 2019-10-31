@@ -12,6 +12,11 @@ extern "C"
 #pragma pack(push)
 #pragma pack(1)
 
+#define AUDIENCE_SCREEN_LIST_ENTRIES 10
+#define AUDIENCE_WINDOW_LIST_ENTRIES 20
+#define AUDIENCE_APP_DETAILS_LOAD_ORDER_ENTRIES 10
+#define AUDIENCE_APP_DETAILS_ICON_SET_ENTRIES 20
+
   enum AudienceNucleusTechWindows
   {
     AUDIENCE_NUCLEUS_WINDOWS_NONE = 0,
@@ -31,16 +36,33 @@ extern "C"
     AUDIENCE_NUCLEUS_UNIX_WEBKIT = 1
   };
 
-#define AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES 10
-#define AUDIENCE_DETAILS_ICON_SET_ENTRIES 20
+  typedef struct
+  {
+    float x;
+    float y;
+  } AudiencePoint;
+
+  typedef struct
+  {
+    float width;
+    float height;
+  } AudienceSize;
+
+  typedef struct
+  {
+    AudiencePoint origin;
+    AudienceSize size;
+  } AudienceRect;
+
+  typedef uint16_t AudienceWindowHandle;
 
   typedef struct
   {
     struct
     {
-      AudienceNucleusTechWindows windows[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
-      AudienceNucleusTechMacOS macos[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
-      AudienceNucleusTechUnix unix[AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES];
+      AudienceNucleusTechWindows windows[AUDIENCE_APP_DETAILS_LOAD_ORDER_ENTRIES];
+      AudienceNucleusTechMacOS macos[AUDIENCE_APP_DETAILS_LOAD_ORDER_ENTRIES];
+      AudienceNucleusTechUnix unix[AUDIENCE_APP_DETAILS_LOAD_ORDER_ENTRIES];
     } load_order;
     // icon set:
     // - use png files, as it is supported by all implementations
@@ -49,8 +71,32 @@ extern "C"
     // - windows: picks smallest icon by width, larger or equal to SM_C?ICON/SM_C?SMICON metrics
     // - unix: sorts by width ascending and builds an icon list, which gets cut off at a certain position by the underlying system when hitting a limit
     // - macos: picks largest icon by width
-    const wchar_t *icon_set[AUDIENCE_DETAILS_ICON_SET_ENTRIES];
+    const wchar_t *icon_set[AUDIENCE_APP_DETAILS_ICON_SET_ENTRIES];
   } AudienceAppDetails;
+
+  typedef struct
+  {
+    uint8_t focused; // list index
+    uint8_t primary; // list index
+    struct
+    {
+      AudienceRect frame;
+      AudienceRect workspace;
+    } screens[AUDIENCE_SCREEN_LIST_ENTRIES];
+    uint8_t count;
+  } AudienceScreenList;
+
+  typedef struct
+  {
+    int8_t focused; // -1 = none/unknown/other, otherwise list index
+    struct
+    {
+      AudienceWindowHandle handle;
+      AudienceRect frame;
+      AudienceSize workspace;
+    } windows[AUDIENCE_WINDOW_LIST_ENTRIES];
+    uint8_t count;
+  } AudienceWindowList;
 
   typedef struct
   {
@@ -72,13 +118,18 @@ extern "C"
     AUDIENCE_WEBAPP_TYPE_URL = 1
   };
 
-  typedef uint16_t AudienceWindowHandle;
-
   typedef struct
   {
     AudienceWebAppType webapp_type;
     const wchar_t *webapp_location; // cannot be nullptr
     const wchar_t *loading_title;   // defaults to "Loading..."
+    AudienceRect position;
+    typedef struct
+    {
+      bool not_decorated;
+      bool not_resizable;
+    } styles;
+    AudienceWindowHandle modal_parent; // becomes a modal of parent, if set
     bool dev_mode;
   } AudienceWindowDetails;
 

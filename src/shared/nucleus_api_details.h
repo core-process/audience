@@ -28,7 +28,7 @@ struct AudienceNucleusProtocolNegotiation
 
 typedef struct
 {
-  const wchar_t *icon_set[AUDIENCE_DETAILS_ICON_SET_ENTRIES];
+  const wchar_t *icon_set[AUDIENCE_APP_DETAILS_ICON_SET_ENTRIES];
 } AudienceNucleusAppDetails;
 
 #pragma pack(pop)

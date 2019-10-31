@@ -119,7 +119,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 
   // nucleus library load order
   std::vector<std::wstring> dylibs{};
-  for (size_t i = 0; i < AUDIENCE_DETAILS_LOAD_ORDER_ENTRIES; ++i)
+  for (size_t i = 0; i < AUDIENCE_APP_DETAILS_LOAD_ORDER_ENTRIES; ++i)
   {
 #ifdef WIN32
     auto tech = details->load_order.windows[i];
@@ -163,7 +163,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
   AudienceNucleusAppDetails nucleus_details{};
 
   std::vector<std::wstring> icon_set_absolute; // ... keeps memory alive
-  for (size_t i = 0; i < AUDIENCE_DETAILS_ICON_SET_ENTRIES; ++i)
+  for (size_t i = 0; i < AUDIENCE_APP_DETAILS_ICON_SET_ENTRIES; ++i)
   {
     if (details->icon_set[i] != nullptr)
     {
