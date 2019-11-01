@@ -18,8 +18,8 @@ option(AUDIENCE_INSTALL_RUNTIME "install shared runtime (MSVC only, ignored when
 # enable traces for debug
 add_compile_definitions(AUDIENCE_ENABLE_TRACE=$<CONFIG:Debug>)
 
-# default is c++11
-set(CMAKE_CXX_STANDARD 11)
+# default is c++17
+set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
@@ -94,6 +94,115 @@ add_dependencies(boost boost_build)
 target_include_directories(boost INTERFACE ${BOOST_INCLUDE_DIR})
 target_compile_definitions(boost INTERFACE BOOST_ALL_NO_LIB=1)
 
+###################################
+# nlohmann/json
+
+# ... build
+set(JSON_ROOT ${DEPS_INSTALL_ROOT_DIR}/json)
+set(JSON_INCLUDE_DIR ${JSON_ROOT}/include)
+
+ExternalProject_Add(json_build
+  URL "https://github.com/nlohmann/json/releases/download/v3.7.0/json.hpp" DOWNLOAD_NAME "json-v3.7.0.hpp"
+  URL_HASH SHA256=a503214947952b69f0062f572cb74c17582a495767446347ce2e452963fc2ca4
+  DOWNLOAD_NO_EXTRACT ON
+  DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+  PREFIX ${DEPS_BUILD_ROOT_DIR}/json
+  INSTALL_DIR ${JSON_ROOT}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <DOWNLOADED_FILE> ${JSON_INCLUDE_DIR}/json.hpp
+)
+
+file(MAKE_DIRECTORY ${JSON_INCLUDE_DIR})
+
+# ... import
+add_library(json INTERFACE IMPORTED)
+add_dependencies(json json_build)
+target_include_directories(json INTERFACE ${JSON_INCLUDE_DIR})
+
+###################################
+# libuv
+
+# ... build
+set(LIBUV_ROOT ${DEPS_INSTALL_ROOT_DIR}/libuv)
+set(LIBUV_INCLUDE_DIR ${LIBUV_ROOT}/include)
+set(LIBUV_LIB_DIR ${LIBUV_ROOT}/lib)
+set(LIBUV_LIB uv_a)
+
+ExternalProject_Add(libuv_build
+  URL "https://github.com/libuv/libuv/archive/v1.33.1.tar.gz" DOWNLOAD_NAME "libuv-v1.33.1.tar.gz"
+  URL_HASH SHA256=63794499bf5da1720e249d3fc14ff396b70b8736effe6ce5b4e47e0f3d476467
+  DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+  PREFIX ${DEPS_BUILD_ROOT_DIR}/libuv
+  INSTALL_DIR ${LIBUV_ROOT}
+  CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DLIBUV_BUILD_TESTS=OFF
+  BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
+  INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
+)
+
+file(MAKE_DIRECTORY ${LIBUV_INCLUDE_DIR})
+
+# ... import
+add_library(libuv STATIC IMPORTED)
+add_dependencies(libuv libuv_build)
+if(WIN32)
+  set_target_properties(libuv PROPERTIES IMPORTED_LOCATION ${LIBUV_LIB_DIR}/${LIBUV_LIB}.lib)
+else()
+  set_target_properties(libuv PROPERTIES IMPORTED_LOCATION ${LIBUV_LIB_DIR}/lib${LIBUV_LIB}.a)
+endif()
+target_include_directories(libuv INTERFACE ${LIBUV_INCLUDE_DIR})
+
+###################################
+# skypjack/uvw
+
+# ... build
+set(UVW_ROOT ${DEPS_INSTALL_ROOT_DIR}/uvw)
+set(UVW_INCLUDE_DIR ${UVW_ROOT}/include)
+
+ExternalProject_Add(uvw_build
+  URL "https://github.com/skypjack/uvw/archive/v2.2.0_libuv-v1.33.zip" DOWNLOAD_NAME "uvw-v2.2.0_libuv-v1.33.zip"
+  URL_HASH SHA256=02ee78ffc251318dcd57c93f61d925e26fd1a74db7bedad47a54a27c8d90b59e
+  DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+  PREFIX ${DEPS_BUILD_ROOT_DIR}/uvw
+  INSTALL_DIR ${UVW_ROOT}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/src/ ${UVW_INCLUDE_DIR}/
+)
+
+file(MAKE_DIRECTORY ${UVW_INCLUDE_DIR})
+
+# ... import
+add_library(uvw INTERFACE IMPORTED)
+add_dependencies(uvw uvw_build)
+target_include_directories(uvw INTERFACE ${UVW_INCLUDE_DIR})
+target_link_libraries (uvw INTERFACE libuv)
+
+###################################
+# jarro2783/cxxopts
+
+# ... build
+set(CXXOPTS_ROOT ${DEPS_INSTALL_ROOT_DIR}/cxxopts)
+set(CXXOPTS_INCLUDE_DIR ${CXXOPTS_ROOT}/include)
+
+ExternalProject_Add(cxxopts_build
+  URL "https://github.com/jarro2783/cxxopts/archive/v2.2.0.zip" DOWNLOAD_NAME "cxxopts-v2.2.0.zip"
+  URL_HASH SHA256=f9640c00d9938bedb291a21f9287902a3a8cee38db6910b905f8eba4a6416204
+  DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+  PREFIX ${DEPS_BUILD_ROOT_DIR}/cxxopts
+  INSTALL_DIR ${CXXOPTS_ROOT}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/include/ ${CXXOPTS_INCLUDE_DIR}/
+)
+
+file(MAKE_DIRECTORY ${CXXOPTS_INCLUDE_DIR})
+
+# ... import
+add_library(cxxopts INTERFACE IMPORTED)
+add_dependencies(cxxopts cxxopts_build)
+target_include_directories(cxxopts INTERFACE ${CXXOPTS_INCLUDE_DIR})
+
 # ###################################
 # # zlib
 
@@ -125,99 +234,6 @@ target_compile_definitions(boost INTERFACE BOOST_ALL_NO_LIB=1)
 #   set_target_properties(zlib PROPERTIES IMPORTED_LOCATION ${ZLIB_LIB_DIR}/lib${ZLIB_LIB}.a)
 # endif()
 # target_include_directories(zlib INTERFACE ${ZLIB_INCLUDE_DIR})
-
-# ###################################
-# # libuv
-
-# # ... build
-# set(LIBUV_ROOT ${DEPS_INSTALL_ROOT_DIR}/libuv)
-# set(LIBUV_INCLUDE_DIR ${LIBUV_ROOT}/include)
-# set(LIBUV_LIB_DIR ${LIBUV_ROOT}/lib)
-# set(LIBUV_LIB uv_a)
-
-# ExternalProject_Add(libuv_build
-#   URL "https://github.com/libuv/libuv/archive/v1.33.1.tar.gz" DOWNLOAD_NAME "libuv-v1.33.1.tar.gz"
-#   URL_HASH SHA256=63794499bf5da1720e249d3fc14ff396b70b8736effe6ce5b4e47e0f3d476467
-#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
-#   PREFIX ${DEPS_BUILD_ROOT_DIR}/libuv
-#   INSTALL_DIR ${LIBUV_ROOT}
-#   CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DLIBUV_BUILD_TESTS=OFF
-#   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
-#   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
-# )
-
-# file(MAKE_DIRECTORY ${LIBUV_INCLUDE_DIR})
-
-# # ... import
-# add_library(libuv STATIC IMPORTED)
-# add_dependencies(libuv libuv_build)
-# if(WIN32)
-#   set_target_properties(libuv PROPERTIES IMPORTED_LOCATION ${LIBUV_LIB_DIR}/${LIBUV_LIB}.lib)
-# else()
-#   set_target_properties(libuv PROPERTIES IMPORTED_LOCATION ${LIBUV_LIB_DIR}/lib${LIBUV_LIB}.a)
-# endif()
-# target_include_directories(libuv INTERFACE ${LIBUV_INCLUDE_DIR})
-
-# ###################################
-# # uSockets
-
-# # ... build
-# set(USOCKETS_ROOT ${DEPS_INSTALL_ROOT_DIR}/usockets)
-# set(USOCKETS_INCLUDE_DIR ${USOCKETS_ROOT}/include)
-# set(USOCKETS_LIB_DIR ${USOCKETS_ROOT}/lib)
-# set(USOCKETS_LIB usockets)
-
-# ExternalProject_Add(usockets_build
-#   URL "https://github.com/uNetworking/uSockets/archive/v0.3.2.tar.gz" DOWNLOAD_NAME "usockets-v0.3.2.tar.gz"
-#   URL_HASH SHA256=2bd33157cd7359f143673c94de87d10aac167392ab52bae7c7464d6d2cbb3da7
-#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
-#   PREFIX ${DEPS_BUILD_ROOT_DIR}/usockets
-#   INSTALL_DIR ${USOCKETS_ROOT}
-#   PATCH_COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_SOURCE_DIR}/deps/usockets/CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt
-#   CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DLIBUV_INCLUDE_DIR=${LIBUV_INCLUDE_DIR} -DLIBUV_LIB_DIR=${LIBUV_LIB_DIR} -DLIBUV_LIB=${LIBUV_LIB}
-#   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
-#   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
-# )
-# add_dependencies(usockets_build libuv_build)
-
-# file(MAKE_DIRECTORY ${USOCKETS_INCLUDE_DIR})
-
-# # ... import
-# add_library(usockets STATIC IMPORTED)
-# add_dependencies(usockets usockets_build)
-# if(WIN32)
-#   set_target_properties(usockets PROPERTIES IMPORTED_LOCATION ${USOCKETS_LIB_DIR}/${USOCKETS_LIB}.lib)
-# else()
-#   set_target_properties(usockets PROPERTIES IMPORTED_LOCATION ${USOCKETS_LIB_DIR}/lib${USOCKETS_LIB}.a)
-# endif()
-# target_include_directories(usockets INTERFACE ${USOCKETS_INCLUDE_DIR})
-# target_link_libraries(usockets INTERFACE libuv)
-
-# ###################################
-# # uWebSockets
-
-# # ... import
-# set(UWEBSOCKETS_ROOT ${DEPS_INSTALL_ROOT_DIR}/uwebsockets)
-# set(UWEBSOCKETS_INCLUDE_DIR ${UWEBSOCKETS_ROOT}/include)
-
-# ExternalProject_Add(uwebsockets_build
-#   URL "https://github.com/uNetworking/uWebSockets/archive/v0.16.1.tar.gz" DOWNLOAD_NAME "uwebsockets-v0.16.1.tar.gz"
-#   URL_HASH SHA256=a6f6cc4c7a761294b7b7dd8978714727e39f94734a957c15d6896405099af562
-#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
-#   PREFIX ${DEPS_BUILD_ROOT_DIR}/uwebsockets
-#   INSTALL_DIR ${UWEBSOCKETS_ROOT}
-#   CONFIGURE_COMMAND ""
-#   BUILD_COMMAND ""
-#   INSTALL_COMMAND ${CMAKE_COMMAND} -E copy_directory <SOURCE_DIR>/src/ ${UWEBSOCKETS_INCLUDE_DIR}/uwebsockets/
-# )
-
-# file(MAKE_DIRECTORY ${UWEBSOCKETS_INCLUDE_DIR})
-
-# # ... import
-# add_library(uwebsockets INTERFACE IMPORTED)
-# add_dependencies(uwebsockets uwebsockets_build)
-# target_include_directories(uwebsockets INTERFACE ${UWEBSOCKETS_INCLUDE_DIR})
-# target_link_libraries(uwebsockets INTERFACE usockets zlib)
 
 #######################################################################
 # AUDIENCE FRONTEND LIBRARY
@@ -276,7 +292,7 @@ add_executable(audience WIN32
   src/shell/app/main.cpp
   src/shell/app/quotes.cpp
 )
-target_link_libraries (audience PRIVATE audience_shared)
+target_link_libraries (audience PRIVATE audience_shared json uvw cxxopts)
 if(STRIP_BINARIES)
   add_custom_command(TARGET audience POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audience>)
 endif()
@@ -308,7 +324,6 @@ if(WIN32)
     src/nucleus/windows/shared/icons.cpp
     ${AUDIENCE_FRONTEND_LIBRARY_CODE_CPP}
   )
-  set_target_properties(audience_windows_edge PROPERTIES CXX_STANDARD 17)
   target_compile_options(audience_windows_edge PRIVATE "/await")
   target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)
   target_link_libraries(audience_windows_edge PRIVATE boost WindowsApp.lib gdiplus.lib)

@@ -17,42 +17,28 @@
 
 #include "../../common/trace.h"
 #include "../../common/utf.h"
+#include "args.h"
 
 extern std::vector<std::wstring> some_quotes;
 
 #ifdef WIN32
 int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR lpCmdLine, _In_ int nCmdShow)
 {
-  // prepare arguments
-  std::vector<std::wstring> args;
-  {
-    int argc = 0;
-    auto argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    if (argv != nullptr)
-    {
-      for (int i = 0; i < argc; ++i)
-      {
-        args.push_back(argv[i]);
-      }
-    }
-  }
 #else
 int main(int argc, char **argv)
 {
-  // prepare arguments
-  std::vector<std::wstring> args;
-  {
-    for (int i = 0; i < argc; ++i)
-    {
-      args.push_back(utf8_to_utf16(argv[i]));
-    }
-  }
 #endif
+  // set up program options
+  cxxopts::Options options("audience", "Small adaptive cross-plattform webview window solution");
+  options.add_options()("a,app", "Web app", cxxopts::value<std::string>());
+
+  // parse arguments
+  auto args = PARSE_OPTS(options);
 
   // read arguments
   std::wstring app_dir;
 
-  if (args.size() < 2)
+  if (args.count("app") == 0)
   {
 #if defined(WIN32)
     BROWSEINFOW bi;
@@ -78,13 +64,13 @@ int main(int argc, char **argv)
       return 1;
     }
 #else
-    std::wcerr << L"Usage: " << args[0] << L" <APP_DIR>" << std::endl;
+    std::cerr << options.help() << std::endl;
     return 1;
 #endif
   }
   else
   {
-    app_dir = args[1];
+    app_dir = utf8_to_utf16(args["app"].as<std::string>());
   }
 
   std::srand(std::time(nullptr));
