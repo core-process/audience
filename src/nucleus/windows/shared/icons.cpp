@@ -1,3 +1,4 @@
+#undef NOMINMAX
 #include <windows.h>
 #include <gdiplus.h>
 #include <vector>

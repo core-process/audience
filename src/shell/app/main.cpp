@@ -97,6 +97,9 @@ int main(int argc, char **argv)
       return 1;
     }
 
+#if defined(WIN32)
+    std::wstring selected_app_dir;
+#endif
     if (args["dir"].count() == 0 && args["url"].count() == 0 && args["channel"].count() == 0)
     {
 #if defined(WIN32)
@@ -114,7 +117,7 @@ int main(int argc, char **argv)
       {
         return 1;
       }
-      args.add_to_option("dir", utf16_to_utf8(buffer));
+      selected_app_dir = buffer;
 #else
       display_help("Use either --dir or --url and/or --channel, otherwise there is nothing we can do for you.");
       return 1;
@@ -217,6 +220,14 @@ int main(int argc, char **argv)
 
     // create window
     AudienceWindowDetails wd{};
+
+#ifdef WIN32
+    if (selected_app_dir.length() > 0)
+    {
+      wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
+      wd.webapp_location = selected_app_dir.c_str();
+    }
+#endif
 
     if (args["dir"].count() > 0)
     {
@@ -426,7 +437,7 @@ void display_message(const std::string &message, bool is_error)
 {
   std::cerr << message << std::endl;
 #ifdef WIN32
-  MessageBoxW(NULL, utf8_to_utf16(message).c_str(), "Audience", MB_OK | (is_error ? MB_ICONERROR : MB_ICONINFORMATION));
+  MessageBoxW(NULL, utf8_to_utf16(message).c_str(), L"Audience", MB_OK | (is_error ? MB_ICONERROR : MB_ICONINFORMATION));
 #elif __APPLE__
   CFStringRef cf_header = CFStringCreateWithCString(kCFAllocatorDefault, "Audience", kCFStringEncodingUTF8);
   CFStringRef cf_message = CFStringCreateWithCString(kCFAllocatorDefault, message.c_str(), kCFStringEncodingUTF8);
