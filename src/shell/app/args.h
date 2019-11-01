@@ -1,12 +1,14 @@
 #pragma once
 
+#include <variant>
 #include <cxxopts.hpp>
 
 #include "../../common/scope_guard.h"
 #include "../../common/utf.h"
 
+static inline std::variant<cxxopts::ParseResult, cxxopts::OptionParseException>
 #if defined(WIN32)
-static inline auto parse_opts(cxxopts::Options &options)
+parse_opts(cxxopts::Options &options)
 {
   scope_guard scope_always(scope_guard::execution::always);
 
@@ -38,10 +40,17 @@ static inline auto parse_opts(cxxopts::Options &options)
   }
 
 #else
-static inline auto parse_opts(cxxopts::Options &options, int argc, char **argv)
+parse_opts(cxxopts::Options &options, int argc, char **argv)
 {
 #endif
-  return options.parse(argc, argv);
+  try
+  {
+    return options.parse(argc, argv);
+  }
+  catch (const cxxopts::OptionParseException &e)
+  {
+    return e;
+  }
 }
 
 #if defined(WIN32)

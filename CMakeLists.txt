@@ -295,7 +295,10 @@ add_executable(audience WIN32
   src/shell/app/main.cpp
   src/shell/app/quotes.cpp
 )
-target_link_libraries (audience PRIVATE audience_shared json uvw cxxopts)
+target_link_libraries(audience PRIVATE audience_shared json uvw cxxopts)
+if(APPLE)
+  target_link_libraries(audience PRIVATE "-framework CoreFoundation")
+endif()
 if(STRIP_BINARIES)
   add_custom_command(TARGET audience POST_BUILD COMMAND ${CMAKE_STRIP} $<TARGET_FILE:audience>)
 endif()
