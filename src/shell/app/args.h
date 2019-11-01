@@ -8,25 +8,25 @@
 #if defined(WIN32)
 static inline auto parse_opts(cxxopts::Options &options)
 {
-  scope_guard guard_always(scope_guard::always);
+  scope_guard scope_always(scope_guard::execution::always);
 
   int argc = 0;
   char **argv = nullptr;
 
   auto argvw = CommandLineToArgvW(GetCommandLineW(), &argc);
-  scope_guard += [argvw] { LocalFree(argvw); };
+  scope_always += [argvw]() { LocalFree(argvw); };
 
   if (argvw != nullptr)
   {
     argv = new char *[argc];
-    scope_guard += [argv] { delete argv; };
+    scope_always += [argv]() { delete argv; };
 
     for (int i = 0; i < argc; ++i)
     {
       auto arg = utf16_to_utf8(argvw[i]);
 
       argv[i] = new char[arg.length() + 1];
-      scope_guard += [argv_i = argv[i]] { delete argv_i; };
+      scope_always += [argv_i = argv[i]]() { delete argv_i; };
 
       std::copy(arg.begin(), arg.end(), argv[i]);
       argv[i][arg.length()] = '\0';
