@@ -39,7 +39,10 @@ public:
 
   ~scope_guard()
   {
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
     if (policy == always || (std::uncaught_exception() == (policy == exception)))
+#pragma GCC diagnostic pop
     {
       for (auto &f : handlers)
         try
