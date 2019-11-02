@@ -1,7 +1,8 @@
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
+#include "../../../common/utf.h"
 #include "../../shared/interface.h"
 #include "nucleus.h"
 
@@ -39,7 +40,7 @@
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
   emit_app_quit();
-  TRACEA(info, "cocoa will call exit() for us now");
+  SPDLOG_INFO("cocoa will call exit() for us now");
 }
 @end
 
@@ -89,12 +90,12 @@
   // post application quit event
   if (!prevent_quit) {
     dispatch_async(dispatch_get_main_queue(), ^{
-      TRACEA(info, "calling NSApp.terminate()");
+      SPDLOG_INFO("calling NSApp.terminate()");
       [NSApp terminate:NULL];
     });
   }
 
-  TRACEA(info, "window closed");
+  SPDLOG_INFO("window closed");
 }
 @end
 
@@ -115,7 +116,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation,
   // apply icon (we simply pick the largest icon available)
   NSImage *select_app_icon = nullptr;
   for (auto &icon_path : details.icon_set) {
-    TRACEW(info, "loading icon " << icon_path);
+    SPDLOG_INFO("loading icon {}", utf16_to_utf8(icon_path));
     NSImage *app_icon = [[NSImage alloc]
         initWithContentsOfFile:
             [[NSString alloc] initWithBytes:icon_path.c_str()
@@ -131,11 +132,11 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation,
   }
 
   if (select_app_icon != nullptr) {
-    TRACEW(info, "selecting icon with width = " << select_app_icon.size.width);
+    SPDLOG_INFO("selecting icon with width = {}", select_app_icon.size.width);
     _nucleus_app_delegate.appIcon = select_app_icon;
   }
 
-  TRACEA(info, "initialized");
+  SPDLOG_INFO("initialized");
   return true;
 }
 
@@ -271,7 +272,7 @@ nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
   [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
   [NSApp activateIgnoringOtherApps:YES];
 
-  TRACEA(info, "window created");
+  SPDLOG_INFO("window created");
   return context;
 }
 
@@ -296,9 +297,9 @@ nucleus_impl_window_status(AudienceWindowContext context) {
 void nucleus_impl_window_update_position(AudienceWindowContext context,
                                          AudienceRect position) {
 
-  TRACEA(debug, "window_update_position: origin="
-                    << position.origin.x << "," << position.origin.y << " size="
-                    << position.size.width << "x" << position.size.height);
+  SPDLOG_DEBUG("window_update_position: origin={},{} size={}x{}",
+               position.origin.x, position.origin.y, position.size.width,
+               position.size.height);
 
   NSRect frame{{position.origin.x, position.origin.y},
                {position.size.width, position.size.height}};
@@ -316,7 +317,7 @@ void nucleus_impl_window_destroy(AudienceWindowContext context) {
   dispatch_async(dispatch_get_main_queue(), ^{
     if (context.window != NULL) {
       [context.window close];
-      TRACEA(info, "window close triggered");
+      SPDLOG_INFO("window close triggered");
     }
   });
 }
@@ -327,14 +328,14 @@ void nucleus_impl_main() {
 }
 
 void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context) {
-  TRACEA(info, "dispatching task on main queue (sync)");
+  SPDLOG_INFO("dispatching task on main queue (sync)");
   dispatch_sync(dispatch_get_main_queue(), ^{
     task(context);
   });
 }
 
 void nucleus_impl_dispatch_async(void (*task)(void *context), void *context) {
-  TRACEA(info, "dispatching task on main queue (async)");
+  SPDLOG_INFO("dispatching task on main queue (async)");
   dispatch_async(dispatch_get_main_queue(), ^{
     task(context);
   });

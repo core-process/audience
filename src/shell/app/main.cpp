@@ -12,12 +12,13 @@
 #include <ctime>
 #include <sstream>
 #include <optional>
+#include <spdlog/spdlog.h>
 
 #include <audience.h>
 
-#include "../../common/trace.h"
 #include "../../common/utf.h"
 #include "../../common/memory_scope.h"
+#include "../../common/logger.h"
 #include "args.h"
 
 extern std::vector<std::wstring> some_quotes;
@@ -32,6 +33,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInt, _In_opt_ HINSTANCE hPrevInst, _In_ LPSTR
     auto r = OleInitialize(NULL);
     if (r != S_OK && r != S_FALSE)
     {
+      display_message("Could not initialize COM/OLE.", true);
       return 2;
     }
   }
@@ -41,6 +43,10 @@ int main(int argc, char **argv)
 #endif
   try
   {
+    // setup logger
+    setup_logger("audience.shell.app");
+
+    // our memory guard
     memory_scope mem;
 
     // init random generator always
@@ -209,8 +215,8 @@ int main(int argc, char **argv)
     }
 
     AudienceAppEventHandler aeh{};
-    aeh.on_will_quit.handler = [](void *context, bool *prevent_quit) { TRACEA(info, "event will_quit"); *prevent_quit = false; };
-    aeh.on_quit.handler = [](void *context) { TRACEA(info, "event quit"); };
+    aeh.on_will_quit.handler = [](void *context, bool *prevent_quit) { SPDLOG_INFO("event will_quit"); *prevent_quit = false; };
+    aeh.on_quit.handler = [](void *context) { SPDLOG_INFO("event quit"); };
 
     if (!audience_init(&ad, &aeh))
     {
@@ -313,7 +319,7 @@ int main(int argc, char **argv)
 
     AudienceWindowEventHandler weh{};
     weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
-      TRACEW(info, L"event window::message -> " << message);
+      SPDLOG_INFO("event window::message -> {}", utf16_to_utf8(message));
       std::wstring command(message);
       if (command == L"quote")
       {
@@ -413,8 +419,8 @@ int main(int argc, char **argv)
         audience_window_post_message(handle, (std::wstring(L"Unknown command: ") + command).c_str());
       }
     };
-    weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); *prevent_close = false; };
-    weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); *prevent_quit = false; };
+    weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { SPDLOG_INFO("event window::will_close"); *prevent_close = false; };
+    weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { SPDLOG_INFO("event window::close"); *prevent_quit = false; };
 
     if (create_window)
     {

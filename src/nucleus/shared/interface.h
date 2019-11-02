@@ -3,9 +3,11 @@
 #include <wchar.h>
 #include <string>
 #include <boost/bimap.hpp>
+#include <spdlog/spdlog.h>
 
 #include <audience_details.h>
 
+#include "../../../common/logger.h"
 #include "../../shared/nucleus_api_details.h"
 #include "safefn.h"
 #include "nucleus.h"
@@ -88,8 +90,11 @@ extern AudienceWindowHandle nucleus_window_context_next_handle;
 
 extern AudienceNucleusProtocolNegotiation *nucleus_protocol_negotiation;
 
-static inline bool bridge_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceNucleusAppDetails *details)
+static inline bool bridge_init(const char *nucleus_name, AudienceNucleusProtocolNegotiation *negotiation, const AudienceNucleusAppDetails *details)
 {
+  // setup logger
+  setup_logger(std::string("audience.nucleus.") + std::string(nucleus_name));
+
   // translate details
   NucleusImplAppDetails impl_details{};
 
@@ -180,7 +185,7 @@ static inline AudienceWindowHandle bridge_window_create(const AudienceWindowDeta
 
   // add context to map
   nucleus_window_context_map.insert(NucleusWindowContextMap::value_type(handle, context));
-  TRACEA(info, "window context and associated handle added to map");
+  SPDLOG_INFO("window context and associated handle added to map");
 
   return handle;
 }
@@ -197,7 +202,7 @@ static inline void bridge_window_update_position(AudienceWindowHandle handle, Au
   }
   else
   {
-    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    SPDLOG_WARN("window handle/context not found, window and its context already destroyed");
     return;
   }
 }
@@ -214,7 +219,7 @@ static inline void bridge_window_post_message(AudienceWindowHandle handle, const
   }
   else
   {
-    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    SPDLOG_WARN("window handle/context not found, window and its context already destroyed");
     return;
   }
 }
@@ -231,7 +236,7 @@ static inline void bridge_window_destroy(AudienceWindowHandle handle)
   }
   else
   {
-    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    SPDLOG_WARN("window handle/context not found, window and its context already destroyed");
     return;
   }
 }
@@ -246,7 +251,7 @@ static inline void emit_unsafe_window_message(AudienceWindowContext context, con
   auto ihandle = nucleus_window_context_map.right.find(context);
   if (ihandle == nucleus_window_context_map.right.end())
   {
-    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    SPDLOG_WARN("window handle/context not found, window and its context already destroyed");
     return;
   }
 
@@ -268,7 +273,7 @@ static inline void emit_unsafe_window_will_close(AudienceWindowContext context, 
   auto ihandle = nucleus_window_context_map.right.find(context);
   if (ihandle == nucleus_window_context_map.right.end())
   {
-    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    SPDLOG_WARN("window handle/context not found, window and its context already destroyed");
     return;
   }
 
@@ -290,7 +295,7 @@ static inline void emit_unsafe_window_close(AudienceWindowContext context, bool 
   auto ihandle = nucleus_window_context_map.right.find(context);
   if (ihandle == nucleus_window_context_map.right.end())
   {
-    TRACEA(warning, "window handle/context not found, window and its context already destroyed");
+    SPDLOG_WARN("window handle/context not found, window and its context already destroyed");
     return;
   }
 
@@ -301,7 +306,7 @@ static inline void emit_unsafe_window_close(AudienceWindowContext context, bool 
 
   // remove window from context map
   nucleus_window_context_map.right.erase(context);
-  TRACEA(info, "window context and associated handle removed from map");
+  SPDLOG_INFO("window context and associated handle removed from map");
 }
 
 static inline void emit_window_close(AudienceWindowContext context, bool &prevent_quit)
@@ -344,12 +349,12 @@ static inline void emit_app_quit()
 #define NUCLEUS_RELEASEPOOL
 #endif
 
-#define NUCLEUS_PUBIMPL_INIT                                                                                   \
+#define NUCLEUS_PUBIMPL_INIT(nucleus_name)                                                                     \
   bool nucleus_init(AudienceNucleusProtocolNegotiation *negotiation, const AudienceNucleusAppDetails *details) \
   {                                                                                                            \
     NUCLEUS_RELEASEPOOL                                                                                        \
     {                                                                                                          \
-      return NUCLEUS_SAFE_FN(bridge_init, SAFE_FN_DEFAULT(bool))(negotiation, details);                        \
+      return NUCLEUS_SAFE_FN(bridge_init, SAFE_FN_DEFAULT(bool))(nucleus_name, negotiation, details);          \
     }                                                                                                          \
   }
 
@@ -440,11 +445,11 @@ static inline void emit_app_quit()
     }                                                                     \
   }
 
-#define NUCLEUS_PUBIMPL                                                                   \
+#define NUCLEUS_PUBIMPL(nucleus_name)                                                     \
   boost::bimap<AudienceWindowHandle, AudienceWindowContext> nucleus_window_context_map{}; \
   AudienceWindowHandle nucleus_window_context_next_handle = AudienceWindowHandle{};       \
   AudienceNucleusProtocolNegotiation *nucleus_protocol_negotiation = nullptr;             \
-  NUCLEUS_PUBIMPL_INIT;                                                                   \
+  NUCLEUS_PUBIMPL_INIT(nucleus_name);                                                     \
   NUCLEUS_PUBIMPL_SCREEN_LIST;                                                            \
   NUCLEUS_PUBIMPL_WINDOW_LIST;                                                            \
   NUCLEUS_PUBIMPL_WINDOW_CREATE;                                                          \

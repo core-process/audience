@@ -16,7 +16,7 @@ option(AUDIENCE_INSTALL_RUNTIME "install shared runtime (MSVC only, ignored when
 #######################################################################
 
 # enable traces for debug
-add_compile_definitions(AUDIENCE_ENABLE_TRACE=$<CONFIG:Debug>)
+add_compile_definitions(SPDLOG_ACTIVE_LEVEL=$<IF:$<CONFIG:Debug>,0,3>)
 
 # default is c++17
 set(CMAKE_CXX_STANDARD 17)
@@ -68,6 +68,40 @@ if(UNIX)
   set(THREADS_PREFER_PTHREAD_FLAG TRUE)
   find_package(Threads REQUIRED)
 endif()
+
+###################################
+# gabime/spdlog
+
+# ... build
+set(SPDLOG_ROOT ${DEPS_INSTALL_ROOT_DIR}/spdlog)
+set(SPDLOG_INCLUDE_DIR ${SPDLOG_ROOT}/include)
+set(SPDLOG_LIB_DIR ${SPDLOG_ROOT}/lib)
+set(SPDLOG_LIB spdlog)
+
+ExternalProject_Add(spdlog_build
+  URL "https://github.com/gabime/spdlog/archive/v1.4.2.zip" DOWNLOAD_NAME "spdlog-v1.4.2.zip"
+  URL_HASH SHA256=56b90f0bd5b126cf1b623eeb19bf4369516fa68f036bbc22d9729d2da511fb5a
+  DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+  PREFIX ${DEPS_BUILD_ROOT_DIR}/spdlog
+  INSTALL_DIR ${SPDLOG_ROOT}
+  CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DSPDLOG_BUILD_EXAMPLE=OFF -DSPDLOG_BUILD_TESTS=OFF
+  BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
+  INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
+)
+
+file(MAKE_DIRECTORY ${SPDLOG_INCLUDE_DIR})
+
+# ... import
+add_library(spdlog STATIC IMPORTED)
+add_dependencies(spdlog spdlog_build)
+if(WIN32)
+  set_target_properties(spdlog PROPERTIES IMPORTED_LOCATION ${SPDLOG_LIB_DIR}/${SPDLOG_LIB}.lib)
+  set_target_properties(spdlog PROPERTIES IMPORTED_LOCATION_DEBUG ${SPDLOG_LIB_DIR}/${SPDLOG_LIB}d.lib)
+else()
+  set_target_properties(spdlog PROPERTIES IMPORTED_LOCATION ${SPDLOG_LIB_DIR}/lib${SPDLOG_LIB}.a)
+  set_target_properties(spdlog PROPERTIES IMPORTED_LOCATION_DEBUG ${SPDLOG_LIB_DIR}/lib${SPDLOG_LIB}d.a)
+endif()
+target_include_directories(spdlog INTERFACE ${SPDLOG_INCLUDE_DIR})
 
 ###################################
 # Boost
@@ -276,7 +310,7 @@ add_library(audience_shared SHARED ${SHELL_LIB_SOURCES})
 
 foreach(audience_lib audience_static audience_shared)
   set_target_properties(${audience_lib} PROPERTIES PUBLIC_HEADER "${SHELL_LIB_PUBLIC_HEADER}")
-  target_link_libraries(${audience_lib} PRIVATE boost)
+  target_link_libraries(${audience_lib} PRIVATE spdlog boost)
   if(UNIX)
     target_link_libraries(${audience_lib} PRIVATE dl)
     target_link_libraries(${audience_lib} PUBLIC Threads::Threads)
@@ -296,7 +330,7 @@ add_executable(audience WIN32
   src/shell/app/main.cpp
   src/shell/app/quotes.cpp
 )
-target_link_libraries(audience PRIVATE audience_shared json uvw cxxopts)
+target_link_libraries(audience PRIVATE spdlog audience_shared json uvw cxxopts)
 if(APPLE)
   target_link_libraries(audience PRIVATE "-framework CoreFoundation")
 endif()
@@ -333,7 +367,7 @@ if(WIN32)
   )
   target_compile_options(audience_windows_edge PRIVATE "/await")
   target_include_directories(audience_windows_edge PRIVATE src/nucleus/windows/edge)
-  target_link_libraries(audience_windows_edge PRIVATE boost WindowsApp.lib gdiplus.lib)
+  target_link_libraries(audience_windows_edge PRIVATE spdlog boost WindowsApp.lib gdiplus.lib)
 
   # windows: ie11 widget
   add_library(audience_windows_ie11 SHARED
@@ -344,7 +378,7 @@ if(WIN32)
     src/nucleus/windows/shared/icons.cpp
   )
   target_include_directories(audience_windows_ie11 PRIVATE src/nucleus/windows/ie11)
-  target_link_libraries(audience_windows_ie11 PRIVATE boost comsuppw.lib gdiplus.lib)
+  target_link_libraries(audience_windows_ie11 PRIVATE spdlog boost comsuppw.lib gdiplus.lib)
 
 elseif(APPLE)
 
@@ -355,7 +389,7 @@ elseif(APPLE)
   )
   target_compile_options(audience_macos_webkit PRIVATE "-fobjc-arc")
   target_include_directories(audience_macos_webkit PRIVATE src/nucleus/macos/webkit)
-  target_link_libraries(audience_macos_webkit PRIVATE boost "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
+  target_link_libraries(audience_macos_webkit PRIVATE spdlog boost "-framework CoreFoundation" "-framework Cocoa" "-framework WebKit")
   if(STRIP_BINARIES)
     add_custom_command(TARGET audience_macos_webkit POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_macos_webkit>)
   endif()
@@ -372,7 +406,7 @@ elseif(UNIX)
     src/nucleus/unix/webkit/interface.cpp
   )
   target_include_directories(audience_unix_webkit PRIVATE src/nucleus/unix/webkit)
-  target_link_libraries(audience_unix_webkit PRIVATE boost PkgConfig::GTK3 PkgConfig::WEBKIT2 Threads::Threads)
+  target_link_libraries(audience_unix_webkit PRIVATE spdlog boost PkgConfig::GTK3 PkgConfig::WEBKIT2 Threads::Threads)
   if(STRIP_BINARIES)
     add_custom_command(TARGET audience_unix_webkit POST_BUILD COMMAND ${CMAKE_STRIP} -x $<TARGET_FILE:audience_unix_webkit>)
   endif()

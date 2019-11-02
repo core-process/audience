@@ -39,7 +39,7 @@ public:
     // handle /audience.js
     if (uri_path == L"/audience.js")
     {
-      TRACEW(debug, L"serving virtual path: " << uri_path);
+      SPDLOG_DEBUG("serving virtual path: {}", uri_path);
 
       winrt::Windows::Storage::Streams::InMemoryRandomAccessStream stream;
       winrt::Windows::Storage::Streams::DataWriter dataWriter{stream};
@@ -53,7 +53,7 @@ public:
     // assemble path
     auto path = normalize_path(base_directory + L"/" + uri_path.substr(1));
 
-    TRACEW(debug, L"serving file: " << path);
+    SPDLOG_DEBUG("serving file: {}", path);
 
     // retrieve file and stream
     try
@@ -64,7 +64,7 @@ public:
     }
     catch (const winrt::hresult_error &e)
     {
-      TRACEE(e);
+      SPDLOG_ERROR("{}", e);
       throw std::runtime_error(winrt::to_string(e.message()));
     }
   }

@@ -5,8 +5,8 @@
 #include <boost/beast/websocket.hpp>
 #include <memory>
 #include <queue>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
 #include "../../../common/utf.h"
 #include "context.h"
 
@@ -29,12 +29,12 @@ public:
       boost::asio::ip::tcp::socket &&socket)
       : context_(context), ws_(std::move(socket)), pending_write_(false)
   {
-    TRACEA(info, "websocket session created");
+    SPDLOG_INFO("websocket session created");
   }
 
   ~websocket_session()
   {
-    TRACEA(info, "websocket session closed");
+    SPDLOG_INFO("websocket session closed");
   }
 
   // Start the asynchronous accept operation
@@ -79,7 +79,7 @@ private:
   {
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 
@@ -111,7 +111,7 @@ private:
 
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 
@@ -135,7 +135,7 @@ private:
     std::lock_guard<std::mutex> lock(write_mutex_);
     if (pending_write_ == false && write_queue_.size() > 0)
     {
-      TRACEA(debug, "writing message to websocket");
+      SPDLOG_DEBUG("writing message to websocket");
 
       // pop and buffer data
       pending_write_ = true;
@@ -158,7 +158,7 @@ private:
       std::size_t bytes_transferred)
   {
     boost::ignore_unused(bytes_transferred);
-    TRACEA(debug, "write operation completed");
+    SPDLOG_DEBUG("write operation completed");
 
     // unset pending write flag
     {
@@ -168,7 +168,7 @@ private:
 
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 

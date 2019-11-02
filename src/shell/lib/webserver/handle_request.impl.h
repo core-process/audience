@@ -79,7 +79,7 @@ void handle_request(
   // handle case: /audience.js
   if (target == "/audience.js")
   {
-    TRACEA(debug, "serving virtual path: " << target);
+    SPDLOG_DEBUG("serving virtual path: {}", target);
 
     // Cache the size since we need it after the move
     auto const size = _audience_frontend_library_code_length;
@@ -111,7 +111,7 @@ void handle_request(
     std::string path = utf16_to_utf8(normalize_path(utf8_to_utf16(
         std::string(doc_root) + "/" + target + (target.back() == '/' ? "index.html" : ""))));
 
-    TRACEA(debug, "serving file: " << path);
+    SPDLOG_DEBUG("serving file: {}", path);
 
     // Attempt to open the file
     boost::beast::error_code ec;

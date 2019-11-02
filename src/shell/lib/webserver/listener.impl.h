@@ -2,8 +2,8 @@
 
 #include <boost/asio/strand.hpp>
 #include <memory>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
 #include "http_session.impl.h"
 #include "context.h"
 
@@ -29,7 +29,7 @@ public:
     acceptor_.open(endpoint.protocol(), ec);
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 
@@ -37,7 +37,7 @@ public:
     acceptor_.set_option(boost::asio::socket_base::reuse_address(true), ec);
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 
@@ -45,7 +45,7 @@ public:
     acceptor_.bind(endpoint, ec);
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 
@@ -54,7 +54,7 @@ public:
         boost::asio::socket_base::max_listen_connections, ec);
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
   }
@@ -88,7 +88,7 @@ private:
   {
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
     }
     else
     {

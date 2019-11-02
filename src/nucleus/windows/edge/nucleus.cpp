@@ -5,8 +5,8 @@
 #include <winrt/Windows.Web.UI.Interop.h>
 
 #include <memory>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
 #include "../../shared/interface.h"
 #include "../shared/load.h"
@@ -47,7 +47,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   // test if required COM objects are available (will throw COM exception if not available)
   WebViewControlProcess().GetWebViewControls().Size();
-  TRACEA(info, "COM initialization succeeded");
+  SPDLOG_INFO("COM initialization succeeded");
 
   // create message window
   WNDCLASSEXW wndcls_msg = {};
@@ -122,7 +122,7 @@ AudienceScreenList nucleus_impl_screen_list()
 
     if (!GetMonitorInfoW(hMonitor, &monitor_info))
     {
-      TRACEA(error, "could not retrieve info of monitor... skipping");
+      SPDLOG_ERROR("could not retrieve info of monitor... skipping");
       return;
     }
 
@@ -219,7 +219,7 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
     }
     else
     {
-      TRACEA(error, "GetWindowLongPtr failed");
+      SPDLOG_ERROR("GetWindowLongPtr failed");
     }
   }
 
@@ -233,7 +233,7 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
     }
     else
     {
-      TRACEA(error, "GetWindowLongPtr failed");
+      SPDLOG_ERROR("GetWindowLongPtr failed");
     }
   }
 
@@ -255,14 +255,14 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   auto uri = context->webview.BuildLocalStreamUri(L"webapp", L"index.html");
   context->webview.NavigateToLocalStreamUri(uri, winrt::make<WebViewUriToStreamResolver>(details.webapp_location));
 
-  TRACEA(info, "web widget created successfully");
+  SPDLOG_INFO("web widget created successfully");
 
   // show window
   ShowWindow(window, SW_SHOW);
   UpdateWindow(window);
   SetActiveWindow(window);
 
-  TRACEA(info, "window created successfully");
+  SPDLOG_INFO("window created successfully");
   return context;
 }
 
@@ -276,7 +276,7 @@ nucleus_impl_window_status(AudienceWindowContext context)
   RECT rect{};
   if (!GetWindowRect(context->window, &rect))
   {
-    TRACEA(error, "could not retrieve window rect");
+    SPDLOG_ERROR("could not retrieve window rect");
   }
   else
   {
@@ -287,7 +287,7 @@ nucleus_impl_window_status(AudienceWindowContext context)
 
   if (!GetClientRect(context->window, &rect))
   {
-    TRACEA(error, "could not retrieve client rect");
+    SPDLOG_ERROR("could not retrieve client rect");
   }
   else
   {
@@ -300,14 +300,11 @@ nucleus_impl_window_status(AudienceWindowContext context)
 void nucleus_impl_window_update_position(AudienceWindowContext context,
                                          AudienceRect position)
 {
-
-  TRACEA(debug, "window_update_position: origin="
-                    << position.origin.x << "," << position.origin.y << " size="
-                    << position.size.width << "x" << position.size.height);
+  SPDLOG_DEBUG("window_update_position: origin={},{} size={}x{}", position.origin.x, position.origin.y, position.size.width, position.size.height);
 
   if (!MoveWindow(context->window, position.origin.x, position.origin.y, position.size.width, position.size.height, TRUE))
   {
-    TRACEA(error, "could not move window");
+    SPDLOG_ERROR("could not move window");
   }
 }
 
@@ -340,7 +337,7 @@ void nucleus_impl_window_destroy(AudienceWindowContext context)
   if (context->window != nullptr)
   {
     PostMessage(context->window, WM_CLOSE, 0, 0);
-    TRACEA(info, "window close triggered");
+    SPDLOG_INFO("window close triggered");
   }
 }
 
@@ -357,7 +354,7 @@ void nucleus_impl_main()
   emit_app_quit();
 
   // lets quit now
-  TRACEA(info, "calling ExitProcess()");
+  SPDLOG_INFO("calling ExitProcess()");
   ExitProcess(0);
 }
 
@@ -386,7 +383,7 @@ void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
   };
 
   // execute wrapper
-  TRACEA(info, "dispatching task on main queue (sync)");
+  SPDLOG_INFO("dispatching task on main queue (sync)");
   PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)(void (*)(void *))wrapper, (LPARAM)&wrapper_lambda);
 
   // wait for ready signal
@@ -396,7 +393,7 @@ void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
 
 void nucleus_impl_dispatch_async(void (*task)(void *context), void *context)
 {
-  TRACEA(info, "dispatching task on main queue (async)");
+  SPDLOG_INFO("dispatching task on main queue (async)");
   PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)task, (LPARAM)context);
 }
 
@@ -427,11 +424,11 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     {
       (*context)->window = window;
       SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) new AudienceWindowContext(*context));
-      TRACEA(info, "private context installed in GWLP_USERDATA");
+      SPDLOG_INFO("private context installed in GWLP_USERDATA");
     }
     else
     {
-      TRACEA(error, "context invalid");
+      SPDLOG_ERROR("context invalid");
     }
   }
   break;
@@ -453,7 +450,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     }
     else
     {
-      TRACEA(warning, "private context invalid");
+      SPDLOG_WARN("private context invalid");
     }
   }
   break;
@@ -473,7 +470,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
       }
       else
       {
-        TRACEA(error, "private context invalid");
+        SPDLOG_ERROR("private context invalid");
       }
     }
     break;
@@ -493,7 +490,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     }
     else
     {
-      TRACEA(error, "private context invalid");
+      SPDLOG_ERROR("private context invalid");
     }
 
     // close window
@@ -528,11 +525,11 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
       SetWindowLongPtrW(window, GWLP_USERDATA, (LONG_PTR) nullptr);
       delete context_priv;
 
-      TRACEA(info, "private context removed from GWLP_USERDATA");
+      SPDLOG_INFO("private context removed from GWLP_USERDATA");
     }
     else
     {
-      TRACEA(error, "private context invalid");
+      SPDLOG_ERROR("private context invalid");
     }
 
     // trigger further events
@@ -545,7 +542,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
       // quit message loop
       if (!prevent_quit)
       {
-        TRACEA(info, "posting WM_QUIT");
+        SPDLOG_INFO("posting WM_QUIT");
         PostQuitMessage(0);
       }
     }
@@ -562,7 +559,7 @@ Rect GetWebViewTargetPosition(const AudienceWindowContext context)
   RECT rect;
   if (!GetClientRect(context->window, &rect))
   {
-    TRACEA(error, "could not retrieve window client rect");
+    SPDLOG_ERROR("could not retrieve window client rect");
     return winrt::Windows::Foundation::Rect(0, 0, 0, 0);
   }
   return winrt::Windows::Foundation::Rect(0, 0, (float)(rect.right - rect.left), (float)(rect.bottom - rect.top));

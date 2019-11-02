@@ -1,7 +1,7 @@
 #include <comutil.h>
 #include <mshtml.h>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
 #include "webview.h"
 
@@ -12,19 +12,19 @@ bool IEWebView::Create(HWND pwnd)
   HRESULT hr = 0;
   if (FAILED(hr = OleCreate(CLSID_WebBrowser, IID_IOleObject, OLERENDER_DRAW, 0, this, this, (LPVOID *)&webview)))
   {
-    TRACEA(error, "failed to create COM instance of CLSID_WebBrowser, hr=0x" << std::hex << hr);
+    SPDLOG_ERROR("failed to create COM instance of CLSID_WebBrowser, hr={}", hr);
     return false;
   }
 
   if (FAILED(hr = webview->SetClientSite(this)))
   {
-    TRACEA(error, "failed to set client site, hr=0x" << std::hex << hr);
+    SPDLOG_ERROR("failed to set client site, hr={}", hr);
     return false;
   }
 
   if (FAILED(hr = OleSetContainedObject(webview, TRUE)))
   {
-    TRACEA(error, "failed to indicate embedding, hr=0x" << std::hex << hr);
+    SPDLOG_ERROR("failed to indicate embedding, hr={}", hr);
     return false;
   }
 
@@ -32,7 +32,7 @@ bool IEWebView::Create(HWND pwnd)
 
   if (FAILED(hr = webview->DoVerb(OLEIVERB_INPLACEACTIVATE, NULL, this, 0, parent_window, &target_rect)))
   {
-    TRACEA(error, "failed to activate webview in place, hr=0x" << std::hex << hr);
+    SPDLOG_ERROR("failed to activate webview in place, hr={}", hr);
     return false;
   }
 
@@ -131,7 +131,7 @@ RECT IEWebView::GetWebViewTargetRect()
   RECT rect;
   if (!GetClientRect(parent_window, &rect))
   {
-    TRACEA(error, "could not retrieve window client rect");
+    SPDLOG_ERROR("could not retrieve window client rect");
     return RECT{0, 0, 0, 0};
   }
   return RECT{0, 0, rect.right - rect.left, rect.bottom - rect.top};
@@ -158,12 +158,12 @@ IOleInPlaceObject *IEWebView::GetWebviewInplace()
   {
     if (FAILED(webview->QueryInterface(&webview_inplace)))
     {
-      TRACEA(error, "could not retrieve IOleInPlaceObject interface");
+      SPDLOG_ERROR("could not retrieve IOleInPlaceObject interface");
     }
   }
   else
   {
-    TRACEA(error, "webview not available");
+    SPDLOG_ERROR("webview not available");
   }
 
   return webview_inplace;
@@ -180,12 +180,12 @@ IWebBrowser2 *IEWebView::GetWebviewBrowser2()
   {
     if (FAILED(webview->QueryInterface(&webview_browser2)))
     {
-      TRACEA(error, "could not retrieve IWebBrowser2 interface");
+      SPDLOG_ERROR("could not retrieve IWebBrowser2 interface");
     }
   }
   else
   {
-    TRACEA(error, "webview not available");
+    SPDLOG_ERROR("webview not available");
   }
 
   return webview_browser2;

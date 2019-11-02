@@ -1,2 +1,2 @@
 #include "../../shared/interface.h"
-NUCLEUS_PUBIMPL
+NUCLEUS_PUBIMPL("windows.ie11")

@@ -19,7 +19,7 @@ WebserverContext webserver_start(std::string address, unsigned short &port, std:
       std::make_shared<std::string>(doc_root));
 
   port = l->local_endpoint().port();
-  TRACEA(info, "webserver started at " << address << ":" << port);
+  SPDLOG_INFO("webserver started at {}:{}", address, port);
 
   l->run();
 
@@ -38,7 +38,7 @@ WebserverContext webserver_start(std::string address, unsigned short &port, std:
 void webserver_post_message(WebserverContext context, const std::wstring& message)
 {
   auto sessions = context->get_ws_sessions();
-  TRACEA(debug, "found " << sessions.size() << " valid sessions");
+  SPDLOG_DEBUG("found {} valid sessions", sessions.size());
 
   for (auto &session : sessions)
   {
@@ -58,5 +58,5 @@ void webserver_stop(WebserverContext context)
 
   context.reset();
 
-  TRACEA(info, "webserver stopped");
+  SPDLOG_INFO("webserver stopped");
 }

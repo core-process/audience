@@ -20,10 +20,10 @@
 #include <iterator>
 #include <boost/bimap.hpp>
 
-#include "../../common/trace.h"
 #include "../../common/safefn.h"
 #include "../../common/utf.h"
 #include "../../common/fs.h"
+#include "../../common/logger.h"
 #include "webserver/process.h"
 #include "lib.h"
 #include "nucleus.h"
@@ -56,7 +56,7 @@ static std::thread::id shell_thread_binding_id;
 
 #define SHELL_DISPATCH_SYNC(fn, return_type, ...)                                          \
   {                                                                                        \
-    TRACEA(info, "dispatching " << #fn << " to main thread");                              \
+    SPDLOG_INFO("dispatching {} to main thread", #fn);                                     \
     return_type return_value{};                                                            \
     auto task_lambda = [&]() { return_value = fn(__VA_ARGS__); };                          \
     auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); }; \
@@ -66,7 +66,7 @@ static std::thread::id shell_thread_binding_id;
 
 #define SHELL_DISPATCH_SYNC_VOID(fn, ...)                                                  \
   {                                                                                        \
-    TRACEA(info, "dispatching " << #fn << " to main thread");                              \
+    SPDLOG_INFO("dispatching {} to main thread", #fn);                                     \
     auto task_lambda = [&]() { fn(__VA_ARGS__); };                                         \
     auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); }; \
     nucleus_dispatch_sync(task, &task_lambda);                                             \
@@ -102,6 +102,9 @@ static inline bool audience_is_initialized()
 
 static inline bool shell_unsafe_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
 {
+  // setup logger
+  setup_logger("audience.shell.lib");
+
   // perform thread binding if not bound already
   {
     std::lock_guard<std::mutex> lock(shell_thread_binding_mutex);
@@ -157,7 +160,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
       break;
 #endif
     default:
-      TRACEA(error, "unknown nucleus technology selector: " << tech);
+      SPDLOG_ERROR("unknown nucleus technology selector: {}", tech);
       break;
     }
   }
@@ -171,7 +174,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
     if (details->icon_set[i] != nullptr)
     {
       icon_set_absolute.push_back(normalize_path(details->icon_set[i]));
-      TRACEW(debug, "normalized icon path: " << icon_set_absolute.back());
+      SPDLOG_DEBUG("normalized icon path: {}", utf16_to_utf8(icon_set_absolute.back()));
       nucleus_details.icon_set[i] = icon_set_absolute.back().c_str();
     }
   }
@@ -181,7 +184,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
   {
     // load library
     auto dylib_abs = normalize_path(dir_of_exe() + L"/" + dylib);
-    TRACEW(info, L"trying to load library from path " << dylib_abs);
+    SPDLOG_INFO("trying to load library from path {}", utf16_to_utf8(dylib_abs));
 #ifdef WIN32
     auto dlh = LoadLibraryW(dylib_abs.c_str());
 #else
@@ -210,7 +213,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 
       if (!audience_is_initialized())
       {
-        TRACEW(info, L"could not find function pointer in library " << dylib);
+        SPDLOG_INFO("could not find function pointer in library {}", utf16_to_utf8(dylib));
       }
 
       // try to initializes and negotiate protocol
@@ -223,12 +226,12 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
 
       if (audience_is_initialized() && nucleus_init(&shell_protocol_negotiation, &nucleus_details))
       {
-        TRACEW(info, L"library " << dylib << L" loaded successfully");
+        SPDLOG_INFO("library {} loaded successfully", utf16_to_utf8(dylib));
         break;
       }
       else
       {
-        TRACEW(info, L"could not initialize library " << dylib);
+        SPDLOG_INFO("could not initialize library {}", utf16_to_utf8(dylib));
       }
 
       // reset function pointer and negotiation in case we failed
@@ -249,9 +252,9 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
     }
     else
     {
-      TRACEW(info, L"could not load library " << dylib);
+      SPDLOG_INFO("could not load library {}", utf16_to_utf8(dylib));
 #ifdef WIN32
-      TRACEW(info, GetLastErrorString().c_str());
+      SPDLOG_INFO("{}", GetLastErrorString());
 #endif
     }
   }
@@ -330,7 +333,7 @@ static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWind
   if (new_details.webapp_type == AUDIENCE_WEBAPP_TYPE_DIRECTORY)
   {
     webapp_dir_absolute = normalize_path(std::wstring(new_details.webapp_location));
-    TRACEW(info, "normalized web app path: " << webapp_dir_absolute);
+    SPDLOG_INFO("normalized web app path: {}", utf16_to_utf8(webapp_dir_absolute));
     new_details.webapp_location = webapp_dir_absolute.c_str();
   }
 
@@ -369,8 +372,8 @@ static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWind
     // construct url of webapp
     auto webapp_url = std::wstring(L"http://") + utf8_to_utf16(address) + L":" + std::to_wstring(ws_port) + L"/";
 
-    TRACEW(info, L"serving app from folder " << new_details.webapp_location);
-    TRACEW(info, L"serving app via url " << webapp_url);
+    SPDLOG_INFO("serving app from folder {}", utf16_to_utf8(new_details.webapp_location));
+    SPDLOG_INFO("serving app via url {}", utf16_to_utf8(webapp_url));
 
     // adapt window details
     new_details.webapp_type = AUDIENCE_WEBAPP_TYPE_URL;
@@ -443,7 +446,7 @@ static inline void shell_unsafe_window_post_message(AudienceWindowHandle handle,
   // delegate post message to nucleus, in case protocol demands
   if (shell_protocol_negotiation.nucleus_handles_messaging)
   {
-    TRACEA(debug, "delegate post message to nucleus");
+    SPDLOG_DEBUG("delegate post message to nucleus");
     return nucleus_window_post_message(handle, message);
   }
 
@@ -451,12 +454,12 @@ static inline void shell_unsafe_window_post_message(AudienceWindowHandle handle,
   auto iws = shell_webserver_registry.left.find(handle);
   if (iws != shell_webserver_registry.left.end())
   {
-    TRACEA(debug, "posting message to frontend");
+    SPDLOG_DEBUG("posting message to frontend");
     return webserver_post_message(iws->second, std::wstring(message));
   }
   else
   {
-    TRACEA(error, "could not find webserver for window handle");
+    SPDLOG_ERROR("could not find webserver for window handle");
     return;
   }
 }

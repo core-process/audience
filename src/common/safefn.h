@@ -1,7 +1,9 @@
 #pragma once
 
 #include <exception>
-#include "trace.h"
+#include <spdlog/spdlog.h>
+
+#include "fmt_exception.h"
 
 #define SAFE_FN(fn, ...) SafeFn<decltype(&fn), &fn>::Catch<__VA_ARGS__>::exec
 #define SAFE_FN_DEFAULT(type) &SafeFnDefault<type>::default_value
@@ -32,12 +34,12 @@ struct SafeFn<RetT (*)(ArgTn...), fn>
       }
       catch (const std::exception &e)
       {
-        TRACEE(e);
+        SPDLOG_ERROR("{}", e);
         return *return_value;
       }
       catch (...)
       {
-        TRACEA(error, "unknown exception");
+        SPDLOG_ERROR("unknown exception");
         return *return_value;
       }
     }
@@ -57,7 +59,7 @@ struct SafeFn<RetT (*)(ArgTn...), fn>
       }
       catch (const ExceptionT1 &e)
       {
-        TRACEE(e);
+        SPDLOG_ERROR("{}", e);
         return *return_value;
       }
     }
@@ -88,12 +90,12 @@ struct SafeFn<void (*)(ArgTn...), fn>
       }
       catch (const std::exception &e)
       {
-        TRACEE(e);
+        SPDLOG_ERROR("{}", e);
         return;
       }
       catch (...)
       {
-        TRACEA(error, "unknown exception");
+        SPDLOG_ERROR("unknown exception");
         return;
       }
     }
@@ -114,7 +116,7 @@ struct SafeFn<void (*)(ArgTn...), fn>
       }
       catch (const ExceptionT1 &e)
       {
-        TRACEE(e);
+        SPDLOG_ERROR("{}", e);
         return;
       }
     }

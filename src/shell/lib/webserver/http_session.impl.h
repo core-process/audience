@@ -2,8 +2,8 @@
 
 #include <boost/beast/http.hpp>
 #include <memory>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
 #include "websocket_session.impl.h"
 #include "handle_request.impl.h"
 
@@ -116,12 +116,12 @@ public:
       std::shared_ptr<std::string const> const &doc_root)
       : context_(context), stream_(std::move(socket)), doc_root_(doc_root), queue_(*this)
   {
-    TRACEA(info, "http session created");
+    SPDLOG_INFO("http session created");
   }
 
   ~http_session()
   {
-    TRACEA(info, "http session closed");
+    SPDLOG_INFO("http session closed");
   }
 
   // Start the session
@@ -166,7 +166,7 @@ private:
 
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 
@@ -204,7 +204,7 @@ private:
 
     if (ec)
     {
-      TRACEA(error, ec.message());
+      SPDLOG_ERROR("{}", ec.message());
       return;
     }
 

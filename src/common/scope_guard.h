@@ -2,8 +2,9 @@
 
 #include <functional>
 #include <deque>
+#include <spdlog/spdlog.h>
 
-#include "trace.h"
+#include "fmt_exception.h"
 
 class scope_guard
 {
@@ -51,11 +52,11 @@ public:
         }
         catch (const std::exception &e)
         {
-          TRACEE(e);
+          SPDLOG_ERROR("{}", e);
         }
         catch (...)
         {
-          TRACEA(error, "unknown exception");
+          SPDLOG_ERROR("unknown exception");
         }
     }
   }

@@ -6,8 +6,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <cmath>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
 #include "../../../common/utf.h"
 #include "../../shared/interface.h"
@@ -42,17 +42,17 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   for (auto &icon_path : details.icon_set)
   {
-    TRACEW(info, "loading icon " << icon_path);
+    SPDLOG_INFO("loading icon {}", icon_path);
     GError *gerror = nullptr;
     auto icon = gdk_pixbuf_new_from_file(utf16_to_utf8(icon_path).c_str(), &gerror);
     if (icon == nullptr)
     {
-      TRACEA(error, "could not load icon: " << gerror->message);
+      SPDLOG_ERROR("could not load icon: {}", gerror->message);
       g_error_free(gerror);
     }
     else
     {
-      TRACEA(debug, "icon width = " << gdk_pixbuf_get_width(icon));
+      SPDLOG_DEBUG("icon width = {}", gdk_pixbuf_get_width(icon));
       icons.push_back(icon);
     }
   }
@@ -70,7 +70,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   if (icon_list != nullptr)
   {
-    TRACEA(debug, "setting default icon list");
+    SPDLOG_DEBUG("setting default icon list");
     gtk_window_set_default_icon_list(icon_list);
   }
 
@@ -114,7 +114,7 @@ AudienceScreenList nucleus_impl_screen_list()
     auto monitor = gdk_display_get_monitor(display, i);
     if (monitor == nullptr)
     {
-      TRACEA(warning, "invalid monitor no " << i);
+      SPDLOG_WARN("invalid monitor no {}", i);
       continue;
     }
 
@@ -239,7 +239,7 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   webkit_web_view_load_uri(WEBKIT_WEB_VIEW(context->webview), url.c_str());
   gtk_widget_show_all(GTK_WIDGET(context->window));
 
-  TRACEA(info, "window created");
+  SPDLOG_INFO("window created");
   return context;
 }
 
@@ -270,10 +270,7 @@ nucleus_impl_window_status(AudienceWindowContext context)
 void nucleus_impl_window_update_position(AudienceWindowContext context,
                                          AudienceRect position)
 {
-
-  TRACEA(debug, "window_update_position: origin="
-                    << position.origin.x << "," << position.origin.y << " size="
-                    << position.size.width << "x" << position.size.height);
+  SPDLOG_DEBUG("window_update_position: origin={},{} size={}x{}", position.origin.x, position.origin.y, position.size.width, position.size.height);
 
   // write positioning info to context
   context->last_positioning = std::chrono::steady_clock::now();
@@ -300,7 +297,7 @@ void nucleus_impl_window_destroy(AudienceWindowContext context)
   if (context->window != nullptr)
   {
     gtk_window_close(GTK_WINDOW(context->window));
-    TRACEA(info, "window close triggered");
+    SPDLOG_INFO("window close triggered");
   }
 }
 
@@ -312,7 +309,7 @@ void nucleus_impl_main()
   emit_app_quit();
 
   // lets quit now
-  TRACEA(info, "calling exit()");
+  SPDLOG_INFO("calling exit()");
   exit(0);
 }
 
@@ -340,7 +337,7 @@ void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
   };
 
   // execute wrapper
-  TRACEA(info, "dispatching task on main queue (sync)");
+  SPDLOG_INFO("dispatching task on main queue (sync)");
   gdk_threads_add_idle_full(G_PRIORITY_HIGH_IDLE, wrapper, &wrapper_lambda, nullptr);
 
   // wait for ready signal
@@ -356,7 +353,7 @@ void nucleus_impl_dispatch_async(void (*task)(void *context), void *context)
     void *context;
   };
 
-  TRACEA(info, "dispatching task on main queue (async)");
+  SPDLOG_INFO("dispatching task on main queue (async)");
   gdk_threads_add_idle_full(
       G_PRIORITY_HIGH_IDLE,
       [](void *wrapped_context_void) {
@@ -379,7 +376,7 @@ void window_resize_callback(GtkWidget *widget, GdkRectangle *allocation, gpointe
     std::chrono::duration<double> time_delta = std::chrono::steady_clock::now() - (*context_priv)->last_positioning;
     if (time_delta.count() <= 1)
     {
-      TRACEA(debug, "delayed window move in resize event");
+      SPDLOG_DEBUG("delayed window move in resize event");
       gtk_window_move(
           GTK_WINDOW((*context_priv)->window),
           (gint)std::ceil((*context_priv)->last_positioning_data.origin.x),
@@ -433,7 +430,7 @@ void window_destroy_callback(GtkWidget *widget, gpointer arg)
 
     // discard private context
     delete context_priv;
-    TRACEA(info, "window closed and private context released");
+    SPDLOG_INFO("window closed and private context released");
   }
 
   // trigger further events
@@ -446,7 +443,7 @@ void window_destroy_callback(GtkWidget *widget, gpointer arg)
     // trigger quit signal
     if (!prevent_quit)
     {
-      TRACEA(info, "calling gtk_main_quit()");
+      SPDLOG_INFO("calling gtk_main_quit()");
       gtk_main_quit();
     }
   }

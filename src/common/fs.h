@@ -6,8 +6,8 @@
 #include <stdlib.h>
 #endif
 #include <string>
+#include <spdlog/spdlog.h>
 
-#include "trace.h"
 #include "utf.h"
 
 static std::wstring normalize_path(const std::wstring& path)
@@ -18,7 +18,7 @@ static std::wstring normalize_path(const std::wstring& path)
     auto res = GetFullPathNameW(path.c_str(), normalized_path_length, normalized_path, nullptr);
     if (res == 0 || res > normalized_path_length)
     {
-      TRACEW(error, "could not normalize path: " << path);
+      SPDLOG_ERROR("could not normalize path: {}", path);
       throw std::invalid_argument("could not normalize path");
     }
     return std::wstring(normalized_path);
@@ -27,7 +27,7 @@ static std::wstring normalize_path(const std::wstring& path)
     char normalized_path[PATH_MAX + 1]{};
     if (realpath(path_utf8.c_str(), normalized_path) == nullptr)
     {
-      TRACEA(error, "could not normalize path: " << path_utf8);
+      SPDLOG_ERROR("could not normalize path: {}", path_utf8);
       throw std::invalid_argument("could not normalize path");
     }
     return utf8_to_utf16(normalized_path);

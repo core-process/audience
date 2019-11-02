@@ -3,8 +3,8 @@
 #include <gdiplus.h>
 #include <vector>
 #include <algorithm>
+#include <spdlog/spdlog.h>
 
-#include "../../../common/trace.h"
 #include "../../../common/scope_guard.h"
 #include "icons.h"
 
@@ -29,16 +29,16 @@ void load_icon_handles(const NucleusImplAppDetails &details, HICON &small_icon_h
 
   for (auto &icon_path : details.icon_set)
   {
-    TRACEW(info, "loading icon " << icon_path);
+    SPDLOG_INFO("loading icon {}", icon_path);
     Gdiplus::Bitmap *icon = Gdiplus::Bitmap::FromFile(icon_path.c_str());
     if (icon->GetLastStatus() != Gdiplus::Ok)
     {
-      TRACEA(error, "could not load icon");
+      SPDLOG_ERROR("could not load icon");
       delete icon;
     }
     else
     {
-      TRACEA(debug, "icon width = " << icon->GetWidth());
+      SPDLOG_DEBUG("icon width = {}", icon->GetWidth());
       icons.push_back(icon);
     }
   }
@@ -80,10 +80,10 @@ void load_icon_handles(const NucleusImplAppDetails &details, HICON &small_icon_h
   // translate to handles
   if (small_icon->GetHICON(&small_icon_handle) != Gdiplus::Ok)
   {
-    TRACEA(error, "could not acquire small icon handle");
+    SPDLOG_ERROR("could not acquire small icon handle");
   }
   if (large_icon->GetHICON(&large_icon_handle) != Gdiplus::Ok)
   {
-    TRACEA(error, "could not acquire large icon handle");
+    SPDLOG_ERROR("could not acquire large icon handle");
   }
 }
