@@ -15,8 +15,9 @@ option(AUDIENCE_INSTALL_RUNTIME "install shared runtime (MSVC only, ignored when
 # AUDIENCE COMMON
 #######################################################################
 
-# enable traces for debug
+# log configuration
 add_compile_definitions(SPDLOG_ACTIVE_LEVEL=$<IF:$<CONFIG:Debug>,0,3>)
+add_compile_definitions(AUDIENCE_LOG_LEVEL_CONSOLE=$<IF:$<CONFIG:Debug>,0,4>)
 
 # default is c++17
 set(CMAKE_CXX_STANDARD 17)
