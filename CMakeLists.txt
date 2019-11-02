@@ -28,10 +28,10 @@ if(AUDIENCE_STATIC_RUNTIME)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
 
-# msvc: support big object files
+# msvc: defaults
 if(WIN32)
   add_compile_options(/bigobj /utf-8 /wd4068)
-  add_compile_definitions(NOMINMAX=1)
+  add_compile_definitions(NOMINMAX=1 _WIN32_WINNT=0x0601)
 endif()
 
 # symbols are hidden by default
