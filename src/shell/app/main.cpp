@@ -54,9 +54,9 @@ int main(int argc, char **argv)
 
     // set up program options
     cxxopts::Options options("audience", "Small adaptive cross-plattform webview window solution");
-    options.add_options()("win", "Nucleus load order for Windows; supported: edge, ie11", cxxopts::value<std::vector<std::string>>());
-    options.add_options()("mac", "Nucleus load order for macOS; supported: webkit", cxxopts::value<std::vector<std::string>>());
-    options.add_options()("unix", "Nucleus load order for Unix; supported: webkit", cxxopts::value<std::vector<std::string>>());
+    options.add_options()("win", "Nucleus load order for Windows; supported: edge, ie11", cxxopts::value<std::vector<std::string>>()->default_value("edge,ie11"));
+    options.add_options()("mac", "Nucleus load order for macOS; supported: webkit", cxxopts::value<std::vector<std::string>>()->default_value("webkit"));
+    options.add_options()("unix", "Nucleus load order for Unix; supported: webkit", cxxopts::value<std::vector<std::string>>()->default_value("webkit"));
     options.add_options()("i,icons", "Icon set", cxxopts::value<std::vector<std::string>>());
     options.add_options()("d,dir", "Web app directory; local file system path", cxxopts::value<std::string>());
     options.add_options()("u,url", "Web app URL", cxxopts::value<std::string>());
@@ -133,7 +133,6 @@ int main(int argc, char **argv)
     // init audience
     AudienceAppDetails ad{};
 
-    if (args["win"].count() > 0)
     {
       size_t i = 0;
       for (auto n : args["win"].as<std::vector<std::string>>())
@@ -152,13 +151,7 @@ int main(int argc, char **argv)
         i += 1;
       }
     }
-    else
-    {
-      ad.load_order.windows[0] = AUDIENCE_NUCLEUS_WINDOWS_EDGE;
-      ad.load_order.windows[1] = AUDIENCE_NUCLEUS_WINDOWS_IE11;
-    }
 
-    if (args["mac"].count() > 0)
     {
       size_t i = 0;
       for (auto n : args["mac"].as<std::vector<std::string>>())
@@ -175,12 +168,7 @@ int main(int argc, char **argv)
         i += 1;
       }
     }
-    else
-    {
-      ad.load_order.macos[0] = AUDIENCE_NUCLEUS_MACOS_WEBKIT;
-    }
 
-    if (args["unix"].count() > 0)
     {
       size_t i = 0;
       for (auto n : args["unix"].as<std::vector<std::string>>())
@@ -196,10 +184,6 @@ int main(int argc, char **argv)
         }
         i += 1;
       }
-    }
-    else
-    {
-      ad.load_order.unix[0] = AUDIENCE_NUCLEUS_UNIX_WEBKIT;
     }
 
     if (args["icons"].count() > 0)
