@@ -214,16 +214,18 @@ int main(int argc, char **argv)
 
     if (!audience_init(&ad, &aeh))
     {
-      TRACEA(error, "could not initialize audience");
+      display_message("Could not initialize Audience framework.", true);
       return 2;
     }
 
     // create window
+    bool create_window = false;
     AudienceWindowDetails wd{};
 
 #ifdef WIN32
     if (selected_app_dir.length() > 0)
     {
+      create_window = true;
       wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
       wd.webapp_location = selected_app_dir.c_str();
     }
@@ -231,12 +233,14 @@ int main(int argc, char **argv)
 
     if (args["dir"].count() > 0)
     {
+      create_window = true;
       wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
       wd.webapp_location = mem.alloc_string(utf8_to_utf16(args["dir"].as<std::string>()));
     }
 
     if (args["url"].count() > 0)
     {
+      create_window = true;
       wd.webapp_type = AUDIENCE_WEBAPP_TYPE_URL;
       wd.webapp_location = mem.alloc_string(utf8_to_utf16(args["url"].as<std::string>()));
     }
@@ -412,10 +416,13 @@ int main(int argc, char **argv)
     weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { TRACEA(info, "event window::will_close"); *prevent_close = false; };
     weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { TRACEA(info, "event window::close"); *prevent_quit = false; };
 
-    if (!audience_window_create(&wd, &weh))
+    if (create_window)
     {
-      TRACEA(error, "could not create audience window");
-      return 2;
+      if (!audience_window_create(&wd, &weh))
+      {
+        display_message("Could not create Audience window.", true);
+        return 2;
+      }
     }
 
     audience_main(); // calls exit by itself
@@ -423,12 +430,12 @@ int main(int argc, char **argv)
   }
   catch (const std::exception &e)
   {
-    display_message(std::string("An exception occured: ") + e.what(), true);
+    display_message(std::string("An error occured: ") + e.what(), true);
     return 2;
   }
   catch (...)
   {
-    display_message(std::string("An unknown exception occured."), true);
+    display_message(std::string("An unknown error occured."), true);
     return 2;
   }
 }
@@ -456,5 +463,17 @@ void display_message(const std::string &message, bool is_error)
       &result);
   CFRelease(cf_header);
   CFRelease(cf_message);
+#else
+  std::string pmsg;
+  pmsg.reserve(message.length() + 1);
+  std::copy_if(message.begin(), message.end(), std::back_inserter(pmsg), [](char c) {
+    return std::isprint(c) || c == '\n';
+  });
+  auto p = popen("xmessage -center -default okay -file -", "w");
+  if (p != nullptr)
+  {
+    fwrite(pmsg.c_str(), 1, pmsg.length(), p);
+    pclose(p);
+  }
 #endif
 }
