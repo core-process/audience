@@ -39,7 +39,7 @@ public:
     // handle /audience.js
     if (uri_path == L"/audience.js")
     {
-      SPDLOG_DEBUG("serving virtual path: {}", uri_path);
+      SPDLOG_DEBUG("serving virtual path: {}", utf16_to_utf8(uri_path));
 
       winrt::Windows::Storage::Streams::InMemoryRandomAccessStream stream;
       winrt::Windows::Storage::Streams::DataWriter dataWriter{stream};
@@ -53,7 +53,7 @@ public:
     // assemble path
     auto path = normalize_path(base_directory + L"/" + uri_path.substr(1));
 
-    SPDLOG_DEBUG("serving file: {}", path);
+    SPDLOG_DEBUG("serving file: {}", utf16_to_utf8(path));
 
     // retrieve file and stream
     try

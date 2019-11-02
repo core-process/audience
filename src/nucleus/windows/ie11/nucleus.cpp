@@ -1,3 +1,4 @@
+#include <windows.h>
 #include <memory>
 #include <stdexcept>
 #include <mutex>

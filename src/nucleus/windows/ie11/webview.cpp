@@ -1,3 +1,4 @@
+#include <windows.h>
 #include <comutil.h>
 #include <mshtml.h>
 #include <spdlog/spdlog.h>

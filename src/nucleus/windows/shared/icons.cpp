@@ -6,6 +6,7 @@
 #include <spdlog/spdlog.h>
 
 #include "../../../common/scope_guard.h"
+#include "../../../common/utf.h"
 #include "icons.h"
 
 void load_icon_handles(const NucleusImplAppDetails &details, HICON &small_icon_handle, HICON &large_icon_handle)
@@ -29,7 +30,7 @@ void load_icon_handles(const NucleusImplAppDetails &details, HICON &small_icon_h
 
   for (auto &icon_path : details.icon_set)
   {
-    SPDLOG_INFO("loading icon {}", icon_path);
+    SPDLOG_INFO("loading icon {}", utf16_to_utf8(icon_path));
     Gdiplus::Bitmap *icon = Gdiplus::Bitmap::FromFile(icon_path.c_str());
     if (icon->GetLastStatus() != Gdiplus::Ok)
     {

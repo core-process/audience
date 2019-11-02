@@ -18,7 +18,7 @@ static std::wstring normalize_path(const std::wstring& path)
     auto res = GetFullPathNameW(path.c_str(), normalized_path_length, normalized_path, nullptr);
     if (res == 0 || res > normalized_path_length)
     {
-      SPDLOG_ERROR("could not normalize path: {}", path);
+      SPDLOG_ERROR("could not normalize path: {}", utf16_to_utf8(path));
       throw std::invalid_argument("could not normalize path");
     }
     return std::wstring(normalized_path);

@@ -24,6 +24,7 @@
 #include "../../common/utf.h"
 #include "../../common/fs.h"
 #include "../../common/logger.h"
+#include "../../common/sys_error.h"
 #include "webserver/process.h"
 #include "lib.h"
 #include "nucleus.h"
@@ -254,7 +255,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
     {
       SPDLOG_INFO("could not load library {}", utf16_to_utf8(dylib));
 #ifdef WIN32
-      SPDLOG_INFO("{}", GetLastErrorString());
+      SPDLOG_INFO("{}", utf16_to_utf8(sys_get_last_error()));
 #endif
     }
   }

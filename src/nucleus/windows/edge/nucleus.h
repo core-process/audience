@@ -3,6 +3,7 @@
 #include <windows.h>
 #include <winrt/Windows.Web.UI.Interop.h>
 #include <memory>
+#include <spdlog/fmt/fmt.h>
 
 ///////////////////////////////////////////////////////////////////////
 // Window Context
@@ -27,7 +28,19 @@ using AudienceWindowContext = std::shared_ptr<AudienceWindowContextData>;
 
 #define NUCLEUS_TRANSLATE_EXCEPTIONS winrt::hresult_error
 
-inline std::string get_reason_from_exception(const winrt::hresult_error &e)
+FMT_BEGIN_NAMESPACE
+
+template <>
+struct formatter<winrt::hresult_error>
 {
-  return winrt::to_string(e.message());
-}
+  template <typename ParseContext>
+  constexpr auto parse(ParseContext &ctx) { return ctx.begin(); }
+
+  template <typename FormatContext>
+  auto format(const winrt::hresult_error &ex, FormatContext &ctx)
+  {
+    return format_to(ctx.out(), "{}",  winrt::to_string(ex.message()));
+  }
+};
+
+FMT_END_NAMESPACE
