@@ -42,7 +42,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   for (auto &icon_path : details.icon_set)
   {
-    SPDLOG_INFO("loading icon {}", icon_path);
+    SPDLOG_INFO("loading icon {}", utf16_to_utf8(icon_path));
     GError *gerror = nullptr;
     auto icon = gdk_pixbuf_new_from_file(utf16_to_utf8(icon_path).c_str(), &gerror);
     if (icon == nullptr)
