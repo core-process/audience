@@ -31,9 +31,10 @@ inline void setup_logger(std::string name)
 #else
     dist_sink->add_sink(std::make_shared<spdlog::sinks::syslog_sink_mt>(name, 0, LOG_USER, false));
 #endif
-    // prepare async logger
-    spdlog::init_thread_pool(8192, 1);
-    auto logger = std::make_shared<spdlog::async_logger>(name, dist_sink, spdlog::thread_pool(), spdlog::async_overflow_policy::block);
+    // prepare logger
+    // spdlog::init_thread_pool(8192, 1);
+    // auto logger = std::make_shared<spdlog::async_logger>(name, dist_sink, spdlog::thread_pool(), spdlog::async_overflow_policy::block);
+    auto logger = std::make_shared<spdlog::logger>(name, dist_sink);
     logger->flush_on(spdlog::level::err);
     // set default logger and log level
     spdlog::set_default_logger(logger);

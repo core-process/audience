@@ -20,8 +20,7 @@
 #include "../../common/memory_scope.h"
 #include "../../common/logger.h"
 #include "args.h"
-
-extern std::vector<std::wstring> some_quotes;
+#include "channel.h"
 
 void display_message(const std::string &message, bool is_error);
 
@@ -130,6 +129,13 @@ int main(int argc, char **argv)
 #endif
     }
 
+    // prepare channel
+    bool do_activate_channel = args["channel"].count() > 0;
+    if (do_activate_channel)
+    {
+      channel_prepare(args["channel"].as<std::string>());
+    }
+
     // init audience
     AudienceAppDetails ad{};
 
@@ -199,8 +205,22 @@ int main(int argc, char **argv)
     }
 
     AudienceAppEventHandler aeh{};
-    aeh.on_will_quit.handler = [](void *context, bool *prevent_quit) { SPDLOG_INFO("event will_quit"); *prevent_quit = false; };
-    aeh.on_quit.handler = [](void *context) { SPDLOG_INFO("event quit"); };
+    aeh.on_will_quit.handler = [](void *context, bool *prevent_quit) {
+      SPDLOG_DEBUG("event will_quit");
+    };
+    if (do_activate_channel)
+    {
+      aeh.on_quit.handler = [](void *context) {
+        SPDLOG_DEBUG("event quit");
+        channel_shutdown();
+      };
+    }
+    else
+    {
+      aeh.on_quit.handler = [](void *context) {
+        SPDLOG_DEBUG("event quit");
+      };
+    }
 
     if (!audience_init(&ad, &aeh))
     {
@@ -209,13 +229,13 @@ int main(int argc, char **argv)
     }
 
     // create window
-    bool create_window = false;
+    bool do_create_window = false;
     AudienceWindowDetails wd{};
 
 #ifdef WIN32
     if (selected_app_dir.length() > 0)
     {
-      create_window = true;
+      do_create_window = true;
       wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
       wd.webapp_location = selected_app_dir.c_str();
     }
@@ -223,14 +243,14 @@ int main(int argc, char **argv)
 
     if (args["dir"].count() > 0)
     {
-      create_window = true;
+      do_create_window = true;
       wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
       wd.webapp_location = mem.alloc_string(utf8_to_utf16(args["dir"].as<std::string>()));
     }
 
     if (args["url"].count() > 0)
     {
-      create_window = true;
+      do_create_window = true;
       wd.webapp_type = AUDIENCE_WEBAPP_TYPE_URL;
       wd.webapp_location = mem.alloc_string(utf8_to_utf16(args["url"].as<std::string>()));
     }
@@ -302,117 +322,43 @@ int main(int argc, char **argv)
     }
 
     AudienceWindowEventHandler weh{};
-    weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
-      SPDLOG_INFO("event window::message -> {}", utf16_to_utf8(message));
-      std::wstring command(message);
-      if (command == L"quote")
-      {
-        audience_window_post_message(handle, some_quotes[std::rand() % some_quotes.size()].c_str());
-      }
-      else if (command.substr(0, 4) == L"pos:")
-      {
-        auto where = command.substr(4);
-        auto screens = audience_screen_list();
-        auto workspace = screens.screens[screens.focused].workspace;
-        if (where == L"left")
-        {
-          audience_window_update_position(handle, {workspace.origin, {workspace.size.width * 0.5, workspace.size.height}});
-        }
-        else if (where == L"top")
-        {
-          audience_window_update_position(handle, {workspace.origin,
-                                                   {workspace.size.width, workspace.size.height * 0.5}});
-        }
-        else if (where == L"right")
-        {
-          audience_window_update_position(handle, {{workspace.origin.x + workspace.size.width * 0.5,
-                                                    workspace.origin.y},
-                                                   {workspace.size.width * 0.5, workspace.size.height}});
-        }
-        else if (where == L"bottom")
-        {
-          audience_window_update_position(handle, {{workspace.origin.x,
-                                                    workspace.origin.y + workspace.size.height * 0.5},
-                                                   {workspace.size.width, workspace.size.height * 0.5}});
-        }
-        else if (where == L"center")
-        {
-          audience_window_update_position(handle, {{workspace.origin.x + workspace.size.width * 0.25,
-                                                    workspace.origin.y + workspace.size.height * 0.25},
-                                                   {workspace.size.width * 0.5, workspace.size.height * 0.5}});
-        }
-        else
-        {
-          audience_window_post_message(handle, (std::wstring(L"Unknown position: ") + where).c_str());
-        }
-      }
-      else if (command == L"screens")
-      {
-        auto screens = audience_screen_list();
-        std::wostringstream str;
-        for (size_t i = 0; i < screens.count; ++i)
-        {
-          str << std::endl;
-          str << L"Screen " << i << std::endl;
-          if (i == screens.primary)
-          {
-            str << L"- Primary Screen" << std::endl;
-          }
-          if (i == screens.focused)
-          {
-            str << L"- Focused Screen" << std::endl;
-          }
-          str << L"- Frame: origin=" << screens.screens[i].frame.origin.x
-              << L"," << screens.screens[i].frame.origin.y
-              << L" size=" << screens.screens[i].frame.size.width
-              << L"x" << screens.screens[i].frame.size.height << std::endl;
-          str << L"- Workspace: origin=" << screens.screens[i].workspace.origin.x
-              << L"," << screens.screens[i].workspace.origin.y
-              << L" size=" << screens.screens[i].workspace.size.width
-              << L"x" << screens.screens[i].workspace.size.height << std::endl;
-        }
-        audience_window_post_message(handle, str.str().c_str());
-      }
-      else if (command == L"windows")
-      {
-        auto windows = audience_window_list();
-        std::wostringstream str;
-        for (size_t i = 0; i < windows.count; ++i)
-        {
-          str << std::endl;
-          str << L"Window " << i << L" with handle 0x" << std::hex << windows.windows[i].handle << std::dec << std::endl;
-          if (i == windows.focused)
-          {
-            str << L"- Focused Window" << std::endl;
-          }
-          str << L"- Frame: origin=" << windows.windows[i].frame.origin.x
-              << L"," << windows.windows[i].frame.origin.y
-              << L" size=" << windows.windows[i].frame.size.width
-              << L"x" << windows.windows[i].frame.size.height << std::endl;
-          str << L"- Workspace: size=" << windows.windows[i].workspace.width
-              << L"x" << windows.windows[i].workspace.height << std::endl;
-        }
-        audience_window_post_message(handle, str.str().c_str());
-      }
-      else if (command == L"quit")
-      {
-        audience_window_destroy(handle);
-      }
-      else
-      {
-        audience_window_post_message(handle, (std::wstring(L"Unknown command: ") + command).c_str());
-      }
+    if (do_activate_channel)
+    {
+      weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
+        SPDLOG_DEBUG("event window::message");
+        channel_emit_window_message(handle, message);
+      };
+      weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) {
+        SPDLOG_DEBUG("event window::will_close");
+        *prevent_close = true;
+        channel_emit_window_close_intent(handle);
+      };
+    }
+    else
+    {
+      weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
+        SPDLOG_DEBUG("event window::message");
+      };
+      weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) {
+        SPDLOG_DEBUG("event window::will_close");
+      };
+    }
+    weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) {
+      SPDLOG_DEBUG("event window::close");
     };
-    weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) { SPDLOG_INFO("event window::will_close"); *prevent_close = false; };
-    weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) { SPDLOG_INFO("event window::close"); *prevent_quit = false; };
 
-    if (create_window)
+    if (do_create_window)
     {
       if (!audience_window_create(&wd, &weh))
       {
         display_message("Could not create Audience window.", true);
         return 2;
       }
+    }
+
+    if (do_activate_channel)
+    {
+      channel_activate();
     }
 
     audience_main(); // calls exit by itself

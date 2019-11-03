@@ -329,7 +329,7 @@ endif()
 # audience app
 add_executable(audience WIN32
   src/shell/app/main.cpp
-  src/shell/app/quotes.cpp
+  src/shell/app/channel.cpp
 )
 target_link_libraries(audience PRIVATE spdlog audience_shared json uvw cxxopts)
 if(APPLE)
