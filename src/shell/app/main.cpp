@@ -205,13 +205,11 @@ int main(int argc, char **argv)
     }
 
     AudienceAppEventHandler aeh{};
-    aeh.on_will_quit.handler = [](void *context, bool *prevent_quit) {
-      SPDLOG_DEBUG("event will_quit");
-    };
     if (do_activate_channel)
     {
       aeh.on_quit.handler = [](void *context) {
         SPDLOG_DEBUG("event quit");
+        channel_emit_quit();
         channel_shutdown();
       };
     }
@@ -328,10 +326,13 @@ int main(int argc, char **argv)
         SPDLOG_DEBUG("event window::message");
         channel_emit_window_message(handle, message);
       };
-      weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) {
-        SPDLOG_DEBUG("event window::will_close");
-        *prevent_close = true;
+      weh.on_close_intent.handler = [](AudienceWindowHandle handle, void *context) {
+        SPDLOG_DEBUG("event window::close_intent");
         channel_emit_window_close_intent(handle);
+      };
+      weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool is_last_window) {
+        SPDLOG_DEBUG("event window::close");
+        channel_emit_window_close(handle, is_last_window);
       };
     }
     else
@@ -339,13 +340,18 @@ int main(int argc, char **argv)
       weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
         SPDLOG_DEBUG("event window::message");
       };
-      weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) {
-        SPDLOG_DEBUG("event window::will_close");
+      weh.on_close_intent.handler = [](AudienceWindowHandle handle, void *context) {
+        SPDLOG_DEBUG("event window::close_intent");
+        audience_window_destroy(handle);
+      };
+      weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool is_last_window) {
+        SPDLOG_DEBUG("event window::close");
+        if (is_last_window)
+        {
+          audience_quit();
+        }
       };
     }
-    weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) {
-      SPDLOG_DEBUG("event window::close");
-    };
 
     if (do_create_window)
     {

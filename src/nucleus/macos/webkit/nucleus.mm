@@ -24,6 +24,7 @@
 - (NSApplicationTerminateReply)applicationShouldTerminate:
     (NSApplication *)sender;
 - (void)applicationWillTerminate:(NSNotification *)notification;
+- (void)delayedTerminateIteration;
 @end
 
 @implementation AudienceAppDelegate
@@ -33,14 +34,30 @@
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:
     (NSApplication *)sender {
-  bool prevent_quit = false;
-  emit_app_will_quit(prevent_quit);
-  return prevent_quit ? NSTerminateCancel : NSTerminateNow;
+  if (util_destroy_all_windows()) {
+    [self delayedTerminateIteration];
+    return NSTerminateLater;
+  }
+  return NSTerminateNow;
 }
 
 - (void)applicationWillTerminate:(NSNotification *)notification {
   emit_app_quit();
   SPDLOG_INFO("cocoa will call exit() for us now");
+}
+
+- (void)delayedTerminateIteration {
+  SPDLOG_INFO("performing delayed termination (closing windows first)");
+  dispatch_after(
+      dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.1 * NSEC_PER_SEC)),
+      dispatch_get_main_queue(), ^(void) {
+        if (NSApp.windows.count > 0) {
+          SPDLOG_TRACE("window count = {}", NSApp.windows.count);
+          [self delayedTerminateIteration];
+        } else {
+          [NSApp replyToApplicationShouldTerminate:YES];
+        }
+      });
 }
 @end
 
@@ -61,19 +78,17 @@
 
 - (BOOL)windowShouldClose:(NSWindow *)sender {
   // trigger event
-  bool prevent_close = false;
   if (self.context != NULL) {
-    emit_window_will_close(self.context, prevent_close);
+    emit_window_close_intent(self.context);
+    return FALSE;
   }
-  return !prevent_close;
+  return TRUE;
 }
 
 - (void)windowWillClose:(NSNotification *)notification {
-  bool prevent_quit = false;
-
   if (self.context != NULL) {
     // trigger event
-    emit_window_close(self.context, prevent_quit);
+    emit_window_close(self.context, util_is_only_window(self.context));
 
     // invalidate title timer
     if (self.context.titletimer != NULL) {
@@ -87,13 +102,17 @@
     self.context = NULL;
   }
 
-  // post application quit event
-  if (!prevent_quit) {
-    dispatch_async(dispatch_get_main_queue(), ^{
-      SPDLOG_INFO("calling NSApp.terminate()");
-      [NSApp terminate:NULL];
-    });
-  }
+  // remove from delegate reference
+  self.delegate = NULL;
+
+  // NOTE: sadly we need to play games with ARC here, as NSWindow will be
+  // autoreleased and double released by ARC. If we prevent autorelease by
+  // "setReleasedWhenClosed:NO", the property NSApp.windows will contain
+  // phantoms after closing windows. So we decided to unbalance the retain count
+  // to avoid an release triggered by ARC. The object still gets released by
+  // autorelease and the property NSApp.windows does not contain phantom
+  // entries.
+  (void)((__bridge_retained void *)self);
 
   SPDLOG_INFO("window closed");
 }
@@ -188,8 +207,6 @@ nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
                           NSWindowStyleMaskResizable
                   backing:NSBackingStoreBuffered
                     defer:NO];
-
-  [context.window setReleasedWhenClosed:NO];
 
   context.window.delegate = context.window;
   context.window.context = context;
@@ -319,6 +336,13 @@ void nucleus_impl_window_destroy(AudienceWindowContext context) {
       [context.window close];
       SPDLOG_INFO("window close triggered");
     }
+  });
+}
+
+void nucleus_impl_quit() {
+  dispatch_async(dispatch_get_main_queue(), ^{
+    SPDLOG_INFO("calling NSApp.terminate()");
+    [NSApp terminate:NULL];
   });
 }
 

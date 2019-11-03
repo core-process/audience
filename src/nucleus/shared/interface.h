@@ -34,6 +34,7 @@ extern "C"
   NUCLEUS_EXPORT void nucleus_window_update_position(AudienceWindowHandle handle, AudienceRect position);
   NUCLEUS_EXPORT void nucleus_window_post_message(AudienceWindowHandle handle, const wchar_t *message);
   NUCLEUS_EXPORT void nucleus_window_destroy(AudienceWindowHandle handle);
+  NUCLEUS_EXPORT void nucleus_quit();
   NUCLEUS_EXPORT void nucleus_main();
   NUCLEUS_EXPORT void nucleus_dispatch_sync(void (*task)(void *context), void *context);
   NUCLEUS_EXPORT void nucleus_dispatch_async(void (*task)(void *context), void *context);
@@ -79,12 +80,13 @@ NucleusImplWindowStatus nucleus_impl_window_status(AudienceWindowContext context
 void nucleus_impl_window_update_position(AudienceWindowContext context, AudienceRect position);
 void nucleus_impl_window_post_message(AudienceWindowContext context, const std::wstring &message);
 void nucleus_impl_window_destroy(AudienceWindowContext context);
+void nucleus_impl_quit();
 void nucleus_impl_main();
 void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context);
 void nucleus_impl_dispatch_async(void (*task)(void *context), void *context);
 
 ///////////////////////////////////////////////////////////////////////
-// Bridge Implementation
+// Internal State
 ///////////////////////////////////////////////////////////////////////
 
 typedef boost::bimap<AudienceWindowHandle, AudienceWindowContext> NucleusWindowContextMap;
@@ -92,6 +94,32 @@ extern NucleusWindowContextMap nucleus_window_context_map;
 extern AudienceWindowHandle nucleus_window_context_next_handle;
 
 extern AudienceNucleusProtocolNegotiation *nucleus_protocol_negotiation;
+
+///////////////////////////////////////////////////////////////////////
+// Utils
+///////////////////////////////////////////////////////////////////////
+
+static inline bool util_is_only_window(AudienceWindowContext context)
+{
+  return nucleus_window_context_map.size() == 1 && nucleus_window_context_map.right.find(context) != nucleus_window_context_map.right.end();
+}
+
+static inline bool util_destroy_all_windows()
+{
+  SPDLOG_DEBUG("destroy all windows");
+  std::vector<std::pair<AudienceWindowHandle, AudienceWindowContext>> context_list;
+  std::transform(nucleus_window_context_map.left.begin(), nucleus_window_context_map.left.end(), std::back_inserter(context_list), [](auto &pair) { return std::pair<AudienceWindowHandle, AudienceWindowContext>{pair.first, pair.second}; });
+  for (auto &context : context_list)
+  {
+    SPDLOG_TRACE("destroy window with handle {}", context.first);
+    nucleus_impl_window_destroy(context.second);
+  }
+  return context_list.size() > 0;
+}
+
+///////////////////////////////////////////////////////////////////////
+// Bridge Implementation
+///////////////////////////////////////////////////////////////////////
 
 static inline bool bridge_init(const char *nucleus_name, AudienceNucleusProtocolNegotiation *negotiation, const AudienceNucleusAppDetails *details)
 {
@@ -244,6 +272,12 @@ static inline void bridge_window_destroy(AudienceWindowHandle handle)
   }
 }
 
+static inline void bridge_quit()
+{
+  util_destroy_all_windows();
+  return nucleus_impl_quit();
+}
+
 ///////////////////////////////////////////////////////////////////////
 // Event Handling
 ///////////////////////////////////////////////////////////////////////
@@ -266,11 +300,10 @@ static inline void emit_unsafe_window_message(AudienceWindowContext context, con
 
 static inline void emit_window_message(AudienceWindowContext context, const std::wstring &message)
 {
-  NUCLEUS_SAFE_FN(emit_unsafe_window_message)
-  (context, message);
+  return NUCLEUS_SAFE_FN(emit_unsafe_window_message)(context, message);
 }
 
-static inline void emit_unsafe_window_will_close(AudienceWindowContext context, bool &prevent_close)
+static inline void emit_unsafe_window_close_intent(AudienceWindowContext context)
 {
   // lookup handle
   auto ihandle = nucleus_window_context_map.right.find(context);
@@ -283,16 +316,15 @@ static inline void emit_unsafe_window_will_close(AudienceWindowContext context, 
   auto handle = ihandle->second;
 
   // call shell handler
-  nucleus_protocol_negotiation->shell_event_handler.window_level.on_will_close(handle, &prevent_close);
+  nucleus_protocol_negotiation->shell_event_handler.window_level.on_close_intent(handle);
 }
 
-static inline void emit_window_will_close(AudienceWindowContext context, bool &prevent_close)
+static inline void emit_window_close_intent(AudienceWindowContext context)
 {
-  NUCLEUS_SAFE_FN(emit_unsafe_window_will_close)
-  (context, prevent_close);
+  return NUCLEUS_SAFE_FN(emit_unsafe_window_close_intent)(context);
 }
 
-static inline void emit_unsafe_window_close(AudienceWindowContext context, bool &prevent_quit)
+static inline void emit_unsafe_window_close(AudienceWindowContext context, bool is_last_window)
 {
   // lookup handle
   auto ihandle = nucleus_window_context_map.right.find(context);
@@ -305,29 +337,16 @@ static inline void emit_unsafe_window_close(AudienceWindowContext context, bool 
   auto handle = ihandle->second;
 
   // call shell handler
-  nucleus_protocol_negotiation->shell_event_handler.window_level.on_close(handle, &prevent_quit);
+  nucleus_protocol_negotiation->shell_event_handler.window_level.on_close(handle, is_last_window);
 
   // remove window from context map
   nucleus_window_context_map.right.erase(context);
   SPDLOG_INFO("window context and associated handle removed from map");
 }
 
-static inline void emit_window_close(AudienceWindowContext context, bool &prevent_quit)
+static inline void emit_window_close(AudienceWindowContext context, bool is_last_window)
 {
-  NUCLEUS_SAFE_FN(emit_unsafe_window_close)
-  (context, prevent_quit);
-}
-
-static inline void emit_unsafe_app_will_quit(bool &prevent_quit)
-{
-  // call shell handler
-  nucleus_protocol_negotiation->shell_event_handler.app_level.on_will_quit(&prevent_quit);
-}
-
-static inline void emit_app_will_quit(bool &prevent_quit)
-{
-  NUCLEUS_SAFE_FN(emit_unsafe_app_will_quit)
-  (prevent_quit);
+  return NUCLEUS_SAFE_FN(emit_unsafe_window_close)(context, is_last_window);
 }
 
 static inline void emit_unsafe_app_quit()
@@ -338,8 +357,7 @@ static inline void emit_unsafe_app_quit()
 
 static inline void emit_app_quit()
 {
-  NUCLEUS_SAFE_FN(emit_unsafe_app_quit)
-  ();
+  return NUCLEUS_SAFE_FN(emit_unsafe_app_quit)();
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -393,8 +411,7 @@ static inline void emit_app_quit()
   {                                                                                       \
     NUCLEUS_RELEASEPOOL                                                                   \
     {                                                                                     \
-      NUCLEUS_SAFE_FN(bridge_window_update_position)                                      \
-      (handle, position);                                                                 \
+      return NUCLEUS_SAFE_FN(bridge_window_update_position)(handle, position);            \
     }                                                                                     \
   }
 
@@ -403,29 +420,35 @@ static inline void emit_app_quit()
   {                                                                                     \
     NUCLEUS_RELEASEPOOL                                                                 \
     {                                                                                   \
-      NUCLEUS_SAFE_FN(bridge_window_post_message)                                       \
-      (handle, message);                                                                \
+      return NUCLEUS_SAFE_FN(bridge_window_post_message)(handle, message);              \
     }                                                                                   \
   }
 
-#define NUCLEUS_PUBIMPL_WINDOW_DESTROY                     \
-  void nucleus_window_destroy(AudienceWindowHandle handle) \
-  {                                                        \
-    NUCLEUS_RELEASEPOOL                                    \
-    {                                                      \
-      NUCLEUS_SAFE_FN(bridge_window_destroy)               \
-      (handle);                                            \
-    }                                                      \
+#define NUCLEUS_PUBIMPL_WINDOW_DESTROY                       \
+  void nucleus_window_destroy(AudienceWindowHandle handle)   \
+  {                                                          \
+    NUCLEUS_RELEASEPOOL                                      \
+    {                                                        \
+      return NUCLEUS_SAFE_FN(bridge_window_destroy)(handle); \
+    }                                                        \
   }
 
-#define NUCLEUS_PUBIMPL_MAIN             \
-  void nucleus_main()                    \
-  {                                      \
-    NUCLEUS_RELEASEPOOL                  \
-    {                                    \
-      NUCLEUS_SAFE_FN(nucleus_impl_main) \
-      ();                                \
-    }                                    \
+#define NUCLEUS_PUBIMPL_QUIT                 \
+  void nucleus_quit()                        \
+  {                                          \
+    NUCLEUS_RELEASEPOOL                      \
+    {                                        \
+      return NUCLEUS_SAFE_FN(bridge_quit)(); \
+    }                                        \
+  }
+
+#define NUCLEUS_PUBIMPL_MAIN                       \
+  void nucleus_main()                              \
+  {                                                \
+    NUCLEUS_RELEASEPOOL                            \
+    {                                              \
+      return NUCLEUS_SAFE_FN(nucleus_impl_main)(); \
+    }                                              \
   }
 
 #define NUCLEUS_PUBIMPL_DISPATCH_SYNC                                    \
@@ -433,8 +456,7 @@ static inline void emit_app_quit()
   {                                                                      \
     NUCLEUS_RELEASEPOOL                                                  \
     {                                                                    \
-      NUCLEUS_SAFE_FN(nucleus_impl_dispatch_sync)                        \
-      (task, context);                                                   \
+      return NUCLEUS_SAFE_FN(nucleus_impl_dispatch_sync)(task, context); \
     }                                                                    \
   }
 
@@ -443,8 +465,7 @@ static inline void emit_app_quit()
   {                                                                       \
     NUCLEUS_RELEASEPOOL                                                   \
     {                                                                     \
-      NUCLEUS_SAFE_FN(nucleus_impl_dispatch_async)                        \
-      (task, context);                                                    \
+      return NUCLEUS_SAFE_FN(nucleus_impl_dispatch_async)(task, context); \
     }                                                                     \
   }
 
@@ -459,6 +480,7 @@ static inline void emit_app_quit()
   NUCLEUS_PUBIMPL_WINDOW_UPDATE_POSITION                                                  \
   NUCLEUS_PUBIMPL_WINDOW_POST_MESSAGE;                                                    \
   NUCLEUS_PUBIMPL_WINDOW_DESTROY;                                                         \
+  NUCLEUS_PUBIMPL_QUIT;                                                                   \
   NUCLEUS_PUBIMPL_MAIN;                                                                   \
   NUCLEUS_PUBIMPL_DISPATCH_SYNC;                                                          \
   NUCLEUS_PUBIMPL_DISPATCH_ASYNC;

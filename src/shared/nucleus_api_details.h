@@ -15,12 +15,11 @@ struct AudienceNucleusProtocolNegotiation
     struct
     {
       void (*on_message)(AudienceWindowHandle handle, const wchar_t *message);
-      void (*on_will_close)(AudienceWindowHandle handle, bool *prevent_close);
-      void (*on_close)(AudienceWindowHandle handle, bool *prevent_quit);
+      void (*on_close_intent)(AudienceWindowHandle handle);
+      void (*on_close)(AudienceWindowHandle handle, bool is_last_window);
     } window_level;
     struct
     {
-      void (*on_will_quit)(bool *prevent_quit);
       void (*on_quit)();
     } app_level;
   } shell_event_handler;

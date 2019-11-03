@@ -102,11 +102,6 @@ extern "C"
   {
     struct
     {
-      void (*handler)(void *context, bool *prevent_quit);
-      void *context;
-    } on_will_quit;
-    struct
-    {
       void (*handler)(void *context);
       void *context;
     } on_quit;
@@ -146,12 +141,12 @@ extern "C"
     } on_message;
     struct
     {
-      void (*handler)(AudienceWindowHandle handle, void *context, bool *prevent_close);
+      void (*handler)(AudienceWindowHandle handle, void *context);
       void *context;
-    } on_will_close;
+    } on_close_intent;
     struct
     {
-      void (*handler)(AudienceWindowHandle handle, void *context, bool *prevent_quit);
+      void (*handler)(AudienceWindowHandle handle, void *context, bool is_last_window);
       void *context;
     } on_close;
   } AudienceWindowEventHandler;

@@ -15,6 +15,7 @@ extern "C"
   AUDIENCE_API void audience_window_update_position(AudienceWindowHandle handle, AudienceRect position);
   AUDIENCE_API void audience_window_post_message(AudienceWindowHandle handle, const wchar_t *message);
   AUDIENCE_API void audience_window_destroy(AudienceWindowHandle handle);
+  AUDIENCE_API void audience_quit();
   AUDIENCE_API void audience_main();
 
 #ifdef __cplusplus

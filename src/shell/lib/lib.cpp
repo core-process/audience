@@ -80,6 +80,7 @@ static nucleus_window_create_t nucleus_window_create = nullptr;
 static nucleus_window_update_position_t nucleus_window_update_position = nullptr;
 static nucleus_window_post_message_t nucleus_window_post_message = nullptr;
 static nucleus_window_destroy_t nucleus_window_destroy = nullptr;
+static nucleus_quit_t nucleus_quit = nullptr;
 static nucleus_main_t nucleus_main = nullptr;
 static nucleus_dispatch_sync_t nucleus_dispatch_sync = nullptr;
 static nucleus_dispatch_async_t nucleus_dispatch_async = nullptr;
@@ -91,14 +92,13 @@ static AudienceAppEventHandler audience_app_event_handler{};
 static std::map<AudienceWindowHandle, AudienceWindowEventHandler> audience_window_event_handler{};
 
 static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, const wchar_t *message);
-static inline void shell_unsafe_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close);
-static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool *prevent_quit);
-static inline void shell_unsafe_on_app_will_quit(bool *prevent_quit);
+static inline void shell_unsafe_on_window_close_intent(AudienceWindowHandle handle);
+static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool is_last_window);
 static inline void shell_unsafe_on_app_quit();
 
 static inline bool audience_is_initialized()
 {
-  return nucleus_init != nullptr && nucleus_screen_list != nullptr && nucleus_window_list != nullptr && nucleus_window_create != nullptr && nucleus_window_update_position != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
+  return nucleus_init != nullptr && nucleus_screen_list != nullptr && nucleus_window_list != nullptr && nucleus_window_create != nullptr && nucleus_window_update_position != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_quit != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
 }
 
 static inline bool shell_unsafe_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
@@ -208,6 +208,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
       nucleus_window_update_position = (nucleus_window_update_position_t)LookupFunction(dlh, "nucleus_window_update_position");
       nucleus_window_post_message = (nucleus_window_post_message_t)LookupFunction(dlh, "nucleus_window_post_message");
       nucleus_window_destroy = (nucleus_window_destroy_t)LookupFunction(dlh, "nucleus_window_destroy");
+      nucleus_quit = (nucleus_quit_t)LookupFunction(dlh, "nucleus_quit");
       nucleus_main = (nucleus_main_t)LookupFunction(dlh, "nucleus_main");
       nucleus_dispatch_sync = (nucleus_dispatch_sync_t)LookupFunction(dlh, "nucleus_dispatch_sync");
       nucleus_dispatch_async = (nucleus_dispatch_async_t)LookupFunction(dlh, "nucleus_dispatch_async");
@@ -220,9 +221,8 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
       // try to initializes and negotiate protocol
       shell_protocol_negotiation = {};
       shell_protocol_negotiation.shell_event_handler.window_level.on_message = SAFE_FN(shell_unsafe_on_window_message);
-      shell_protocol_negotiation.shell_event_handler.window_level.on_will_close = SAFE_FN(shell_unsafe_on_window_will_close);
+      shell_protocol_negotiation.shell_event_handler.window_level.on_close_intent = SAFE_FN(shell_unsafe_on_window_close_intent);
       shell_protocol_negotiation.shell_event_handler.window_level.on_close = SAFE_FN(shell_unsafe_on_window_close);
-      shell_protocol_negotiation.shell_event_handler.app_level.on_will_quit = SAFE_FN(shell_unsafe_on_app_will_quit);
       shell_protocol_negotiation.shell_event_handler.app_level.on_quit = SAFE_FN(shell_unsafe_on_app_quit);
 
       if (audience_is_initialized() && nucleus_init(&shell_protocol_negotiation, &nucleus_details))
@@ -240,6 +240,7 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
       nucleus_window_create = nullptr;
       nucleus_window_post_message = nullptr;
       nucleus_window_destroy = nullptr;
+      nucleus_quit = nullptr;
       nucleus_main = nullptr;
       nucleus_dispatch_sync = nullptr;
       nucleus_dispatch_async = nullptr;
@@ -490,6 +491,26 @@ void audience_window_destroy(AudienceWindowHandle handle)
   return SAFE_FN(shell_unsafe_window_destroy)(handle);
 }
 
+static inline void shell_unsafe_quit()
+{
+  // validate thread binding
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_quit));
+
+  // ensure initialization
+  if (!audience_is_initialized())
+  {
+    return;
+  }
+
+  // quit
+  return nucleus_quit();
+}
+
+void audience_quit()
+{
+  return SAFE_FN(shell_unsafe_quit)();
+}
+
 static inline void shell_unsafe_main()
 {
   // validate thread binding
@@ -529,29 +550,28 @@ static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, c
   }
 }
 
-static inline void shell_unsafe_on_window_will_close(AudienceWindowHandle handle, bool *prevent_close)
+static inline void shell_unsafe_on_window_close_intent(AudienceWindowHandle handle)
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_will_close, handle, prevent_close));
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_close_intent, handle));
 
   // call user event handler
   auto ehi = audience_window_event_handler.find(handle);
   if (ehi != audience_window_event_handler.end())
   {
-    if (ehi->second.on_will_close.handler != nullptr)
+    if (ehi->second.on_close_intent.handler != nullptr)
     {
-      ehi->second.on_will_close.handler(
+      ehi->second.on_close_intent.handler(
           handle,
-          ehi->second.on_will_close.context,
-          prevent_close);
+          ehi->second.on_close_intent.context);
     }
   }
 }
 
-static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool *prevent_quit)
+static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool is_last_window)
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_close, handle, prevent_quit));
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_close, handle, is_last_window));
 
   // call user event handler
   auto ehi = audience_window_event_handler.find(handle);
@@ -562,7 +582,7 @@ static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, boo
       ehi->second.on_close.handler(
           handle,
           ehi->second.on_close.context,
-          prevent_quit);
+          is_last_window);
     }
   }
 
@@ -573,20 +593,6 @@ static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, boo
     auto ws = wsi->second;
     shell_webserver_registry.left.erase(wsi);
     webserver_stop(ws);
-  }
-}
-
-static inline void shell_unsafe_on_app_will_quit(bool *prevent_quit)
-{
-  // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_app_will_quit, prevent_quit));
-
-  // call user event handler
-  if (audience_app_event_handler.on_will_quit.handler != nullptr)
-  {
-    audience_app_event_handler.on_will_quit.handler(
-        audience_app_event_handler.on_will_quit.context,
-        prevent_quit);
   }
 }
 

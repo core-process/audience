@@ -185,6 +185,16 @@ void channel_emit_window_close_intent(AudienceWindowHandle handle)
   channel_emit("window_close_intent", json{{"handle", handle}});
 }
 
+void channel_emit_window_close(AudienceWindowHandle handle, bool is_last_window)
+{
+  channel_emit("window_close", json{{"handle", handle}, {"is_last_window", is_last_window}});
+}
+
+void channel_emit_quit()
+{
+  channel_emit("quit", json{});
+}
+
 void channel_emit_command_succeeded(std::string id, json result)
 {
   channel_emit("command_succeeded", json{{"id", id, "result", result}});
@@ -358,13 +368,13 @@ void _client_execute_command(const uvw::DataEvent &command_raw)
           SPDLOG_DEBUG("event window::message");
           channel_emit_window_message(handle, message);
         };
-        weh.on_will_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_close) {
-          SPDLOG_DEBUG("event window::will_close");
-          *prevent_close = true;
+        weh.on_close_intent.handler = [](AudienceWindowHandle handle, void *context) {
+          SPDLOG_DEBUG("event window::close_intent");
           channel_emit_window_close_intent(handle);
         };
-        weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool *prevent_quit) {
+        weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool is_last_window) {
           SPDLOG_DEBUG("event window::close");
+          channel_emit_window_close(handle, is_last_window);
         };
 
         // execute command
@@ -402,6 +412,11 @@ void _client_execute_command(const uvw::DataEvent &command_raw)
         auto handle = args.at("handle").get<AudienceWindowHandle>();
 
         audience_window_destroy(handle);
+        channel_emit_command_succeeded(id);
+      }
+      else if (func == "quit")
+      {
+        audience_quit();
         channel_emit_command_succeeded(id);
       }
       else
