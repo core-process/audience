@@ -348,6 +348,7 @@ int main(int argc, char **argv)
         SPDLOG_DEBUG("event window::close");
         if (is_last_window)
         {
+          SPDLOG_DEBUG("... quitting application (last window)");
           audience_quit();
         }
       };

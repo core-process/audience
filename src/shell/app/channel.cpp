@@ -42,10 +42,7 @@ void _client_on_error(const uvw::ErrorEvent &, uvw::PipeHandle &);
 struct client_data_t
 {
   std::vector<uvw::DataEvent> incoming_chunks;
-  bool is_shutdown;
-  bool is_ended;
-
-  client_data_t() : incoming_chunks{}, is_shutdown(false), is_ended(false) {}
+  client_data_t() : incoming_chunks{} {}
 };
 
 void channel_prepare(const std::string &path)
@@ -544,24 +541,14 @@ void _client_on_shutdown(const uvw::ShutdownEvent &, uvw::PipeHandle &client)
 {
   SPDLOG_DEBUG("client stream shutdown");
   clients.erase(client.shared_from_this());
-  auto cdata = client.data<client_data_t>();
-  cdata->is_shutdown = true;
-  if (cdata->is_ended && cdata->is_shutdown)
-  {
-    client.close();
-  }
+  client.close();
 }
 
 void _client_on_end(const uvw::EndEvent &, uvw::PipeHandle &client)
 {
   SPDLOG_DEBUG("client stream ended");
   clients.erase(client.shared_from_this());
-  auto cdata = client.data<client_data_t>();
-  cdata->is_ended = true;
-  if (cdata->is_ended && cdata->is_shutdown)
-  {
-    client.close();
-  }
+  client.shutdown();
 }
 
 void _client_on_close(const uvw::CloseEvent &, uvw::PipeHandle &client)

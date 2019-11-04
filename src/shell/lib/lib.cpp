@@ -71,6 +71,7 @@ static std::thread::id shell_thread_binding_id;
     auto task_lambda = [&]() { fn(__VA_ARGS__); };                                         \
     auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); }; \
     nucleus_dispatch_sync(task, &task_lambda);                                             \
+    return;                                                                                \
   }
 
 static nucleus_init_t nucleus_init = nullptr;
@@ -280,7 +281,7 @@ bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHand
 static inline AudienceScreenList shell_unsafe_screen_list()
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_screen_list));
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC(audience_screen_list, AudienceScreenList));
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -300,7 +301,7 @@ AudienceScreenList audience_screen_list()
 static inline AudienceWindowList shell_unsafe_window_list()
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_list));
+  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC(audience_window_list, AudienceWindowList));
 
   // ensure initialization
   if (!audience_is_initialized())
@@ -503,6 +504,7 @@ static inline void shell_unsafe_quit()
   }
 
   // quit
+  SPDLOG_TRACE("shell_unsafe_quit() called");
   return nucleus_quit();
 }
 

@@ -294,11 +294,52 @@ void nucleus_impl_window_post_message(AudienceWindowContext context, const std::
 
 void nucleus_impl_window_destroy(AudienceWindowContext context)
 {
-  if (context->window != nullptr)
-  {
-    gtk_window_close(GTK_WINDOW(context->window));
-    SPDLOG_INFO("window close triggered");
-  }
+  SPDLOG_TRACE("delaying call to gtk_widget_destroy()");
+  gdk_threads_add_idle_full(
+      G_PRIORITY_HIGH_IDLE,
+      [](void *context_void) {
+        AudienceWindowContext *context = reinterpret_cast<AudienceWindowContext *>(context_void);
+        if ((*context)->window != nullptr)
+        {
+          SPDLOG_INFO("calling gtk_widget_destroy()");
+          gtk_widget_destroy(GTK_WIDGET((*context)->window));
+        }
+        return FALSE;
+      },
+      new AudienceWindowContext(context),
+      nullptr);
+}
+
+void nucleus_impl_quit()
+{
+  SPDLOG_TRACE("delaying call to gtk_main_quit()");
+  gdk_threads_add_timeout(
+      100,
+      [](void *context) -> int {
+        GList *window_list = gtk_window_list_toplevels();
+        size_t window_count = 0;
+        for (auto i = window_list; i != nullptr; i = i->next)
+        {
+          if (gtk_widget_is_visible(GTK_WIDGET(i->data)))
+          {
+            window_count += 1;
+          }
+          else
+          {
+            SPDLOG_DEBUG("hidden window detected");
+          }
+        }
+        g_list_free(window_list);
+        SPDLOG_INFO("top level windows: {}", window_count);
+        if (window_count == 0)
+        {
+          SPDLOG_INFO("calling gtk_main_quit()");
+          gtk_main_quit();
+          return FALSE;
+        }
+        return TRUE;
+      },
+      nullptr);
 }
 
 void nucleus_impl_main()
@@ -388,16 +429,12 @@ void window_resize_callback(GtkWidget *widget, GdkRectangle *allocation, gpointe
 gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user_data)
 {
   // trigger event
-  bool prevent_close = false;
-
   auto context_priv = reinterpret_cast<AudienceWindowContext *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (context_priv != nullptr)
   {
-    emit_window_will_close(*context_priv, prevent_close);
+    emit_window_close_intent(*context_priv);
   }
-
-  // destroy window
-  if (!prevent_close)
+  else
   {
     gtk_widget_destroy(widget);
   }
@@ -407,13 +444,11 @@ gboolean window_close_callback(GtkWidget *widget, GdkEvent *event, gpointer user
 
 void window_destroy_callback(GtkWidget *widget, gpointer arg)
 {
-  bool prevent_quit = false;
-
   auto context_priv = reinterpret_cast<AudienceWindowContext *>(g_object_get_data(G_OBJECT(widget), WIDGET_HANDLE_KEY));
   if (context_priv != nullptr)
   {
     // trigger event
-    emit_window_close(*context_priv, prevent_quit);
+    emit_window_close(*context_priv, util_is_only_window(*context_priv));
 
     // remove context pointer from widgets
     if ((*context_priv)->window != nullptr)
@@ -431,21 +466,6 @@ void window_destroy_callback(GtkWidget *widget, gpointer arg)
     // discard private context
     delete context_priv;
     SPDLOG_INFO("window closed and private context released");
-  }
-
-  // trigger further events
-  if (!prevent_quit)
-  {
-    // trigger app will quit event
-    prevent_quit = false;
-    emit_app_will_quit(prevent_quit);
-
-    // trigger quit signal
-    if (!prevent_quit)
-    {
-      SPDLOG_INFO("calling gtk_main_quit()");
-      gtk_main_quit();
-    }
   }
 }
 
