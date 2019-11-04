@@ -23,6 +23,7 @@ using namespace winrt::Windows::Web::UI::Interop;
 #define AUDIENCE_MESSAGE_WINDOW_CLASSNAME L"audience_edge_message"
 
 #define WM_AUDIENCE_DISPATCH (WM_APP + 1)
+#define WM_AUDIENCE_DESTROY_WINDOW (WM_APP + 2)
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam);
@@ -334,11 +335,14 @@ void nucleus_impl_window_post_message(AudienceWindowContext context, const std::
 void nucleus_impl_window_destroy(AudienceWindowContext context)
 {
   // destroy window
-  if (context->window != nullptr)
-  {
-    PostMessage(context->window, WM_CLOSE, 0, 0);
-    SPDLOG_INFO("window close triggered");
-  }
+  SPDLOG_INFO("delaying call of DestroyWindow()");
+  PostMessageW(_audience_message_window, WM_AUDIENCE_DESTROY_WINDOW, (WPARAM) new AudienceWindowContext(context), 0);
+}
+
+void nucleus_impl_quit()
+{
+  SPDLOG_INFO("delaying call of PostQuitMessage()");
+  SetTimer(_audience_message_window, 1, 100, nullptr);
 }
 
 void nucleus_impl_main()
@@ -406,6 +410,48 @@ LRESULT CALLBACK MessageWndProc(HWND window, UINT message, WPARAM wParam, LPARAM
     auto context = reinterpret_cast<void *>(lParam);
     task(context);
     return 0;
+  }
+  else if (message == WM_AUDIENCE_DESTROY_WINDOW)
+  {
+    auto context = reinterpret_cast<AudienceWindowContext*>(wParam);
+    if ((*context)->window != nullptr)
+    {
+      SPDLOG_INFO("calling DestroyWindow()");
+      DestroyWindow((*context)->window);
+    }
+    delete context;
+    return 0;
+  }
+  else if (message == WM_TIMER && wParam == 1)
+  {
+    size_t window_count = 0;
+    bool enum_success = EnumWindows(
+        [](HWND hwnd, LPARAM lParam) -> BOOL {
+          size_t &window_count = *reinterpret_cast<size_t *>(lParam);
+          DWORD hwnd_pid = 0;
+          GetWindowThreadProcessId(hwnd, &hwnd_pid);
+          wchar_t hwnd_class[250]{};
+          if (GetClassNameW(hwnd, hwnd_class, 250) != 0)
+          {
+            if (GetCurrentProcessId() == hwnd_pid && IsWindowVisible(hwnd) && std::wstring(hwnd_class) == std::wstring(AUDIENCE_MESSAGE_WINDOW_CLASSNAME))
+            {
+              window_count += 1;
+            }
+          }
+          return TRUE;
+        },
+        (LPARAM)&window_count);
+    if (!enum_success)
+    {
+      return 0;
+    }
+    SPDLOG_DEBUG("found {} windows", window_count);
+    if (window_count == 0)
+    {
+      KillTimer(_audience_message_window, 1);
+      SPDLOG_DEBUG("calling PostQuitMessage() now");
+      PostQuitMessage(0);
+    }
   }
 
   // execute default window procedure
@@ -480,33 +526,23 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 
   case WM_CLOSE:
   {
-    bool prevent_close = false;
-
     // trigger event
     auto context_priv = reinterpret_cast<AudienceWindowContext *>(GetWindowLongPtrW(window, GWLP_USERDATA));
     if (context_priv != nullptr)
     {
-      emit_window_will_close(*context_priv, prevent_close);
+      emit_window_close_intent(*context_priv);
     }
     else
     {
       SPDLOG_ERROR("private context invalid");
-    }
-
-    // close window
-    if (!prevent_close)
-    {
       DestroyWindow(window);
     }
-
     return 0;
   }
   break;
 
   case WM_DESTROY:
   {
-    bool prevent_quit = false;
-
     // clear timer for title updates
     KillTimer(window, 0x1);
 
@@ -515,7 +551,7 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     if (context_priv != nullptr)
     {
       // trigger event
-      emit_window_close(*context_priv, prevent_quit);
+      emit_window_close(*context_priv, util_is_only_window(*context_priv));
 
       // reset referenced window and widget
       (*context_priv)->webview = nullptr;
@@ -530,21 +566,6 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     else
     {
       SPDLOG_ERROR("private context invalid");
-    }
-
-    // trigger further events
-    if (!prevent_quit)
-    {
-      // trigger app will quit event
-      prevent_quit = false;
-      emit_app_will_quit(prevent_quit);
-
-      // quit message loop
-      if (!prevent_quit)
-      {
-        SPDLOG_INFO("posting WM_QUIT");
-        PostQuitMessage(0);
-      }
     }
   }
   break;

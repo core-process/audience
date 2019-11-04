@@ -332,7 +332,9 @@ add_executable(audience WIN32
   src/shell/app/channel.cpp
 )
 target_link_libraries(audience PRIVATE spdlog audience_shared json uvw cxxopts)
-if(APPLE)
+if(WIN32)
+  target_link_libraries(audience PRIVATE ws2_32 iphlpapi psapi userenv)
+elseif(APPLE)
   target_link_libraries(audience PRIVATE "-framework CoreFoundation")
 endif()
 if(STRIP_BINARIES)

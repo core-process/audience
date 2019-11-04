@@ -304,6 +304,7 @@ void nucleus_impl_window_destroy(AudienceWindowContext context)
           SPDLOG_INFO("calling gtk_widget_destroy()");
           gtk_widget_destroy(GTK_WIDGET((*context)->window));
         }
+        delete context;
         return FALSE;
       },
       new AudienceWindowContext(context),
