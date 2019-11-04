@@ -5,6 +5,8 @@
 #include <numeric>
 #include <atomic>
 #include <set>
+#include <regex>
+#include <mutex>
 #include <spdlog/spdlog.h>
 #include <json.hpp>
 
@@ -17,154 +19,100 @@
 
 using json = nlohmann::json;
 
-static std::unique_ptr<std::thread> loop_thread;         // can only be used from controlling thread
-static std::shared_ptr<uvw::AsyncHandle> async_shutdown; // can be used from controlling and loop thread
-static std::shared_ptr<uvw::AsyncHandle> async_activate; // can be used from controlling and loop thread
+static std::unique_ptr<std::thread> loop_thread; // can only be used from controlling thread
 
-static bool activated = false;                           // can only be used from loop thread
-static std::shared_ptr<uvw::PipeHandle> server;          // can only be used from loop thread
-static std::set<std::shared_ptr<uvw::PipeHandle>> peers; // can only be used from loop thread
+static std::mutex mutex;                                        // protects the following variables (except before loop thread started):
+std::shared_ptr<uvw::Loop> loop;                                // can be used from controlling and from loop thread
+static std::vector<uvw::DataEvent> outgoing_events;             // can be used from controlling and from loop thread
+static std::shared_ptr<uvw::AsyncHandle> async_handle_emit;     // can be used from controlling and from loop thread
+static std::shared_ptr<uvw::AsyncHandle> async_handle_activate; // can be used from controlling and from loop thread
+static std::shared_ptr<uvw::AsyncHandle> async_handle_shutdown; // can be used from controlling and from loop thread
 
-std::vector<uvw::DataEvent> incoming_commands; // can only be used from loop thread
-std::vector<uvw::DataEvent> outgoing_events;   // can only be used from loop thread
+static bool is_activated;                             // can only be used from loop thread
+static bool is_connected;                             // can only be used from loop thread
+static std::shared_ptr<uvw::PipeHandle> peer;         // can only be used from loop thread (except before loop thread started)
+static std::vector<uvw::DataEvent> incoming_chunks;   // can only be used from loop thread
+static std::vector<uvw::DataEvent> incoming_commands; // can only be used from loop thread
 
-void _peer_execute_command(const uvw::DataEvent &);
+static void _async_emit_handler(const uvw::AsyncEvent &, uvw::AsyncHandle &);     // called on loop thread only
+static void _async_activate_handler(const uvw::AsyncEvent &, uvw::AsyncHandle &); // called on loop thread only
+static void _async_shutdown_handler(const uvw::AsyncEvent &, uvw::AsyncHandle &); // called on loop thread only
 
-void _server_on_listen(const uvw::ListenEvent &, uvw::PipeHandle &);
-void _server_on_error(const uvw::ErrorEvent &, uvw::PipeHandle &);
+static void _peer_execute_command(const uvw::DataEvent &); // called on loop thread only
 
-void _peer_on_data(uvw::DataEvent &, uvw::PipeHandle &);
-void _peer_on_shutdown(const uvw::ShutdownEvent &, uvw::PipeHandle &);
-void _peer_on_end(const uvw::EndEvent &, uvw::PipeHandle &);
-void _peer_on_close(const uvw::CloseEvent &, uvw::PipeHandle &);
-void _peer_on_error(const uvw::ErrorEvent &, uvw::PipeHandle &);
+static void _peer_on_data(uvw::DataEvent &, uvw::PipeHandle &);               // called on loop thread only
+static void _peer_on_connect(const uvw::ConnectEvent &, uvw::PipeHandle &);   // called on loop thread only
+static void _peer_on_shutdown(const uvw::ShutdownEvent &, uvw::PipeHandle &); // called on loop thread only
+static void _peer_on_end(const uvw::EndEvent &, uvw::PipeHandle &);           // called on loop thread only
+static void _peer_on_close(const uvw::CloseEvent &, uvw::PipeHandle &);       // called on loop thread only
+static void _peer_on_error(const uvw::ErrorEvent &, uvw::PipeHandle &);       // called on loop thread only
 
-struct peer_data_t
+static void _push_queues(); // called on loop thread only
+
+void channel_create(const std::string &path) // called on controlling thread
 {
-  std::vector<uvw::DataEvent> incoming_chunks;
-  peer_data_t() : incoming_chunks{} {}
-};
+  SPDLOG_DEBUG("create channel: {}", path);
 
-void channel_prepare(const std::string &path, bool server_mode)
-{
-  SPDLOG_DEBUG("preparing channel: {}", path);
-
-  std::shared_ptr<uvw::Loop> loop = uvw::Loop::create();
-
-#if !defined(WIN32)
-  if (server_mode)
+#if defined(WIN32)
+  if (!std::regex_match(path, std::regex(R"(^\\\\\.\\pipe\\[\w]+$)", std::regex::ECMAScript | std::regex::icase)))
   {
-    auto clean_stale_pipe = loop->resource<uvw::FsReq>();
-    clean_stale_pipe->unlinkSync(path);
-    clean_stale_pipe.reset();
+    throw std::invalid_argument("channel path should be formatted \\\\.\\pipe\\<NAME>");
   }
 #endif
 
-  async_shutdown = loop->resource<uvw::AsyncHandle>();
-  async_shutdown->on<uvw::AsyncEvent>([loop](const uvw::AsyncEvent &, uvw::AsyncHandle &) {
-    // shutdown active peers
-    for (auto &c : peers)
+  loop = uvw::Loop::create();
+
+  async_handle_emit = loop->resource<uvw::AsyncHandle>();
+  async_handle_activate = loop->resource<uvw::AsyncHandle>();
+  async_handle_shutdown = loop->resource<uvw::AsyncHandle>();
+
+  async_handle_emit->on<uvw::AsyncEvent>(_async_emit_handler);
+  async_handle_activate->on<uvw::AsyncEvent>(_async_activate_handler);
+  async_handle_shutdown->on<uvw::AsyncEvent>(_async_shutdown_handler);
+
+  peer = loop->resource<uvw::PipeHandle>();
+  peer->on<uvw::DataEvent>(_peer_on_data);
+  peer->once<uvw::ConnectEvent>(_peer_on_connect);
+  peer->once<uvw::ShutdownEvent>(_peer_on_shutdown);
+  peer->once<uvw::EndEvent>(_peer_on_end);
+  peer->once<uvw::CloseEvent>(_peer_on_close);
+  peer->once<uvw::ErrorEvent>(_peer_on_error);
+
+  peer->connect(path);
+
+  // run the loop
+  loop_thread = std::make_unique<std::thread>([]() {
+    if (loop)
     {
-      c->shutdown();
+      loop->run();
     }
-    peers.clear();
-    // shutdown listening server
-    if (server)
-    {
-      SPDLOG_DEBUG("closing server pipe");
-      server->close();
-      server.reset();
-    }
-    // reset state
-    if (async_shutdown)
-    {
-      SPDLOG_DEBUG("closing async shutdown resource");
-      async_shutdown->close();
-      async_shutdown.reset();
-    }
-    if (async_activate)
-    {
-      SPDLOG_DEBUG("closing async activate resource");
-      async_activate->close();
-      async_activate.reset();
-    }
-    activated = false;
-  });
-
-  async_activate = loop->resource<uvw::AsyncHandle>();
-  async_activate->on<uvw::AsyncEvent>([](const uvw::AsyncEvent &, uvw::AsyncHandle &) {
-    // execute all buffered incoming commands
-    for (auto &command : incoming_commands)
-    {
-      _peer_execute_command(command);
-    }
-    incoming_commands.clear();
-    // push all buffered outgoing events
-    for (auto &event : outgoing_events)
-    {
-      for (auto &peer : peers)
-      {
-        auto data_copy = std::make_unique<char[]>(event.length);
-        std::copy(event.data.get(), event.data.get() + event.length, data_copy.get());
-        peer->write(std::move(data_copy), event.length);
-      }
-    }
-    outgoing_events.clear();
-    // stop buffering of commands and events
-    activated = true;
-  });
-
-  if (server_mode)
-  {
-    server = loop->resource<uvw::PipeHandle>();
-    server->on<uvw::ErrorEvent>(_server_on_error);
-    server->on<uvw::ListenEvent>(_server_on_listen);
-    server->bind(path);
-    server->listen();
-  }
-  else
-  {
-    std::shared_ptr<uvw::PipeHandle> peer = loop->resource<uvw::PipeHandle>();
-
-    peer->data(std::make_shared<peer_data_t>());
-
-    peer->on<uvw::ErrorEvent>(_peer_on_error);
-    peer->on<uvw::DataEvent>(_peer_on_data);
-    peer->on<uvw::ShutdownEvent>(_peer_on_shutdown);
-    peer->on<uvw::EndEvent>(_peer_on_end);
-    peer->on<uvw::CloseEvent>(_peer_on_close);
-
-    peer->once<uvw::ConnectEvent>([](const uvw::ConnectEvent &, uvw::PipeHandle &peer) {
-      SPDLOG_DEBUG("connected to server");
-      peer.read();
-    });
-
-    peer->connect(path);
-    peers.insert(peer);
-  }
-
-  loop_thread = std::make_unique<std::thread>([loop]() {
-    loop->run();
   });
 }
 
-void channel_activate()
+void channel_activate() // called on controlling thread
 {
   SPDLOG_DEBUG("activating channel");
 
-  if (async_activate)
   {
-    async_activate->send();
+    std::lock_guard<std::mutex> lock(mutex);
+    if (async_handle_activate)
+    {
+      async_handle_activate->send();
+    }
   }
 }
 
-void channel_shutdown()
+void channel_shutdown() // called on controlling thread
 {
   SPDLOG_DEBUG("shutting down channel");
 
-  if (async_shutdown)
   {
-    async_shutdown->send();
+    std::lock_guard<std::mutex> lock(mutex);
+    if (async_handle_shutdown)
+    {
+      SPDLOG_DEBUG("... sending async shutdown");
+      async_handle_shutdown->send();
+    }
   }
 
   if (loop_thread)
@@ -174,68 +122,109 @@ void channel_shutdown()
     loop_thread.reset();
   }
 
+  if (loop)
+  {
+    SPDLOG_DEBUG("... take over last iterations of loop");
+    loop->run();
+    loop.reset();
+  }
+
   SPDLOG_DEBUG("channel shutdown completed");
 }
 
-void channel_emit(std::string name, json data)
+static void _push_queues()
 {
-  auto event = json{{"name", name}, {"data", data}}.dump() + "\n";
-
-  if (activated)
+  // execute commands
+  if (is_activated)
   {
-    for (auto &peer : peers)
+    SPDLOG_DEBUG("executing commands (count={})", incoming_commands.size());
+    for (auto &command : incoming_commands)
     {
-      uvw::DataEvent event_raw(std::make_unique<char[]>(event.length()), event.length());
-      std::copy(event.begin(), event.end(), event_raw.data.get());
-
-      peer->write(std::move(event_raw.data), event_raw.length);
+      _peer_execute_command(command);
     }
+    incoming_commands.clear();
   }
   else
   {
-    uvw::DataEvent event_raw(std::make_unique<char[]>(event.length()), event.length());
-    std::copy(event.begin(), event.end(), event_raw.data.get());
+    SPDLOG_DEBUG("delay execution of commands (count={})", incoming_commands.size());
+  }
 
-    outgoing_events.push_back(std::move(event_raw));
+  // send events
+  if (is_connected)
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    SPDLOG_DEBUG("sending events (count={})", outgoing_events.size());
+    for (auto &event : outgoing_events)
+    {
+      if (peer)
+      {
+        peer->write(std::move(event.data), event.length);
+      }
+    }
+    outgoing_events.clear();
+  }
+  else
+  {
+    SPDLOG_DEBUG("delay sending of events (count={})", outgoing_events.size());
+  }
+}
+
+static void _channel_emit(std::string name, json data) // called on controlling or loop thread (applies to all emit function)
+{
+  // serialize event json
+  auto event = json{{"name", name}, {"data", data}}.dump() + "\n";
+
+  // prepare raw event data
+  uvw::DataEvent event_raw(std::make_unique<char[]>(event.length()), event.length());
+  std::copy(event.begin(), event.end(), event_raw.data.get());
+
+  // queue and trigger async emit on loop thread
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+    if (async_handle_emit)
+    {
+      outgoing_events.push_back(std::move(event_raw));
+      async_handle_emit->send();
+    }
   }
 }
 
 void channel_emit_window_message(AudienceWindowHandle handle, const wchar_t *message)
 {
-  channel_emit("window_message", json{{"handle", handle}, {"message", utf16_to_utf8(message)}});
+  _channel_emit("window_message", json{{"handle", handle}, {"message", utf16_to_utf8(message)}});
 }
 
 void channel_emit_window_close_intent(AudienceWindowHandle handle)
 {
-  channel_emit("window_close_intent", json{{"handle", handle}});
+  _channel_emit("window_close_intent", json{{"handle", handle}});
 }
 
 void channel_emit_window_close(AudienceWindowHandle handle, bool is_last_window)
 {
-  channel_emit("window_close", json{{"handle", handle}, {"is_last_window", is_last_window}});
+  _channel_emit("window_close", json{{"handle", handle}, {"is_last_window", is_last_window}});
 }
 
-void channel_emit_quit()
+void channel_emit_app_quit()
 {
-  channel_emit("quit", json{});
+  _channel_emit("app_quit", json{});
 }
 
-void channel_emit_command_succeeded(std::string id, json result)
+static void _channel_emit_command_succeeded(std::string id, json result)
 {
-  channel_emit("command_succeeded", json{{"id", id, "result", result}});
+  _channel_emit("command_succeeded", json{{"id", id, "result", result}});
 }
 
-void channel_emit_command_succeeded(std::string id)
+static void _channel_emit_command_succeeded(std::string id)
 {
-  channel_emit("command_succeeded", json{{"id", id}});
+  _channel_emit("command_succeeded", json{{"id", id}});
 }
 
-void channel_emit_command_failed(std::string id, const std::string &reason)
+static void _channel_emit_command_failed(std::string id, const std::string &reason)
 {
-  channel_emit("command_failed", json{{"id", id}, {"reason", reason}});
+  _channel_emit("command_failed", json{{"id", id}, {"reason", reason}});
 }
 
-void _peer_execute_command(const uvw::DataEvent &command_raw)
+static void _peer_execute_command(const uvw::DataEvent &command_raw)
 {
   try
   {
@@ -274,7 +263,7 @@ void _peer_execute_command(const uvw::DataEvent &command_raw)
           result_json["screens"].push_back(screen);
         }
 
-        channel_emit_command_succeeded(id, std::move(result_json));
+        _channel_emit_command_succeeded(id, std::move(result_json));
       }
       else if (func == "window_list")
       {
@@ -297,7 +286,7 @@ void _peer_execute_command(const uvw::DataEvent &command_raw)
           result_json["windows"].push_back(window);
         }
 
-        channel_emit_command_succeeded(id, std::move(result_json));
+        _channel_emit_command_succeeded(id, std::move(result_json));
       }
       else if (func == "window_create")
       {
@@ -409,7 +398,7 @@ void _peer_execute_command(const uvw::DataEvent &command_raw)
           throw std::runtime_error("could not create window");
         }
 
-        channel_emit_command_succeeded(id, json(result));
+        _channel_emit_command_succeeded(id, json(result));
       }
       else if (func == "window_update_position")
       {
@@ -422,7 +411,7 @@ void _peer_execute_command(const uvw::DataEvent &command_raw)
         position.size.height = args.at("height").get<double>();
 
         audience_window_update_position(handle, position);
-        channel_emit_command_succeeded(id);
+        _channel_emit_command_succeeded(id);
       }
       else if (func == "window_post_message")
       {
@@ -430,19 +419,19 @@ void _peer_execute_command(const uvw::DataEvent &command_raw)
         auto message = utf8_to_utf16(args.at("message").get<std::string>());
 
         audience_window_post_message(handle, message.c_str());
-        channel_emit_command_succeeded(id);
+        _channel_emit_command_succeeded(id);
       }
       else if (func == "window_destroy")
       {
         auto handle = args.at("handle").get<AudienceWindowHandle>();
 
         audience_window_destroy(handle);
-        channel_emit_command_succeeded(id);
+        _channel_emit_command_succeeded(id);
       }
       else if (func == "quit")
       {
         audience_quit();
-        channel_emit_command_succeeded(id);
+        _channel_emit_command_succeeded(id);
       }
       else
       {
@@ -452,12 +441,12 @@ void _peer_execute_command(const uvw::DataEvent &command_raw)
     catch (const std::exception &e)
     {
       SPDLOG_ERROR("{}", e);
-      channel_emit_command_failed(id, e.what());
+      _channel_emit_command_failed(id, e.what());
     }
     catch (...)
     {
       SPDLOG_ERROR("unknown error");
-      channel_emit_command_failed(id, "unknown error");
+      _channel_emit_command_failed(id, "unknown error");
     }
   }
   catch (const std::exception &e)
@@ -470,35 +459,68 @@ void _peer_execute_command(const uvw::DataEvent &command_raw)
   }
 }
 
-void _server_on_listen(const uvw::ListenEvent &, uvw::PipeHandle &server)
+static void _async_emit_handler(const uvw::AsyncEvent &, uvw::AsyncHandle &)
 {
-  SPDLOG_DEBUG("accepting new peer connection");
-
-  std::shared_ptr<uvw::PipeHandle> peer = server.loop().resource<uvw::PipeHandle>();
-
-  peer->data(std::make_shared<peer_data_t>());
-
-  peer->on<uvw::ErrorEvent>(_peer_on_error);
-  peer->on<uvw::DataEvent>(_peer_on_data);
-  peer->on<uvw::ShutdownEvent>(_peer_on_shutdown);
-  peer->on<uvw::EndEvent>(_peer_on_end);
-  peer->on<uvw::CloseEvent>(_peer_on_close);
-
-  server.accept(*peer);
-  peers.insert(peer);
-  peer->read();
+  _push_queues();
 }
 
-void _server_on_error(const uvw::ErrorEvent &event, uvw::PipeHandle &server)
+static void _async_activate_handler(const uvw::AsyncEvent &, uvw::AsyncHandle &)
 {
-  SPDLOG_ERROR("{}", event.what());
-  server.close();
+  is_activated = true;
+  _push_queues();
+
+  if (!peer || peer->closing())
+  {
+    SPDLOG_WARN("peer already closed on activation, quitting app...");
+    audience_quit();
+  }
 }
 
-void _peer_on_data(uvw::DataEvent &cur_chunk, uvw::PipeHandle &peer)
+static void _async_shutdown_handler(const uvw::AsyncEvent &, uvw::AsyncHandle &)
 {
-  auto &incoming_chunks = peer.data<peer_data_t>()->incoming_chunks;
+  is_activated = false;
+  is_connected = false;
 
+  if (peer)
+  {
+    SPDLOG_TRACE("initiate shutdown of peer");
+    peer->shutdown();
+  }
+
+  {
+    std::lock_guard<std::mutex> lock(mutex);
+
+    if (async_handle_emit)
+    {
+      SPDLOG_TRACE("closing async handle: emit");
+      async_handle_emit->close();
+      async_handle_emit.reset();
+    }
+
+    if (async_handle_activate)
+    {
+      SPDLOG_TRACE("closing async handle: activate");
+      async_handle_activate->close();
+      async_handle_activate.reset();
+    }
+
+    if (async_handle_shutdown)
+    {
+      SPDLOG_TRACE("closing async handle: shutdown");
+      async_handle_shutdown->close();
+      async_handle_shutdown.reset();
+    }
+
+    if (loop)
+    {
+      SPDLOG_TRACE("stopping loop on loop thread");
+      loop->stop();
+    }
+  }
+}
+
+static void _peer_on_data(uvw::DataEvent &cur_chunk, uvw::PipeHandle &)
+{
   // scan for next newline
   for (size_t i = 0; i < cur_chunk.length;)
   {
@@ -554,40 +576,63 @@ void _peer_on_data(uvw::DataEvent &cur_chunk, uvw::PipeHandle &peer)
     incoming_chunks.push_back(std::move(cur_chunk));
   }
 
-  // execute all pending commands if activated
-  if (activated)
+  // push queues
+  _push_queues();
+}
+
+static void _peer_on_connect(const uvw::ConnectEvent &, uvw::PipeHandle &)
+{
+  SPDLOG_DEBUG("peer stream connected");
+  is_connected = true;
+  if (peer)
   {
-    for (auto &command : incoming_commands)
-    {
-      _peer_execute_command(command);
-    }
-    incoming_commands.clear();
+    peer->read();
+  }
+  _push_queues();
+}
+
+static void _peer_on_shutdown(const uvw::ShutdownEvent &, uvw::PipeHandle &)
+{
+  SPDLOG_DEBUG("peer stream shutdown");
+  is_connected = false;
+  if (peer)
+  {
+    peer->close();
+    peer.reset();
   }
 }
 
-void _peer_on_shutdown(const uvw::ShutdownEvent &, uvw::PipeHandle &peer)
-{
-  SPDLOG_DEBUG("peer stream shutdown");
-  peers.erase(peer.shared_from_this());
-  peer.close();
-}
-
-void _peer_on_end(const uvw::EndEvent &, uvw::PipeHandle &peer)
+static void _peer_on_end(const uvw::EndEvent &, uvw::PipeHandle &)
 {
   SPDLOG_DEBUG("peer stream ended");
-  peers.erase(peer.shared_from_this());
-  peer.shutdown();
+  is_connected = false;
+  if (peer)
+  {
+    peer->shutdown();
+  }
 }
 
-void _peer_on_close(const uvw::CloseEvent &, uvw::PipeHandle &peer)
+static void _peer_on_close(const uvw::CloseEvent &, uvw::PipeHandle &)
 {
   SPDLOG_DEBUG("peer pipe closed");
-  peers.erase(peer.shared_from_this());
+  is_connected = false;
+  if (is_activated)
+  {
+    audience_quit();
+  }
 }
 
-void _peer_on_error(const uvw::ErrorEvent &event, uvw::PipeHandle &peer)
+static void _peer_on_error(const uvw::ErrorEvent &event, uvw::PipeHandle &)
 {
   SPDLOG_ERROR("peer error: {}", event.what());
-  peers.erase(peer.shared_from_this());
-  peer.close();
+  is_connected = false;
+  if (peer)
+  {
+    peer->close();
+    peer.reset();
+  }
+  if (is_activated)
+  {
+    audience_quit();
+  }
 }

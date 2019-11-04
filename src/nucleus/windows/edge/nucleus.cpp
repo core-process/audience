@@ -5,6 +5,7 @@
 #include <winrt/Windows.Web.UI.Interop.h>
 
 #include <memory>
+#include <atomic>
 #include <spdlog/spdlog.h>
 
 #include "../../../common/scope_guard.h"
@@ -31,7 +32,7 @@ LRESULT CALLBACK MessageWndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
 Rect GetWebViewTargetPosition(const AudienceWindowContext context);
 void UpdateWebViewPosition(const AudienceWindowContext context);
 
-HWND _audience_message_window = nullptr;
+std::atomic<HWND> _audience_message_window = nullptr;
 
 bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const NucleusImplAppDetails &details)
 {
@@ -63,7 +64,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   }
 
   _audience_message_window = CreateWindowExW(0, AUDIENCE_MESSAGE_WINDOW_CLASSNAME, AUDIENCE_MESSAGE_WINDOW_CLASSNAME, 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
-  if (!_audience_message_window)
+  if (!_audience_message_window.load())
   {
     return false;
   }
@@ -336,13 +337,13 @@ void nucleus_impl_window_destroy(AudienceWindowContext context)
 {
   // destroy window
   SPDLOG_INFO("delaying call of DestroyWindow()");
-  PostMessageW(_audience_message_window, WM_AUDIENCE_DESTROY_WINDOW, (WPARAM) new AudienceWindowContext(context), 0);
+  PostMessageW(_audience_message_window.load(), WM_AUDIENCE_DESTROY_WINDOW, (WPARAM) new AudienceWindowContext(context), 0);
 }
 
 void nucleus_impl_quit()
 {
   SPDLOG_INFO("delaying call of PostQuitMessage()");
-  SetTimer(_audience_message_window, 1, 100, nullptr);
+  SetTimer(_audience_message_window.load(), 1, 100, nullptr);
 }
 
 void nucleus_impl_main()
@@ -388,7 +389,7 @@ void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
 
   // execute wrapper
   SPDLOG_INFO("dispatching task on main queue (sync)");
-  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)(void (*)(void *))wrapper, (LPARAM)&wrapper_lambda);
+  PostMessageW(_audience_message_window.load(), WM_AUDIENCE_DISPATCH, (WPARAM)(void (*)(void *))wrapper, (LPARAM)&wrapper_lambda);
 
   // wait for ready signal
   std::unique_lock<std::mutex> wait_lock(mutex);
@@ -398,7 +399,7 @@ void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
 void nucleus_impl_dispatch_async(void (*task)(void *context), void *context)
 {
   SPDLOG_INFO("dispatching task on main queue (async)");
-  PostMessageW(_audience_message_window, WM_AUDIENCE_DISPATCH, (WPARAM)task, (LPARAM)context);
+  PostMessageW(_audience_message_window.load(), WM_AUDIENCE_DISPATCH, (WPARAM)task, (LPARAM)context);
 }
 
 LRESULT CALLBACK MessageWndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam)
@@ -448,7 +449,7 @@ LRESULT CALLBACK MessageWndProc(HWND window, UINT message, WPARAM wParam, LPARAM
     SPDLOG_DEBUG("found {} windows", window_count);
     if (window_count == 0)
     {
-      KillTimer(_audience_message_window, 1);
+      KillTimer(_audience_message_window.load(), 1);
       SPDLOG_DEBUG("calling PostQuitMessage() now");
       PostQuitMessage(0);
     }

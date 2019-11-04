@@ -57,20 +57,36 @@ static std::thread::id shell_thread_binding_id;
 
 #define SHELL_DISPATCH_SYNC(fn, return_type, ...)                                          \
   {                                                                                        \
-    SPDLOG_INFO("dispatching {} to main thread", #fn);                                     \
     return_type return_value{};                                                            \
     auto task_lambda = [&]() { return_value = fn(__VA_ARGS__); };                          \
     auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); }; \
-    nucleus_dispatch_sync(task, &task_lambda);                                             \
+    auto ds = nucleus_dispatch_sync.load();                                                \
+    if (ds != nullptr)                                                                     \
+    {                                                                                      \
+      SPDLOG_INFO("dispatching {} to main thread", #fn);                                   \
+      ds(task, &task_lambda);                                                              \
+    }                                                                                      \
+    else                                                                                   \
+    {                                                                                      \
+      SPDLOG_WARN("could not dispatch {} to main thread", #fn);                            \
+    }                                                                                      \
     return return_value;                                                                   \
   }
 
 #define SHELL_DISPATCH_SYNC_VOID(fn, ...)                                                  \
   {                                                                                        \
-    SPDLOG_INFO("dispatching {} to main thread", #fn);                                     \
     auto task_lambda = [&]() { fn(__VA_ARGS__); };                                         \
     auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); }; \
-    nucleus_dispatch_sync(task, &task_lambda);                                             \
+    auto ds = nucleus_dispatch_sync.load();                                                \
+    if (ds != nullptr)                                                                     \
+    {                                                                                      \
+      SPDLOG_INFO("dispatching {} to main thread", #fn);                                   \
+      ds(task, &task_lambda);                                                              \
+    }                                                                                      \
+    else                                                                                   \
+    {                                                                                      \
+      SPDLOG_WARN("could not dispatch {} to main thread", #fn);                            \
+    }                                                                                      \
     return;                                                                                \
   }
 
@@ -83,8 +99,9 @@ static nucleus_window_post_message_t nucleus_window_post_message = nullptr;
 static nucleus_window_destroy_t nucleus_window_destroy = nullptr;
 static nucleus_quit_t nucleus_quit = nullptr;
 static nucleus_main_t nucleus_main = nullptr;
-static nucleus_dispatch_sync_t nucleus_dispatch_sync = nullptr;
-static nucleus_dispatch_async_t nucleus_dispatch_async = nullptr;
+
+static std::atomic<nucleus_dispatch_sync_t> nucleus_dispatch_sync = nullptr;
+static std::atomic<nucleus_dispatch_async_t> nucleus_dispatch_async = nullptr;
 
 static AudienceNucleusProtocolNegotiation shell_protocol_negotiation{};
 static boost::bimap<AudienceWindowHandle, WebserverContext> shell_webserver_registry{};
@@ -92,17 +109,13 @@ static boost::bimap<AudienceWindowHandle, WebserverContext> shell_webserver_regi
 static AudienceAppEventHandler audience_app_event_handler{};
 static std::map<AudienceWindowHandle, AudienceWindowEventHandler> audience_window_event_handler{};
 
-static bool audience_mode_shutdown = false;
+static std::atomic<bool> audience_is_initialized = false;
+static std::atomic<bool> audience_is_shutdown = false;
 
 static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, const wchar_t *message);
 static inline void shell_unsafe_on_window_close_intent(AudienceWindowHandle handle);
 static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool is_last_window);
 static inline void shell_unsafe_on_app_quit();
-
-static inline bool audience_is_initialized()
-{
-  return nucleus_init != nullptr && nucleus_screen_list != nullptr && nucleus_window_list != nullptr && nucleus_window_create != nullptr && nucleus_window_update_position != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_quit != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync != nullptr && nucleus_dispatch_async != nullptr;
-}
 
 static inline bool shell_unsafe_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
 {
@@ -122,8 +135,9 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
   SHELL_CHECK_THREAD_BINDING_THROW;
 
   // prevent double initialization
-  if (audience_is_initialized())
+  if (audience_is_initialized.load())
   {
+    SPDLOG_DEBUG("prevent double initialization");
     return true;
   }
 
@@ -216,7 +230,9 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
       nucleus_dispatch_sync = (nucleus_dispatch_sync_t)LookupFunction(dlh, "nucleus_dispatch_sync");
       nucleus_dispatch_async = (nucleus_dispatch_async_t)LookupFunction(dlh, "nucleus_dispatch_async");
 
-      if (!audience_is_initialized())
+      bool all_funcs_available = nucleus_init != nullptr && nucleus_screen_list != nullptr && nucleus_window_list != nullptr && nucleus_window_create != nullptr && nucleus_window_update_position != nullptr && nucleus_window_post_message != nullptr && nucleus_window_destroy != nullptr && nucleus_quit != nullptr && nucleus_main != nullptr && nucleus_dispatch_sync.load() != nullptr && nucleus_dispatch_async.load() != nullptr;
+
+      if (!all_funcs_available)
       {
         SPDLOG_INFO("could not find function pointer in library {}", utf16_to_utf8(dylib));
       }
@@ -228,10 +244,13 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
       shell_protocol_negotiation.shell_event_handler.window_level.on_close = SAFE_FN(shell_unsafe_on_window_close);
       shell_protocol_negotiation.shell_event_handler.app_level.on_quit = SAFE_FN(shell_unsafe_on_app_quit);
 
-      if (audience_is_initialized() && nucleus_init(&shell_protocol_negotiation, &nucleus_details))
+      if (all_funcs_available && nucleus_init(&shell_protocol_negotiation, &nucleus_details))
       {
+        // copy event handler info and set init state
+        audience_app_event_handler = *event_handler;
+        audience_is_initialized = true;
         SPDLOG_INFO("library {} loaded successfully", utf16_to_utf8(dylib));
-        break;
+        return true;
       }
       else
       {
@@ -264,15 +283,8 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
     }
   }
 
-  // bail out in case we failed
-  if (!audience_is_initialized())
-  {
-    return false;
-  }
-
-  // copy event handler info, then we are done
-  audience_app_event_handler = *event_handler;
-  return true;
+  SPDLOG_ERROR("initialization failed");
+  return false;
 }
 
 bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler)
@@ -286,8 +298,9 @@ static inline AudienceScreenList shell_unsafe_screen_list()
   SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC(audience_screen_list, AudienceScreenList));
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return AudienceScreenList{};
   }
 
@@ -306,8 +319,9 @@ static inline AudienceWindowList shell_unsafe_window_list()
   SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC(audience_window_list, AudienceWindowList));
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return AudienceWindowList{};
   }
 
@@ -326,8 +340,9 @@ static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWind
   SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC(audience_window_create, AudienceWindowHandle, details, event_handler));
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return {};
   }
 
@@ -371,7 +386,11 @@ static inline AudienceWindowHandle shell_unsafe_window_create(const AudienceWind
         }
       };
       auto task = [](void *context) { (*static_cast<decltype(task_lambda) *>(context))(); };
-      nucleus_dispatch_sync(task, &task_lambda);
+      auto ds = nucleus_dispatch_sync.load();
+      if (ds != nullptr)
+      {
+        ds(task, &task_lambda);
+      }
     });
 
     // construct url of webapp
@@ -423,8 +442,9 @@ static inline void shell_unsafe_window_update_position(AudienceWindowHandle hand
   SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_update_position, handle, position));
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return;
   }
 
@@ -443,8 +463,9 @@ static inline void shell_unsafe_window_post_message(AudienceWindowHandle handle,
   SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_post_message, handle, message));
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return;
   }
 
@@ -480,8 +501,9 @@ static inline void shell_unsafe_window_destroy(AudienceWindowHandle handle)
   SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_window_destroy, handle));
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return;
   }
 
@@ -500,20 +522,15 @@ static inline void shell_unsafe_quit()
   SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(audience_quit));
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
-    return;
-  }
-
-  // prevent call after shutdown
-  if (audience_mode_shutdown)
-  {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return;
   }
 
   // quit
   SPDLOG_TRACE("shell_unsafe_quit() called");
-  audience_mode_shutdown = true;
+  audience_is_shutdown = true;
   return nucleus_quit();
 }
 
@@ -528,8 +545,9 @@ static inline void shell_unsafe_main()
   SHELL_CHECK_THREAD_BINDING_THROW;
 
   // ensure initialization
-  if (!audience_is_initialized())
+  if (!audience_is_initialized.load() || audience_is_shutdown.load())
   {
+    SPDLOG_DEBUG("cannot call api in unitialized state");
     return;
   }
 
@@ -545,7 +563,7 @@ void audience_main()
 static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, const wchar_t *message)
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_message, handle, message));
+  SHELL_CHECK_THREAD_BINDING_THROW;
 
   // call user event handler
   auto ehi = audience_window_event_handler.find(handle);
@@ -564,7 +582,7 @@ static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, c
 static inline void shell_unsafe_on_window_close_intent(AudienceWindowHandle handle)
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_close_intent, handle));
+  SHELL_CHECK_THREAD_BINDING_THROW;
 
   // call user event handler
   auto ehi = audience_window_event_handler.find(handle);
@@ -582,7 +600,7 @@ static inline void shell_unsafe_on_window_close_intent(AudienceWindowHandle hand
 static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool is_last_window)
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_window_close, handle, is_last_window));
+  SHELL_CHECK_THREAD_BINDING_THROW;
 
   // call user event handler
   auto ehi = audience_window_event_handler.find(handle);
@@ -610,7 +628,11 @@ static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, boo
 static inline void shell_unsafe_on_app_quit()
 {
   // validate thread binding
-  SHELL_CHECK_THREAD_BINDING(SHELL_DISPATCH_SYNC_VOID(shell_unsafe_on_app_quit));
+  SHELL_CHECK_THREAD_BINDING_THROW;
+
+  // disable dispatching from now on
+  // nucleus_dispatch_sync = nullptr;
+  // nucleus_dispatch_async = nullptr;
 
   // call user event handler
   if (audience_app_event_handler.on_quit.handler != nullptr)

@@ -67,7 +67,6 @@ int main(int argc, char **argv)
     options.add_options()("top", "Window should stay on top always", cxxopts::value<bool>());
     options.add_options()("dev", "Developer mode; if supported by web view", cxxopts::value<bool>());
     options.add_options()("c,channel", "Command and event channel; a named pipe", cxxopts::value<std::string>());
-    options.add_options()("server", "Use server mode for channel", cxxopts::value<bool>());
     options.add_options()("h,help", "Print help", cxxopts::value<bool>());
 
     // parse arguments
@@ -130,11 +129,11 @@ int main(int argc, char **argv)
 #endif
     }
 
-    // prepare channel
-    bool do_activate_channel = args["channel"].count() > 0;
-    if (do_activate_channel)
+    // create channel
+    bool do_create_channel = args["channel"].count() > 0;
+    if (do_create_channel)
     {
-      channel_prepare(args["channel"].as<std::string>(), args["server"].as<bool>());
+      channel_create(args["channel"].as<std::string>());
     }
 
     // init audience
@@ -206,11 +205,11 @@ int main(int argc, char **argv)
     }
 
     AudienceAppEventHandler aeh{};
-    if (do_activate_channel)
+    if (do_create_channel)
     {
       aeh.on_quit.handler = [](void *context) {
         SPDLOG_DEBUG("event quit");
-        channel_emit_quit();
+        channel_emit_app_quit();
         channel_shutdown();
       };
     }
@@ -321,7 +320,7 @@ int main(int argc, char **argv)
     }
 
     AudienceWindowEventHandler weh{};
-    if (do_activate_channel)
+    if (do_create_channel)
     {
       weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
         SPDLOG_DEBUG("event window::message");
@@ -364,7 +363,7 @@ int main(int argc, char **argv)
       }
     }
 
-    if (do_activate_channel)
+    if (do_create_channel)
     {
       channel_activate();
     }

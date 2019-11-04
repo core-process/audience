@@ -1,6 +1,7 @@
 const net = require('net');
 const readline = require('readline');
 const path = require('path');
+const os = require('os');
 
 const quotes = require('./quotes');
 
@@ -36,4 +37,7 @@ const server = net.createServer(function (peer) {
   peer.write(JSON.stringify({ "func": "window_create", "args": { "dir": path.join(__dirname, '../webapp') } }) + '\n');
 });
 
-server.listen(process.argv[2]);
+const channelPath = (os.platform() == 'win32' ? '\\\\.\\pipe\\' : '/tmp/') + `audience_example_ping_${process.pid}`;
+console.log(`Listening on ${channelPath}`);
+
+server.listen(channelPath);
