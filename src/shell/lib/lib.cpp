@@ -92,6 +92,8 @@ static boost::bimap<AudienceWindowHandle, WebserverContext> shell_webserver_regi
 static AudienceAppEventHandler audience_app_event_handler{};
 static std::map<AudienceWindowHandle, AudienceWindowEventHandler> audience_window_event_handler{};
 
+static bool audience_mode_shutdown = false;
+
 static inline void shell_unsafe_on_window_message(AudienceWindowHandle handle, const wchar_t *message);
 static inline void shell_unsafe_on_window_close_intent(AudienceWindowHandle handle);
 static inline void shell_unsafe_on_window_close(AudienceWindowHandle handle, bool is_last_window);
@@ -503,8 +505,15 @@ static inline void shell_unsafe_quit()
     return;
   }
 
+  // prevent call after shutdown
+  if (audience_mode_shutdown)
+  {
+    return;
+  }
+
   // quit
   SPDLOG_TRACE("shell_unsafe_quit() called");
+  audience_mode_shutdown = true;
   return nucleus_quit();
 }
 

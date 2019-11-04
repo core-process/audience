@@ -3,7 +3,7 @@
 #include <string>
 #include <audience_details.h>
 
-extern void channel_prepare(const std::string& path);
+extern void channel_prepare(const std::string& path, bool server_mode);
 extern void channel_activate();
 extern void channel_shutdown();
 

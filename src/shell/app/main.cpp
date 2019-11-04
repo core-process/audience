@@ -67,6 +67,7 @@ int main(int argc, char **argv)
     options.add_options()("top", "Window should stay on top always", cxxopts::value<bool>());
     options.add_options()("dev", "Developer mode; if supported by web view", cxxopts::value<bool>());
     options.add_options()("c,channel", "Command and event channel; a named pipe", cxxopts::value<std::string>());
+    options.add_options()("server", "Use server mode for channel", cxxopts::value<bool>());
     options.add_options()("h,help", "Print help", cxxopts::value<bool>());
 
     // parse arguments
@@ -133,7 +134,7 @@ int main(int argc, char **argv)
     bool do_activate_channel = args["channel"].count() > 0;
     if (do_activate_channel)
     {
-      channel_prepare(args["channel"].as<std::string>());
+      channel_prepare(args["channel"].as<std::string>(), args["server"].as<bool>());
     }
 
     // init audience
