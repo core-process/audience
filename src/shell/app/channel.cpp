@@ -47,7 +47,7 @@ struct client_data_t
 
 void channel_prepare(const std::string &path)
 {
-  SPDLOG_DEBUG("preparing channel");
+  SPDLOG_DEBUG("preparing channel: {}", path);
 
   std::shared_ptr<uvw::Loop> loop = uvw::Loop::create();
 
