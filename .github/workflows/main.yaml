@@ -234,26 +234,31 @@ jobs:
         shell: bash
         run: |
           set -e
+          nvm use 12.12
           ./build.sh Debug
       - name: Build Release
         shell: bash
         run: |
           set -e
+          nvm use 12.12
           ./build.sh Release
       - name: Build RelWithDebInfo
         shell: bash
         run: |
           set -e
+          nvm use 12.12
           ./build.sh RelWithDebInfo
       - name: Build MinSizeRel
         shell: bash
         run: |
           set -e
+          nvm use 12.12
           ./build.sh MinSizeRel
       - name: Prepare Runtimes
         shell: bash
         run: |
           set -e
+          nvm use 12.12
           ./dist.sh
       - name: Pack
         shell: bash
