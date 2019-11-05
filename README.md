@@ -7,6 +7,8 @@ A small adaptive cross-platform webview window library for C/C++ to build modern
 
 - It supports web apps provided via a filesystem folder or URL. Audience provides its custom web server and websocket service tightly integrated into the library. But if you prefer a regular http URL schema, you can use Express or any other http based framework you like.
 
+- It provides a lightweight C API, a command-line interface, as well as a channel-based API (using Unix sockets and named pipes on Windows).
+
 The following screenshots show a simple web app based on [jQuery Terminal](https://terminal.jcubic.pl/).
 
 <table><tr><td><img src="examples/terminal/screenshots/macos.png"></td><td><img src="examples/terminal/screenshots/windows.png"></td></tr><tr><td><img src="examples/terminal/screenshots/ubuntu.png"></td></tr></table>
@@ -43,7 +45,7 @@ Unix | Generic Browser Fallback | (2) | [#1][i1]
 
 ## Simple Example
 
-### Backend
+### Backend: C API
 
 ```c++
 int main(int argc, char **argv)
@@ -70,7 +72,7 @@ int main(int argc, char **argv)
   wd.webapp_location = L"./webapp";
 
   AudienceWindowEventHandler weh{};
-  weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) {
+  weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
     audience_window_post_message(handle, L"pong");
   };
 
@@ -122,7 +124,34 @@ See [here](examples/terminal/) for the complete example.
 
 ## API
 
-### Backend
+### Backend: Command Line Interface
+
+```sh
+$ ./audience
+Usage:
+  audience [OPTION...]
+
+      --win arg      Nucleus load order for Windows; supported: edge, ie11
+                     (default: edge,ie11)
+      --mac arg      Nucleus load order for macOS; supported: webkit
+                     (default: webkit)
+      --unix arg     Nucleus load order for Unix; supported: webkit (default:
+                     webkit)
+  -i, --icons arg    Icon set
+  -d, --dir arg      Web app directory; local file system path
+  -u, --url arg      Web app URL
+  -t, --title arg    Loading title
+  -p, --pos arg      Position of window
+  -s, --size arg     Size of window
+      --decorated    Decorated window; use =false for undecorated window
+      --resizable    Resizable window; use =false for non-resizable window
+      --top          Window should stay on top always
+      --dev          Developer mode; if supported by web view
+  -c, --channel arg  Command and event channel; a named pipe
+  -h, --help         Print help
+```
+
+### Backend: C API
 
 ```c
 bool audience_init(const AudienceAppDetails *details, const AudienceAppEventHandler *event_handler);
@@ -157,7 +186,35 @@ See [audience_details.h](include/audience_details.h) for a specification of the 
 
 **Multithreading**: `audience_init` and `audience_main` need to be called from the main thread of the process. All other methods can be called from any arbitrary thread. They will be dispatched to the main thread automatically.
 
-### Frontend (Web App)
+### Backend: Node.js API, based on channel API
+
+```ts
+function audience(options?: AudienceOptions): Promise<AudienceApi>;
+
+interface AudienceApi {
+  // Commands
+  screenList(): Promise<AudienceScreenList>;
+  windowList(): Promise<AudienceWindowList>;
+  windowCreate(details: AudienceWindowDetails): Promise<AudienceWindowHandle>;
+  windowUpdatePosition(handle: AudienceWindowHandle, position: AudienceRect): Promise<void>;
+  windowPostMessage(handle: AudienceWindowHandle, message: string): Promise<void>;
+  windowDestroy(handle: AudienceWindowHandle): Promise<void>;
+  quit(): Promise<void>;
+  // Events
+  onWindowMessage(callback: _EventCallbackWindowMessage): void;
+  onWindowCloseIntent(callback: _EventCallbackWindowCloseIntent): void;
+  onWindowClose(callback: _EventCallbackWindowClose): void;
+  onAppQuit(callback: _EventCallbackAppQuit): void;
+  off(callback?: _EventCallbackAny): void;
+  futureExit(): Promise<void>;
+};
+```
+
+See [index.d.ts](integrations/backend/nodejs/index.d.ts) for a specification of the data types used above.
+
+You can install the backend integration library via `npm install audience-backend --save` and import via `import "audience-backend";`.
+
+### Frontend: Web App
 
 ```js
 window.audience.postMessage(message /* string */)
