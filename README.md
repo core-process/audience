@@ -139,6 +139,8 @@ void audience_window_post_message(AudienceWindowHandle handle, const wchar_t *me
 
 void audience_window_destroy(AudienceWindowHandle handle);
 
+void audience_quit();
+
 void audience_main(); // will not return
 ```
 
@@ -148,11 +150,10 @@ See [audience_details.h](include/audience_details.h) for a specification of the 
 
 | Level | Name | Signature |
 | --- | --- | --- |
-| Process | will_quit | ``void (*handler)(void *context, bool *prevent_quit)``|
 | Process | quit | ``void (*handler)(void *context)``|
-| Window | message | ``void (*handler)(AudienceWindowHandle handle, void *context, const char *message)``|
-| Window | will_close | ``void (*handler)(AudienceWindowHandle handle, void *context, bool *prevent_close)``|
-| Window | close | ``void (*handler)(AudienceWindowHandle handle, void *context, bool *prevent_quit)``|
+| Window | message | ``void (*handler)(AudienceWindowHandle handle, void *context, const wchar_t *message)``|
+| Window | close_intent | ``void (*handler)(AudienceWindowHandle handle, void *context)``|
+| Window | close | ``void (*handler)(AudienceWindowHandle handle, void *context, bool is_last_window)``|
 
 **Multithreading**: `audience_init` and `audience_main` need to be called from the main thread of the process. All other methods can be called from any arbitrary thread. They will be dispatched to the main thread automatically.
 
