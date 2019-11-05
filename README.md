@@ -11,7 +11,7 @@ A small adaptive cross-platform webview window library for C/C++ to build modern
 
 - It supports web apps provided via a filesystem folder or URL. Audience provides its custom web server and websocket service tightly integrated into the library. But if you prefer a regular http URL schema, you can use Express or any other http based framework you like.
 
-- It provides a lightweight C API, a command-line interface, as well as a channel-based API (using Unix sockets and named pipes on Windows).
+- The core provides a lightweight C API, a command-line interface, as well as a channel-based API (using Unix sockets and named pipes on Windows). Integrations into other environments are provided on top, e.g., for Node.js.
 
 The following screenshots show a simple web app based on [jQuery Terminal](https://terminal.jcubic.pl/).
 
