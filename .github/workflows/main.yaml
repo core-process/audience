@@ -228,37 +228,38 @@ jobs:
         working-directory: /tmp
         run: |
           set -e
-          brew install coreutils
+          brew install coreutils nvm
+          npm install 12.13.0
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: bash
         run: |
           set -e
-          nvm use 12.12
+          nvm use 12.13.0
           ./build.sh Debug
       - name: Build Release
         shell: bash
         run: |
           set -e
-          nvm use 12.12
+          nvm use 12.13.0
           ./build.sh Release
       - name: Build RelWithDebInfo
         shell: bash
         run: |
           set -e
-          nvm use 12.12
+          nvm use 12.13.0
           ./build.sh RelWithDebInfo
       - name: Build MinSizeRel
         shell: bash
         run: |
           set -e
-          nvm use 12.12
+          nvm use 12.13.0
           ./build.sh MinSizeRel
       - name: Prepare Runtimes
         shell: bash
         run: |
           set -e
-          nvm use 12.12
+          nvm use 12.13.0
           ./dist.sh
       - name: Pack
         shell: bash
