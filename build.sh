@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
-cd "$( dirname "${BASH_SOURCE[0]}" )"
+
+# go to project directory
+AUDIENCE_PROJECT_ROOT="$(realpath $( dirname "${BASH_SOURCE[0]}" ))"
+echo "AUDIENCE_PROJECT_ROOT=$AUDIENCE_PROJECT_ROOT"
+cd "$AUDIENCE_PROJECT_ROOT"
 
 # read build type
 declare -a VALID_CMAKE_BUILD_TYPES=("Debug" "Release" "RelWithDebInfo" "MinSizeRel")
@@ -18,7 +22,7 @@ cd ./integrations/frontend
 npm install
 
 # go back to project directory
-cd "$( dirname "${BASH_SOURCE[0]}" )"
+cd "$AUDIENCE_PROJECT_ROOT"
 
 # create build directory
 mkdir -p "./build/$CMAKE_BUILD_TYPE"

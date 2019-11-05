@@ -1,5 +1,9 @@
 @echo off
-cd %~dp0 || goto :error
+
+rem go to project directory
+set AUDIENCE_PROJECT_ROOT=%~dp0
+echo "AUDIENCE_PROJECT_ROOT=%AUDIENCE_PROJECT_ROOT%"
+cd %AUDIENCE_PROJECT_ROOT% || goto :error
 
 rem read build type
 set CMAKE_BUILD_TYPE=%1
@@ -16,7 +20,7 @@ cd .\integrations\frontend || goto :error
 call npm install || goto :error
 
 rem go back to project directory
-cd %~dp0 || goto :error
+cd %AUDIENCE_PROJECT_ROOT% || goto :error
 
 rem create build directory
 if not exist ".\build" mkdir ".\build" || goto :error
@@ -30,7 +34,7 @@ cmake --build . --config "%CMAKE_BUILD_TYPE%" || goto :error
 cmake --build . --config "%CMAKE_BUILD_TYPE%" --target install || goto :error
 
 rem go back to project directory
-cd %~dp0 || goto :error
+cd %AUDIENCE_PROJECT_ROOT% || goto :error
 
 rem error and success handling
 goto :EOF
