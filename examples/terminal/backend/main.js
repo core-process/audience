@@ -1,12 +1,19 @@
 const audience = require('../../../integrations/backend/nodejs').audience;
 const quotes = require('./quotes');
 const path = require('path');
+const fs = require('fs');
 
 async function main(debug) {
   // retrieve audience interface
   const app = await audience({
-    icons: [16, 32, 64, 128, 512].map(icon => path.join(__dirname, '../icons', icon + '.png')),
-    runtime: path.join(__dirname, '../../../dist/Debug/bin'),
+    icons:
+      [16, 32, 64, 128, 512]
+        .map(icon => path.join(__dirname, '../icons', icon + '.png')),
+    runtime:
+      ['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel']
+        .map(config => path.join(__dirname, '../../../dist', config, 'bin'))
+        .filter(path => fs.existsSync(path))
+        .shift(),
     debug,
   });
   if (debug) console.debug('audience() completed');

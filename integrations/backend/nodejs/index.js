@@ -117,6 +117,7 @@ function audience(options) {
                     server = net_1.default.createServer();
                     futurePeer = new Promise(function (resolve) {
                         server.once('connection', function (peer) {
+                            peer.on('error', console.error);
                             var incoming = readline_1.default.createInterface({ input: peer });
                             incoming.on('line', function (line) {
                                 processEvent(JSON.parse(line));

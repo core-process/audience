@@ -126,6 +126,7 @@ export async function audience(options?: AudienceOptions): Promise<AudienceApi> 
   const server = net.createServer();
   const futurePeer = new Promise<net.Socket>((resolve) => {
     server.once('connection', (peer: net.Socket) => {
+      peer.on('error', console.error);
       const incoming = readline.createInterface({ input: peer });
       incoming.on('line', (line) => {
         processEvent(JSON.parse(line));
