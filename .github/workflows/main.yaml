@@ -350,7 +350,7 @@ jobs:
         run: |
           set -e
           sudo apt-get update
-          sudo apt-get jq moreutils
+          sudo apt-get install jq moreutils
       - uses: actions/checkout@v1
       - name: Publish Frontend Integration
         if: github.event_name == 'release' && github.event.action == 'created'
