@@ -15,6 +15,8 @@
     }                                                                          \
   }
 
+static std::atomic<bool> is_terminating = false;
+
 @implementation AudienceWindowContextData
 @end
 
@@ -340,6 +342,7 @@ void nucleus_impl_window_destroy(AudienceWindowContext context) {
 }
 
 void nucleus_impl_quit() {
+  is_terminating = true;
   dispatch_async(dispatch_get_main_queue(), ^{
     SPDLOG_INFO("calling NSApp.terminate()");
     [NSApp terminate:NULL];
@@ -352,15 +355,24 @@ void nucleus_impl_main() {
 }
 
 void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context) {
-  SPDLOG_INFO("dispatching task on main queue (sync)");
-  dispatch_sync(dispatch_get_main_queue(), ^{
-    task(context);
-  });
+  if (!is_terminating.load()) {
+    SPDLOG_INFO("dispatching task on main queue (sync)");
+    dispatch_sync(dispatch_get_main_queue(), ^{
+      task(context);
+    });
+  } else {
+    // if we do that, we would deadlock for sure. so dont do that.
+    SPDLOG_WARN("we cannot dispatch task on main queue (sync)");
+  }
 }
 
 void nucleus_impl_dispatch_async(void (*task)(void *context), void *context) {
-  SPDLOG_INFO("dispatching task on main queue (async)");
-  dispatch_async(dispatch_get_main_queue(), ^{
-    task(context);
-  });
+  if (!is_terminating.load()) {
+    SPDLOG_INFO("dispatching task on main queue (async)");
+    dispatch_async(dispatch_get_main_queue(), ^{
+      task(context);
+    });
+  } else {
+    SPDLOG_WARN("we cannot dispatch task on main queue (async)");
+  }
 }
