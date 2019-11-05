@@ -2,6 +2,7 @@
   "name": "audience-example-terminal",
   "version": "1.0.0",
   "description": "A fancy terminal application based on Audience.",
+  "private": true,
   "scripts": {
     "start": "node ./main.js",
     "prepare": "npm run build",
