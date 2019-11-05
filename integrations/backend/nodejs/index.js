@@ -81,7 +81,13 @@ function audience(options) {
             }
             else if (eventHandler.has(name)) {
                 eventHandler.get(name).forEach(function (callback) {
-                    callback(data);
+                    try {
+                        Promise.resolve(callback(data))
+                            .catch(console.error);
+                    }
+                    catch (e) {
+                        console.error(e);
+                    }
                 });
             }
         }

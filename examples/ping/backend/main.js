@@ -93,7 +93,7 @@ async function main(debug) {
   });
 
   // create application window
-  app.windowCreate({ dir: path.join(__dirname, '../webapp') });
+  app.windowCreate({ dir: path.join(__dirname, '../webapp'), dev: true });
 
   // wait for future exit of app
   // not required, but nice to manage lifecycle of main()

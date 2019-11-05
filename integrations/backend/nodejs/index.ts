@@ -110,7 +110,13 @@ export async function audience(options?: AudienceOptions): Promise<AudienceApi> 
     }
     else if (eventHandler.has(<any>name)) {
       eventHandler.get(<any>name)!.forEach((callback) => {
-        callback(data);
+        try {
+          Promise.resolve(callback(data))
+            .catch(console.error);
+        }
+        catch (e) {
+          console.error(e);
+        }
       });
     }
   }

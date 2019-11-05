@@ -1,6 +1,6 @@
 {
   "name": "audience-backend",
-  "version": "0.9.1",
+  "version": "0.9.3",
   "description": "Small adaptive cross-plattform webview window library. Node.js backend integration.",
   "main": "index.js",
   "scripts": {

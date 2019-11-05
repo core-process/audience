@@ -19,10 +19,17 @@
   <script>
       var terminal = $('#terminal').terminal(function (command) {
         audience.postMessage(command);
+      }, {
+        exit: false,
+        scrollOnEcho: true
       });
+      terminal.echo('\nWelcome!\n\nAvailable commands:\n- quote\n- screens\n- windows\n- pos left|top|right|bottom|center\n- quit\n');
       audience.onMessage(function (message) {
         terminal.echo(message);
       });
+      $(window).resize(function() {
+          terminal.height($(window).height()-20)
+      }).resize();
   </script>
 </body>
 </html>
