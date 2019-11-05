@@ -119,7 +119,7 @@ function audience(options) {
                         });
                     });
                     server.listen(socketPath);
-                    audienceProcess = child_process_1.default.spawn(path_1.default.join(process.env.AUDIENCE_RUNTIME_DIR || __dirname, 'audience' + (os_1.default.platform() == 'win32' ? '.exe' : '')), __spreadArrays([
+                    audienceProcess = child_process_1.default.spawn(path_1.default.join((options && options.runtime) || path_1.default.join(__dirname, 'runtime'), 'audience' + (os_1.default.platform() == 'win32' ? '.exe' : '')), __spreadArrays([
                         '--channel', socketPath
                     ], (options && options.win ? ['--win', options.win.join(',')] : []), (options && options.mac ? ['--mac', options.mac.join(',')] : []), (options && options.unix ? ['--unix', options.unix.join(',')] : []), (options && options.icons ? ['--icons', options.icons.join(',')] : [])));
                     futureExit = new Promise(function (resolve) {

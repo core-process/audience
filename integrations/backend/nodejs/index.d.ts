@@ -67,6 +67,7 @@ export declare type AudienceOptions = {
     mac?: string[];
     unix?: string[];
     icons?: string[];
+    runtime?: string;
     debug?: boolean;
 };
 export declare function audience(options?: AudienceOptions): Promise<AudienceApi>;

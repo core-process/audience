@@ -80,6 +80,7 @@ export type AudienceOptions = {
   mac?: string[],
   unix?: string[],
   icons?: string[],
+  runtime?: string,
   debug?: boolean,
 };
 
@@ -130,7 +131,7 @@ export async function audience(options?: AudienceOptions): Promise<AudienceApi> 
 
   // start audience process
   const audienceProcess = child_process.spawn(
-    path.join(process.env.AUDIENCE_RUNTIME_DIR || __dirname, 'audience' + (os.platform() == 'win32' ? '.exe' : '')),
+    path.join((options && options.runtime) || path.join(__dirname, 'runtime'), 'audience' + (os.platform() == 'win32' ? '.exe' : '')),
     [
       '--channel', socketPath,
       ...(options && options.win ? ['--win', options.win.join(',')] : []),
@@ -145,7 +146,7 @@ export async function audience(options?: AudienceOptions): Promise<AudienceApi> 
       resolve();
     });
   });
-  if(options && options.debug) {
+  if (options && options.debug) {
     audienceProcess.stdout.setEncoding('utf8');
     audienceProcess.stderr.setEncoding('utf8');
     readline.createInterface({ input: audienceProcess.stdout }).on('line', (line) => { console.log(line); });

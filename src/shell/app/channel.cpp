@@ -211,7 +211,7 @@ void channel_emit_app_quit()
 
 static void _channel_emit_command_succeeded(std::string id, json result)
 {
-  _channel_emit("command_succeeded", json{{"id", id, "result", result}});
+  _channel_emit("command_succeeded", json{{"id", id}, {"result", result}});
 }
 
 static void _channel_emit_command_succeeded(std::string id)
@@ -275,6 +275,7 @@ static void _peer_execute_command(const uvw::DataEvent &command_raw)
         for (size_t i = 0; i < result.count; ++i)
         {
           json window;
+          window["handle"] = result.windows[i].handle;
           window["frame"] = {
               {"x", result.windows[i].frame.origin.x},
               {"y", result.windows[i].frame.origin.y},
