@@ -2,7 +2,7 @@
 
 rem go to project directory
 set AUDIENCE_PROJECT_ROOT=%~dp0
-echo "AUDIENCE_PROJECT_ROOT=%AUDIENCE_PROJECT_ROOT%"
+echo AUDIENCE_PROJECT_ROOT=%AUDIENCE_PROJECT_ROOT%
 cd %AUDIENCE_PROJECT_ROOT% || goto :error
 
 rem read build type
