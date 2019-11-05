@@ -9,7 +9,7 @@ A small adaptive cross-platform webview window library for C/C++ to build modern
 
 The following screenshots show a simple web app based on [jQuery Terminal](https://terminal.jcubic.pl/).
 
-<table><tr><td><img src="examples/ping/screenshots/macos.png"></td><td><img src="examples/ping/screenshots/windows.png"></td></tr><tr><td><img src="examples/ping/screenshots/ubuntu.png"></td></tr></table>
+<table><tr><td><img src="examples/terminal/screenshots/macos.png"></td><td><img src="examples/terminal/screenshots/windows.png"></td></tr><tr><td><img src="examples/terminal/screenshots/ubuntu.png"></td></tr></table>
 
 ## Compatibility
 
@@ -71,7 +71,7 @@ int main(int argc, char **argv)
 
   AudienceWindowEventHandler weh{};
   weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const char *message) {
-    audience_window_post_message(handle, "pong");
+    audience_window_post_message(handle, L"pong");
   };
 
   if (!audience_window_create(&wd, &weh))
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 }
 ```
 
-See [here](src/shell/app/main.cpp) for a complete example.
+See [here](examples/terminal/) for the complete example.
 
 ### Frontend
 
@@ -118,7 +118,7 @@ See [here](src/shell/app/main.cpp) for a complete example.
 </html>
 ```
 
-See [here](examples/ping/webapp/) for the complete example.
+See [here](examples/terminal/) for the complete example.
 
 ## API
 
