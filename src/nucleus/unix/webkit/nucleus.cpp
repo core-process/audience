@@ -21,6 +21,7 @@ void window_destroy_callback(GtkWidget *widget, gpointer arg);
 void webview_title_update_callback(GtkWidget *widget, gpointer arg);
 
 static gboolean window_close_callback_default_return = TRUE;
+static std::atomic<bool> is_terminating = false;
 
 bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const NucleusImplAppDetails &details)
 {
@@ -313,6 +314,7 @@ void nucleus_impl_window_destroy(AudienceWindowContext context)
 
 void nucleus_impl_quit()
 {
+  is_terminating = true;
   SPDLOG_TRACE("delaying call to gtk_main_quit()");
   gdk_threads_add_timeout(
       100,
@@ -357,6 +359,13 @@ void nucleus_impl_main()
 
 void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
 {
+  if (is_terminating.load())
+  {
+    // if we do that, we would deadlock for sure. so dont do that.
+    SPDLOG_WARN("we cannot dispatch task on main queue (sync)");
+    return;
+  }
+
   // sync utilities
   bool ready = false;
   std::condition_variable condition;
@@ -389,6 +398,12 @@ void nucleus_impl_dispatch_sync(void (*task)(void *context), void *context)
 
 void nucleus_impl_dispatch_async(void (*task)(void *context), void *context)
 {
+  if (is_terminating.load())
+  {
+    SPDLOG_WARN("we cannot dispatch task on main queue (async)");
+    return;
+  }
+
   struct wrapped_context_t
   {
     void (*task)(void *context);
