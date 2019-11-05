@@ -1,6 +1,10 @@
 # Audience
 A small adaptive cross-platform webview window library for C/C++ to build modern cross-platform user interfaces.
 
+- It is **small**: The size of the Audience runtime is just a fraction of the size of the Electron runtime. Currently, the ratio is about 1%, further optimizations pending.
+
+- It is **compatible**: Currently, we provide ready-to-go APIs for C/C++ and Node.js, but you can plug it into any environment, which supports either C bindings or can talk to Unix sockets respectively named pipes.
+
 - It is **adaptive**: Audience adapts to its environment using the best available webview technology based on a priority list. E.g., on Windows, it can be configured to try embedding of EdgeHTML first and fall back to the embedding of IE11.
 
 - It supports two-way **messaging**: the web app can post messages to the native backend, and the native backend can post messages to the web app.
@@ -234,11 +238,12 @@ Alternatively, you can load the library via ``<script src="/audience.js"></scrip
 
 ### Pre-built Binaries
 
-Pre-built binaries for a Windows, macOS and Linux are available via [GitHub Releases](https://github.com/core-process/audience/releases). Please download the `release-minsize` (=`MinSizeRel`) variant for production use.
+Pre-built binaries for a Windows, macOS and Linux are available via [GitHub Releases](https://github.com/core-process/audience/releases). Please download the `release-minsize` (=`MinSizeRel`) variant for production builds. Pre-packed runtime binaries are provided as well. Use `runtime-cli` when you integrate Audience via command line or channel API. Use `runtime-dynamic` in case you use the C API and link the shared library. Use `runtime-static`in case you link the static library.
 
 ### Requirements
 
 - CMake 3.15 or newer
+- Node.js v10 or newer
 - **Windows**: Visual Studio 2019 / MSVC
 - **MacOS**: XCode / Clang
 - **Unix**: GCC and make
