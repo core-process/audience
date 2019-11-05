@@ -5,8 +5,8 @@ on:
     types:
       - created
 jobs:
-  build_windows_shrt:
-    name: Build for Windows (Shared Runtime)
+  build_windows_dcrt:
+    name: Build for Windows (Dynamic CRT)
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v1
@@ -50,24 +50,37 @@ jobs:
           goto :EOF
           :error
           exit /b %errorlevel%
+      - name: Prepare Runtimes
+        shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
+          AUDIENCE_INSTALL_RUNTIME: 'ON'
+        run: |
+          .\dist.bat || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
       - name: Pack
         shell: cmd
         run: |
           mkdir .\dist\packed || goto :error
-          7z a .\dist\packed\audience-windows-shrt-x64-debug.zip .\dist\Debug\* || goto :error
-          7z a .\dist\packed\audience-windows-shrt-x64-release.zip .\dist\Release\* || goto :error
-          7z a .\dist\packed\audience-windows-shrt-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
-          7z a .\dist\packed\audience-windows-shrt-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
+          7z a .\dist\packed\audience-windows-dcrt-x64-debug.zip .\dist\Debug\* || goto :error
+          7z a .\dist\packed\audience-windows-dcrt-x64-release.zip .\dist\Release\* || goto :error
+          7z a .\dist\packed\audience-windows-dcrt-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
+          7z a .\dist\packed\audience-windows-dcrt-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
+          7z a .\dist\packed\audience-windows-dcrt-x64-runtime-cli.zip .\dist\runtime-cli\* || goto :error
+          7z a .\dist\packed\audience-windows-dcrt-x64-runtime-dynamic.zip .\dist\runtime-dynamic\* || goto :error
+          7z a .\dist\packed\audience-windows-dcrt-x64-runtime-static.zip .\dist\runtime-static\* || goto :error
           goto :EOF
           :error
           exit /b %errorlevel%
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
-          name: audience-windows-shrt-x64
+          name: audience-windows-dcrt-x64
           path: dist/packed
-  build_windows_strt:
-    name: Build for Windows (Static Runtime)
+  build_windows_scrt:
+    name: Build for Windows (Static CRT)
     runs-on: windows-2019
     steps:
       - uses: actions/checkout@v1
@@ -111,21 +124,34 @@ jobs:
           goto :EOF
           :error
           exit /b %errorlevel%
+      - name: Prepare Runtimes
+        shell: cmd
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+          AUDIENCE_INSTALL_RUNTIME: 'OFF'
+        run: |
+          .\dist.bat || goto :error
+          goto :EOF
+          :error
+          exit /b %errorlevel%
       - name: Pack
         shell: cmd
         run: |
           mkdir .\dist\packed || goto :error
-          7z a .\dist\packed\audience-windows-strt-x64-debug.zip .\dist\Debug\* || goto :error
-          7z a .\dist\packed\audience-windows-strt-x64-release.zip .\dist\Release\* || goto :error
-          7z a .\dist\packed\audience-windows-strt-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
-          7z a .\dist\packed\audience-windows-strt-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
+          7z a .\dist\packed\audience-windows-scrt-x64-debug.zip .\dist\Debug\* || goto :error
+          7z a .\dist\packed\audience-windows-scrt-x64-release.zip .\dist\Release\* || goto :error
+          7z a .\dist\packed\audience-windows-scrt-x64-release-debinfo.zip .\dist\RelWithDebInfo\* || goto :error
+          7z a .\dist\packed\audience-windows-scrt-x64-release-minsize.zip .\dist\MinSizeRel\* || goto :error
+          7z a .\dist\packed\audience-windows-scrt-x64-runtime-cli.zip .\dist\runtime-cli\* || goto :error
+          7z a .\dist\packed\audience-windows-scrt-x64-runtime-dynamic.zip .\dist\runtime-dynamic\* || goto :error
+          7z a .\dist\packed\audience-windows-scrt-x64-runtime-static.zip .\dist\runtime-static\* || goto :error
           goto :EOF
           :error
           exit /b %errorlevel%
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
-          name: audience-windows-strt-x64
+          name: audience-windows-scrt-x64
           path: dist/packed
   build_linux:
     name: Build for Linux
@@ -169,6 +195,11 @@ jobs:
         run: |
           set -e
           ./build.sh MinSizeRel
+      - name: Prepare Runtimes
+        shell: bash
+        run: |
+          set -e
+          ./dist.sh
       - name: Pack
         shell: bash
         run: |
@@ -178,6 +209,9 @@ jobs:
           tar -czf $PWD/dist/packed/audience-linux-x64-release.tar.gz -C ./dist/Release .
           tar -czf $PWD/dist/packed/audience-linux-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
           tar -czf $PWD/dist/packed/audience-linux-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -czf $PWD/dist/packed/audience-linux-x64-runtime-cli.tar.gz -C ./dist/runtime-cli .
+          tar -czf $PWD/dist/packed/audience-linux-x64-runtime-dynamic.tar.gz -C ./dist/runtime-dynamic .
+          tar -czf $PWD/dist/packed/audience-linux-x64-runtime-static.tar.gz -C ./dist/runtime-static .
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
@@ -208,6 +242,11 @@ jobs:
         run: |
           set -e
           ./build.sh MinSizeRel
+      - name: Prepare Runtimes
+        shell: bash
+        run: |
+          set -e
+          ./dist.sh
       - name: Pack
         shell: bash
         run: |
@@ -217,6 +256,9 @@ jobs:
           tar -czf $PWD/dist/packed/audience-macos-x64-release.tar.gz -C ./dist/Release .
           tar -czf $PWD/dist/packed/audience-macos-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
           tar -czf $PWD/dist/packed/audience-macos-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -czf $PWD/dist/packed/audience-macos-x64-runtime-cli.tar.gz -C ./dist/runtime-cli .
+          tar -czf $PWD/dist/packed/audience-macos-x64-runtime-dynamic.tar.gz -C ./dist/runtime-dynamic .
+          tar -czf $PWD/dist/packed/audience-macos-x64-runtime-static.tar.gz -C ./dist/runtime-static .
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
@@ -225,20 +267,20 @@ jobs:
   release_upload:
     name: Upload to Release
     needs:
-      - build_windows_shrt
-      - build_windows_strt
+      - build_windows_dcrt
+      - build_windows_scrt
       - build_linux
       - build_macos
     runs-on: ubuntu-18.04
     steps:
-      - name: Fetch Windows Build (Shared Runtime)
+      - name: Fetch Windows Build (Dynamic CRT)
         uses: actions/download-artifact@v1
         with:
-          name: audience-windows-shrt-x64
-      - name: Fetch Windows Build (Static Runtime)
+          name: audience-windows-dcrt-x64
+      - name: Fetch Windows Build (Static CRT)
         uses: actions/download-artifact@v1
         with:
-          name: audience-windows-strt-x64
+          name: audience-windows-scrt-x64
       - name: Fetch Linux Build
         uses: actions/download-artifact@v1
         with:
@@ -257,7 +299,7 @@ jobs:
         run: |
           set -e
           # upload distribution files
-          for dist_os in windows-shrt windows-strt linux macos
+          for dist_os in windows-dcrt windows-scrt linux macos
           do
             dist_suffix="tar.gz"
             dist_mimetype="application/gzip"
@@ -266,7 +308,7 @@ jobs:
               dist_suffix="zip"
               dist_mimetype="application/zip"
             fi
-            for dist_config in debug release release-debinfo release-minsize
+            for dist_config in debug release-minsize runtime-cli runtime-dynamic runtime-static
             do
               curl --silent --fail \
                 -H "Authorization: token ${GITHUB_TOKEN}" \

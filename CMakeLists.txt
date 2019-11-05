@@ -333,7 +333,7 @@ add_executable(audience WIN32
   src/shell/app/main.cpp
   src/shell/app/channel.cpp
 )
-target_link_libraries(audience PRIVATE spdlog audience_shared json uvw cxxopts)
+target_link_libraries(audience PRIVATE spdlog audience_static json uvw cxxopts)
 if(WIN32)
   target_link_libraries(audience PRIVATE ws2_32 iphlpapi psapi userenv)
 elseif(APPLE)
