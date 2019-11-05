@@ -2,7 +2,7 @@
 set -e
 
 # go to project directory
-AUDIENCE_PROJECT_ROOT="$(realpath $( dirname "${BASH_SOURCE[0]}" ))"
+AUDIENCE_PROJECT_ROOT="$(realpath "$( dirname "${BASH_SOURCE[0]}" )")"
 echo "AUDIENCE_PROJECT_ROOT=$AUDIENCE_PROJECT_ROOT"
 cd "$AUDIENCE_PROJECT_ROOT"
 

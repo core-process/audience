@@ -319,3 +319,43 @@ jobs:
                 "https://uploads.github.com/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets?name=audience-${RELEASE_TAG_NAME}-${dist_os}-x64-${dist_config}.${dist_suffix}"
             done
           done
+  publish_npm:
+    name: Publish NPM Modules
+    needs:
+      - release_upload
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Install Software
+        shell: bash
+        working-directory: /tmp
+        run: |
+          set -e
+          sudo apt-get update
+          sudo apt-get jq moreutils
+      - uses: actions/checkout@v1
+      - name: Publish Frontend Integration
+        if: github.event_name == 'release' && github.event.action == 'created'
+        shell: bash
+        env:
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          set -e
+          RELEASE_VERSION=${RELEASE_TAG_NAME#v}
+          cd ./integrations/frontend
+          jq ".version = \"$RELEASE_VERSION\"" package.json | sponge package.json
+          npm install
+          npm publish
+      - name: Publish Backend Integration
+        if: github.event_name == 'release' && github.event.action == 'created'
+        shell: bash
+        env:
+          RELEASE_TAG_NAME: ${{ github.event.release.tag_name }}
+          NPM_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          set -e
+          RELEASE_VERSION=${RELEASE_TAG_NAME#v}
+          cd ./integrations/backend/nodejs
+          jq ".version = \"$RELEASE_VERSION\"" package.json | sponge package.json
+          npm install
+          npm publish
