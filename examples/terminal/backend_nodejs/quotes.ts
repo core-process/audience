@@ -1,4 +1,4 @@
-module.exports = [
+export default [
   "The only people who never fail are those who never try. [Ilka Chase]",
   "Failure is just another way to learn how to do something right. [Marian Wright Edelman]",
   "I failed my way to success. [Thomas Edison]",

@@ -1,19 +1,11 @@
-const audience = require('../../../integrations/backend/nodejs').audience;
-const quotes = require('./quotes');
-const path = require('path');
-const fs = require('fs');
+import { audience, AudienceRect } from 'audience-backend';
+import quotes from './quotes';
+import path from 'path';
 
-async function main(debug) {
+async function main(debug: boolean) {
   // retrieve audience interface
   const app = await audience({
-    icons:
-      [16, 32, 64, 128, 512]
-        .map(icon => path.join(__dirname, '../icons', icon + '.png')),
-    runtime:
-      ['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel']
-        .map(config => path.join(__dirname, '../../../dist', config, 'bin'))
-        .filter(path => fs.existsSync(path))
-        .shift(),
+    icons: [16, 32, 64, 128, 512].map(icon => path.join(__dirname, '../icons', icon + '.png')),
     debug,
   });
   if (debug) console.debug('audience() completed');
@@ -84,7 +76,7 @@ async function main(debug) {
       case 'pos': {
         const screens = await app.screenList();
         const ws = screens.screens[screens.focused].workspace;
-        let target = { ...ws };
+        let target: AudienceRect | null = { ...ws };
         switch (args.length > 0 ? args[0] : null) {
           case 'left': {
             target.width *= 0.5;
