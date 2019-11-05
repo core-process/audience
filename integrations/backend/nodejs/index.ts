@@ -3,6 +3,7 @@ import os from 'os';
 import readline from 'readline';
 import child_process from 'child_process';
 import path from 'path';
+import fs from 'fs';
 
 export type AudienceWindowHandle = number;
 
@@ -137,8 +138,21 @@ export async function audience(options?: AudienceOptions): Promise<AudienceApi> 
   server.listen(socketPath);
 
   // start audience process
+  let runtimeDir = path.join(__dirname, 'runtime');
+  if (JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8')).version == '0.0.0') {
+    const devRuntimeDir = ['Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel']
+      .map(config => path.join(__dirname, '../../../dist', config, 'bin'))
+      .filter(path => fs.existsSync(path))
+      .shift();
+    if (devRuntimeDir) {
+      runtimeDir = devRuntimeDir;
+    }
+  }
+  if (options && options.runtime) {
+    runtimeDir = options.runtime;
+  }
   const audienceProcess = child_process.spawn(
-    path.join((options && options.runtime) || path.join(__dirname, 'runtime'), 'audience' + (os.platform() == 'win32' ? '.exe' : '')),
+    path.join(runtimeDir, 'audience' + (os.platform() == 'win32' ? '.exe' : '')),
     [
       '--channel', socketPath,
       ...(options && options.win ? ['--win', options.win.join(',')] : []),
@@ -147,10 +161,15 @@ export async function audience(options?: AudienceOptions): Promise<AudienceApi> 
       ...(options && options.icons ? ['--icons', options.icons.join(',')] : []),
     ]
   );
-  const futureExit = new Promise<void>((resolve) => {
-    audienceProcess.on('exit', () => {
+  const futureExit = new Promise<void>((resolve, reject) => {
+    audienceProcess.on('exit', (code) => {
       server.close();
-      resolve();
+      if (code !== 0) {
+        reject(new Error(`audience runtime exited with code ${code}`));
+      }
+      else {
+        resolve();
+      }
     });
   });
   if (options && options.debug) {

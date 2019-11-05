@@ -4,6 +4,7 @@
   "description": "Small adaptive cross-plattform webview window library. Node.js backend integration.",
   "main": "index.js",
   "scripts": {
+    "postinstall": "node ./postinstall.js",
     "prepare": "npm run build",
     "build": "tsc",
     "test": "exit 0"
@@ -28,8 +29,11 @@
     "url": "https://github.com/core-process/audience/issues"
   },
   "homepage": "https://github.com/core-process/audience#readme",
-  "dependencies": {},
+  "dependencies": {
+    "download": "^7.1.0"
+  },
   "devDependencies": {
+    "@types/download": "^6.2.4",
     "@types/node": "^12.12.5",
     "typescript": "^3.6.4"
   }

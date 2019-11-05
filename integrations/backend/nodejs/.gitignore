@@ -1,3 +1,6 @@
 /node_modules
+/runtime
 /index.d.ts
 /index.js
+/postinstall.d.ts
+/postinstall.js
