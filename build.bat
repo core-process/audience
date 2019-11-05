@@ -22,6 +22,9 @@ rem perform build and install
 cmake --build . --config "%CMAKE_BUILD_TYPE%" || goto :error
 cmake --build . --config "%CMAKE_BUILD_TYPE%" --target install || goto :error
 
+rem go back to project directory
+cd %~dp0 || goto :error
+
 rem error and success handling
 goto :EOF
 :error
