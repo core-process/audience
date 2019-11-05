@@ -228,38 +228,45 @@ jobs:
         working-directory: /tmp
         run: |
           set -e
-          brew install coreutils nvm
-          npm install 12.13.0
+          brew install coreutils
+          # install nvm
+          rm -rf "$HOME/.nvm"
+          curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.35.1/install.sh | bash
+          # install node
+          export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
+          npm config delete prefix
+          nvm install 12.13.0
+          nvm alias default 12.13.0
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: bash
         run: |
           set -e
-          nvm use 12.13.0
+          export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
           ./build.sh Debug
       - name: Build Release
         shell: bash
         run: |
           set -e
-          nvm use 12.13.0
+          export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
           ./build.sh Release
       - name: Build RelWithDebInfo
         shell: bash
         run: |
           set -e
-          nvm use 12.13.0
+          export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
           ./build.sh RelWithDebInfo
       - name: Build MinSizeRel
         shell: bash
         run: |
           set -e
-          nvm use 12.13.0
+          export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
           ./build.sh MinSizeRel
       - name: Prepare Runtimes
         shell: bash
         run: |
           set -e
-          nvm use 12.13.0
+          export NVM_DIR="$HOME/.nvm" && . "$NVM_DIR/nvm.sh"
           ./dist.sh
       - name: Pack
         shell: bash
