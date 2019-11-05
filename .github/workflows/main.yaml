@@ -223,6 +223,12 @@ jobs:
     name: Build for macOS
     runs-on: macOS-10.14
     steps:
+      - name: Install Software
+        shell: bash
+        working-directory: /tmp
+        run: |
+          set -e
+          brew install coreutils
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: bash
