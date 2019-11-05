@@ -344,6 +344,7 @@ jobs:
           RELEASE_VERSION=${RELEASE_TAG_NAME#v}
           cd ./integrations/frontend
           jq ".version = \"$RELEASE_VERSION\"" package.json | sponge package.json
+          npm config set '//registry.npmjs.org/:_authToken' "${NPM_AUTH_TOKEN}"
           npm install
           npm publish
       - name: Publish Backend Integration
@@ -357,5 +358,6 @@ jobs:
           RELEASE_VERSION=${RELEASE_TAG_NAME#v}
           cd ./integrations/backend/nodejs
           jq ".version = \"$RELEASE_VERSION\"" package.json | sponge package.json
+          npm config set '//registry.npmjs.org/:_authToken' "${NPM_AUTH_TOKEN}"
           npm install
           npm publish
