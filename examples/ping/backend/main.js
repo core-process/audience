@@ -1,43 +1,40 @@
-const net = require('net');
-const readline = require('readline');
-const path = require('path');
-const os = require('os');
-
+const audience = require('../../../integrations/backend/nodejs').audience;
 const quotes = require('./quotes');
+const path = require('path');
 
-function getRandomInt(min, max) {
-  min = Math.ceil(min);
-  max = Math.floor(max);
-  return Math.floor(Math.random() * (max - min)) + min;
-}
+async function main(debug) {
+  // retrieve audience interface
+  const app = await audience({
+    icons: [
+      path.join(__dirname, '../icons/16.png'),
+      path.join(__dirname, '../icons/32.png'),
+      path.join(__dirname, '../icons/64.png'),
+      path.join(__dirname, '../icons/128.png'),
+      path.join(__dirname, '../icons/512.png'),
+    ],
+    debug,
+  });
 
-const server = net.createServer(function (peer) {
-  const rl = readline.createInterface({ input: peer });
-  rl.on('line', (line) => {
-    console.log(line);
-    const event = JSON.parse(line);
-    if (event.name == "window_close_intent") {
-      peer.write(JSON.stringify({ "func": "window_destroy", "args": { "handle": event.data.handle } }) + '\n');
+  // handle window messages
+  app.onWindowMessage(({ handle, message }) => {
+    if (message == 'quote') {
+      app.windowPostMessage(handle, quotes[Math.floor(Math.random() * quotes.length)]);
     }
-    else if (event.name == "window_close") {
-      if (event.data.is_last_window) {
-        peer.write(JSON.stringify({ "func": "quit" }) + '\n');
-      }
-    }
-    else if (event.name == "window_message") {
-      if (event.data.message.trim() == 'quote') {
-        peer.write(JSON.stringify({ "func": "window_post_message", "args": { "handle": event.data.handle, "message": quotes[getRandomInt(0, quotes.length)] } }) + '\n');
-      }
-      else if (event.data.message.trim() == 'quit') {
-        peer.write(JSON.stringify({ "func": "quit" }) + '\n');
-      }
+    else if (message == 'quit') {
+      app.quit();
     }
   });
 
-  peer.write(JSON.stringify({ "func": "window_create", "args": { "dir": path.join(__dirname, '../webapp') } }) + '\n');
-});
+  // create application window
+  app.windowCreate({ dir: path.join(__dirname, '../webapp') });
 
-const channelPath = (os.platform() == 'win32' ? '\\\\.\\pipe\\' : '/tmp/') + `audience_example_ping_${process.pid}`;
-console.log(`Listening on ${channelPath}`);
+  // wait for future exit of app
+  // not required, but nice to manage lifecycle of main()
+  await app.futureExit();
+};
 
-server.listen(channelPath);
+main(
+  process.argv.indexOf('--debug') !== -1
+)
+  .catch((error) => { console.error('error', error); process.exit(1); })
+  .then(() => { console.log('completed'); });
