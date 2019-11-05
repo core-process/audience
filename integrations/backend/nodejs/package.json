@@ -1,11 +1,12 @@
 {
   "name": "audience-backend",
-  "version": "0.9.4",
+  "version": "0.0.0",
   "description": "Small adaptive cross-plattform webview window library. Node.js backend integration.",
   "main": "index.js",
   "scripts": {
+    "prepare": "npm run build",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "exit 0"
   },
   "repository": {
     "type": "git",

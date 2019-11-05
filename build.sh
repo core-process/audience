@@ -13,6 +13,13 @@ fi
 
 CMAKE_BUILD_TYPE="$1"
 
+# build frontend integration
+cd ./integrations/frontend
+npm install
+
+# go back to project directory
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+
 # create build directory
 mkdir -p "./build/$CMAKE_BUILD_TYPE"
 cd "./build/$CMAKE_BUILD_TYPE"

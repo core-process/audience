@@ -11,6 +11,13 @@ exit 1
 
 :build
 
+rem build frontend integration
+cd .\integrations\frontend || goto :error
+call npm install || goto :error
+
+rem go back to project directory
+cd %~dp0 || goto :error
+
 rem create build directory
 if not exist ".\build" mkdir ".\build" || goto :error
 cd ".\build" || goto :error
