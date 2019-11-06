@@ -188,7 +188,7 @@ See [audience_details.h](include/audience_details.h) for a specification of the 
 | Window | close_intent | ``void (*handler)(AudienceWindowHandle handle, void *context)``|
 | Window | close | ``void (*handler)(AudienceWindowHandle handle, void *context, bool is_last_window)``|
 
-**Multithreading**: `audience_init` and `audience_main` need to be called from the main thread of the process. All other methods can be called from any arbitrary thread. They will be dispatched to the main thread automatically.
+**Multithreading**: `audience_init` and `audience_main` need to be called from the main thread of the process. All other methods can be called from any arbitrary thread. They will be dispatched to the main thread automatically. Event handlers will be called on the main thread always. Be aware: of course, you can call the Audience API within event handlers. But you should not block-wait for another thread within an event handler, which in return utilizes the Audience API. This will lead to a deadlock scenario.
 
 ### Backend: Node.js API, based on channel API
 
@@ -214,7 +214,7 @@ interface AudienceApi {
 };
 ```
 
-See [index.d.ts](integrations/backend/nodejs/index.d.ts) for a specification of the data types used above.
+See [index.ts](integrations/backend/nodejs/index.ts) for a specification of the data types used above.
 
 You can install the backend integration library via `npm install audience-backend --save` and import via `import "audience-backend";`.
 
@@ -231,8 +231,6 @@ window.audience.offMessage(handler /* function(string) or undefined */)
 You can install the frontend integration library via `npm install audience-frontend --save` and import via `import "audience-frontend";`.
 
 Alternatively, you can load the library via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend.
-
-[i10]: https://github.com/core-process/audience/issues/10
 
 ## Build and Binaries
 
