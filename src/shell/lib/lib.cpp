@@ -276,9 +276,11 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
     }
     else
     {
-      SPDLOG_INFO("could not load library {}", utf16_to_utf8(dylib));
+      SPDLOG_WARN("could not load library {}", utf16_to_utf8(dylib));
 #ifdef WIN32
-      SPDLOG_INFO("{}", utf16_to_utf8(sys_get_last_error()));
+      SPDLOG_WARN("{}", utf16_to_utf8(sys_get_last_error()));
+#else
+      SPDLOG_WARN("{}", dlerror());
 #endif
     }
   }
