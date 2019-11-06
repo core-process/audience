@@ -44,6 +44,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   auto r = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
   if (r != S_OK && r != S_FALSE)
   {
+    SPDLOG_ERROR("CoInitializeEx() failed");
     return false;
   }
 
@@ -60,12 +61,14 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   if (RegisterClassExW(&wndcls_msg) == 0)
   {
+    SPDLOG_ERROR("RegisterClassExW() for message window failed");
     return false;
   }
 
   _audience_message_window = CreateWindowExW(0, AUDIENCE_MESSAGE_WINDOW_CLASSNAME, AUDIENCE_MESSAGE_WINDOW_CLASSNAME, 0, 0, 0, 0, 0, HWND_MESSAGE, NULL, NULL, NULL);
   if (!_audience_message_window.load())
   {
+    SPDLOG_ERROR("CreateWindowExW() for message window failed");
     return false;
   }
 
@@ -91,9 +94,11 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   if (RegisterClassExW(&wndcls) == 0)
   {
+    SPDLOG_ERROR("RegisterClassExW() for main window failed");
     return false;
   }
 
+  SPDLOG_INFO("initialized");
   return true;
 }
 

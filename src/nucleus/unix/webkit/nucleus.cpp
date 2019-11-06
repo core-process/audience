@@ -32,6 +32,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   // init gtk
   if (gtk_init_check(0, NULL) == FALSE)
   {
+    SPDLOG_ERROR("gtk_init_check() failed");
     return false;
   }
 
@@ -76,6 +77,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
     gtk_window_set_default_icon_list(icon_list);
   }
 
+  SPDLOG_INFO("initialized");
   return true;
 }
 
