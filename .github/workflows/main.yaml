@@ -155,8 +155,8 @@ jobs:
         with:
           name: audience-windows-scrt-x64
           path: dist/packed
-  build_linux:
-    name: Build for Linux
+  build_linux_dcpprt:
+    name: Build for Linux (Dynamic C++ RT)
     runs-on: ubuntu-18.04
     steps:
       - name: Install Software
@@ -179,26 +179,36 @@ jobs:
       - uses: actions/checkout@v1
       - name: Build Debug
         shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
         run: |
           set -e
           ./build.sh Debug
       - name: Build Release
         shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
         run: |
           set -e
           ./build.sh Release
       - name: Build RelWithDebInfo
         shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
         run: |
           set -e
           ./build.sh RelWithDebInfo
       - name: Build MinSizeRel
         shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
         run: |
           set -e
           ./build.sh MinSizeRel
       - name: Prepare Runtimes
         shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'OFF'
         run: |
           set -e
           ./dist.sh
@@ -207,17 +217,91 @@ jobs:
         run: |
           set -e
           mkdir ./dist/packed
-          tar -czf $PWD/dist/packed/audience-linux-x64-debug.tar.gz -C ./dist/Debug .
-          tar -czf $PWD/dist/packed/audience-linux-x64-release.tar.gz -C ./dist/Release .
-          tar -czf $PWD/dist/packed/audience-linux-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
-          tar -czf $PWD/dist/packed/audience-linux-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
-          tar -czf $PWD/dist/packed/audience-linux-x64-runtime-cli.tar.gz -C ./dist/runtime-cli .
-          tar -czf $PWD/dist/packed/audience-linux-x64-runtime-dynamic.tar.gz -C ./dist/runtime-dynamic .
-          tar -czf $PWD/dist/packed/audience-linux-x64-runtime-static.tar.gz -C ./dist/runtime-static .
+          tar -czf $PWD/dist/packed/audience-linux-dcpprt-x64-debug.tar.gz -C ./dist/Debug .
+          tar -czf $PWD/dist/packed/audience-linux-dcpprt-x64-release.tar.gz -C ./dist/Release .
+          tar -czf $PWD/dist/packed/audience-linux-dcpprt-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -czf $PWD/dist/packed/audience-linux-dcpprt-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -czf $PWD/dist/packed/audience-linux-dcpprt-x64-runtime-cli.tar.gz -C ./dist/runtime-cli .
+          tar -czf $PWD/dist/packed/audience-linux-dcpprt-x64-runtime-dynamic.tar.gz -C ./dist/runtime-dynamic .
+          tar -czf $PWD/dist/packed/audience-linux-dcpprt-x64-runtime-static.tar.gz -C ./dist/runtime-static .
       - name: Upload
         uses: actions/upload-artifact@v1
         with:
-          name: audience-linux-x64
+          name: audience-linux-dcpprt-x64
+          path: dist/packed
+  build_linux_scpprt:
+    name: Build for Linux (Static C++ RT)
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Install Software
+        shell: bash
+        working-directory: /tmp
+        run: |
+          set -e
+          # kill old cmake
+          sudo rm $(which cmake)
+          # install new cmake
+          wget https://github.com/Kitware/CMake/releases/download/v3.15.4/cmake-3.15.4-Linux-x86_64.sh
+          sudo sh cmake-3.15.4-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir --skip-license
+          cmake --version
+          # install patchelf
+          wget http://mirrors.kernel.org/ubuntu/pool/universe/p/patchelf/patchelf_0.9+52.20180509-1_amd64.deb
+          sudo dpkg -i patchelf_0.9+52.20180509-1_amd64.deb
+          # install dependencies
+          sudo apt-get update
+          sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev
+      - uses: actions/checkout@v1
+      - name: Build Debug
+        shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+        run: |
+          set -e
+          ./build.sh Debug
+      - name: Build Release
+        shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+        run: |
+          set -e
+          ./build.sh Release
+      - name: Build RelWithDebInfo
+        shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+        run: |
+          set -e
+          ./build.sh RelWithDebInfo
+      - name: Build MinSizeRel
+        shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+        run: |
+          set -e
+          ./build.sh MinSizeRel
+      - name: Prepare Runtimes
+        shell: bash
+        env:
+          AUDIENCE_STATIC_RUNTIME: 'ON'
+        run: |
+          set -e
+          ./dist.sh
+      - name: Pack
+        shell: bash
+        run: |
+          set -e
+          mkdir ./dist/packed
+          tar -czf $PWD/dist/packed/audience-linux-scpprt-x64-debug.tar.gz -C ./dist/Debug .
+          tar -czf $PWD/dist/packed/audience-linux-scpprt-x64-release.tar.gz -C ./dist/Release .
+          tar -czf $PWD/dist/packed/audience-linux-scpprt-x64-release-debinfo.tar.gz -C ./dist/RelWithDebInfo .
+          tar -czf $PWD/dist/packed/audience-linux-scpprt-x64-release-minsize.tar.gz -C ./dist/MinSizeRel .
+          tar -czf $PWD/dist/packed/audience-linux-scpprt-x64-runtime-cli.tar.gz -C ./dist/runtime-cli .
+          tar -czf $PWD/dist/packed/audience-linux-scpprt-x64-runtime-dynamic.tar.gz -C ./dist/runtime-dynamic .
+          tar -czf $PWD/dist/packed/audience-linux-scpprt-x64-runtime-static.tar.gz -C ./dist/runtime-static .
+      - name: Upload
+        uses: actions/upload-artifact@v1
+        with:
+          name: audience-linux-scpprt-x64
           path: dist/packed
   build_macos:
     name: Build for macOS
@@ -290,7 +374,8 @@ jobs:
     needs:
       - build_windows_dcrt
       - build_windows_scrt
-      - build_linux
+      - build_linux_dcpprt
+      - build_linux_scpprt
       - build_macos
     runs-on: ubuntu-18.04
     steps:
@@ -302,10 +387,14 @@ jobs:
         uses: actions/download-artifact@v1
         with:
           name: audience-windows-scrt-x64
-      - name: Fetch Linux Build
+      - name: Fetch Linux Build (Dynamic C++ RT)
         uses: actions/download-artifact@v1
         with:
-          name: audience-linux-x64
+          name: audience-linux-dcpprt-x64
+      - name: Fetch Linux Build (Static C++ RT)
+        uses: actions/download-artifact@v1
+        with:
+          name: audience-linux-scpprt-x64
       - name: Fetch macOS Build
         uses: actions/download-artifact@v1
         with:
@@ -320,7 +409,7 @@ jobs:
         run: |
           set -e
           # upload distribution files
-          for dist_os in windows-dcrt windows-scrt linux macos
+          for dist_os in windows-dcrt windows-scrt linux-dcpprt linux-scpprt macos
           do
             dist_suffix="tar.gz"
             dist_mimetype="application/gzip"

@@ -12,7 +12,7 @@ if (version == '0.0.0') {
 
 const packageUrls: { [key: string]: string; } = {
   darwin: `https://github.com/core-process/audience/releases/download/v${version}/audience-v${version}-macos-x64-runtime-cli.tar.gz`,
-  linux: `https://github.com/core-process/audience/releases/download/v${version}/audience-v${version}-linux-x64-runtime-cli.tar.gz`,
+  linux: `https://github.com/core-process/audience/releases/download/v${version}/audience-v${version}-linux-scpprt-x64-runtime-cli.tar.gz`,
   win32: `https://github.com/core-process/audience/releases/download/v${version}/audience-v${version}-windows-scrt-x64-runtime-cli.zip`,
 };
 

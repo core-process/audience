@@ -8,12 +8,18 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 # AUDIENCE OPTIONS
 #######################################################################
 
-option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC only)" $ENV{AUDIENCE_STATIC_RUNTIME})
+option(AUDIENCE_STATIC_RUNTIME "link static runtime (MSVC and GCC only)" $ENV{AUDIENCE_STATIC_RUNTIME})
 option(AUDIENCE_INSTALL_RUNTIME "install shared runtime (MSVC only, ignored when using static runtime)" $ENV{AUDIENCE_INSTALL_RUNTIME})
+option(AUDIENCE_VERBOSE_MAKEFILE "enable verbose command output" $ENV{AUDIENCE_VERBOSE_MAKEFILE})
 
 #######################################################################
 # AUDIENCE COMMON
 #######################################################################
+
+# verbose command output
+if(AUDIENCE_VERBOSE_MAKEFILE)
+  set(CMAKE_VERBOSE_MAKEFILE ON)
+endif()
 
 # log configuration
 add_compile_definitions(SPDLOG_ACTIVE_LEVEL=$<IF:$<CONFIG:Debug>,0,3>)
@@ -27,6 +33,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # msvc: link runtime statically
 if(AUDIENCE_STATIC_RUNTIME)
   set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+  if(UNIX AND NOT APPLE)
+    set(CMAKE_CXX_STANDARD_LIBRARIES "-static-libgcc -static-libstdc++ ${CMAKE_CXX_STANDARD_LIBRARIES}")
+  endif()
 endif()
 
 # msvc: defaults
@@ -86,7 +95,7 @@ ExternalProject_Add(spdlog_build
   PREFIX ${DEPS_BUILD_ROOT_DIR}/spdlog
   INSTALL_DIR ${SPDLOG_ROOT}
   PATCH_COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/deps/spdlog/CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt
-  CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DSPDLOG_BUILD_EXAMPLE=OFF -DSPDLOG_BUILD_TESTS=OFF
+  CMAKE_ARGS -DCMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DSPDLOG_BUILD_EXAMPLE=OFF -DSPDLOG_BUILD_TESTS=OFF
   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
 )
@@ -173,7 +182,7 @@ ExternalProject_Add(libuv_build
   PREFIX ${DEPS_BUILD_ROOT_DIR}/libuv
   INSTALL_DIR ${LIBUV_ROOT}
   PATCH_COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_SOURCE_DIR}/deps/libuv/CMakeLists.txt <SOURCE_DIR>/CMakeLists.txt
-  CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DLIBUV_BUILD_TESTS=OFF
+  CMAKE_ARGS -DCMAKE_VERBOSE_MAKEFILE=${CMAKE_VERBOSE_MAKEFILE} -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY} -DLIBUV_BUILD_TESTS=OFF
   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
 )
@@ -243,38 +252,6 @@ file(MAKE_DIRECTORY ${CXXOPTS_INCLUDE_DIR})
 add_library(cxxopts INTERFACE IMPORTED)
 add_dependencies(cxxopts cxxopts_build)
 target_include_directories(cxxopts INTERFACE ${CXXOPTS_INCLUDE_DIR})
-
-# ###################################
-# # zlib
-
-# # ... build
-# set(ZLIB_ROOT ${DEPS_INSTALL_ROOT_DIR}/zlib)
-# set(ZLIB_INCLUDE_DIR ${ZLIB_ROOT}/include)
-# set(ZLIB_LIB_DIR ${ZLIB_ROOT}/lib)
-# set(ZLIB_LIB z)
-
-# ExternalProject_Add(zlib_build
-#   URL "https://zlib.net/zlib-1.2.11.tar.gz"
-#   URL_HASH SHA256=c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1
-#   DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
-#   PREFIX ${DEPS_BUILD_ROOT_DIR}/zlib
-#   INSTALL_DIR ${ZLIB_ROOT}
-#   CMAKE_ARGS -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR> -DCMAKE_MSVC_RUNTIME_LIBRARY=${CMAKE_MSVC_RUNTIME_LIBRARY}
-#   BUILD_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG>
-#   INSTALL_COMMAND ${CMAKE_COMMAND} --build . --config $<CONFIG> --target install
-# )
-
-# file(MAKE_DIRECTORY ${ZLIB_INCLUDE_DIR})
-
-# # ... import
-# add_library(zlib STATIC IMPORTED)
-# add_dependencies(zlib zlib_build)
-# if(WIN32)
-#   set_target_properties(zlib PROPERTIES IMPORTED_LOCATION ${ZLIB_LIB_DIR}/${ZLIB_LIB}.lib)
-# else()
-#   set_target_properties(zlib PROPERTIES IMPORTED_LOCATION ${ZLIB_LIB_DIR}/lib${ZLIB_LIB}.a)
-# endif()
-# target_include_directories(zlib INTERFACE ${ZLIB_INCLUDE_DIR})
 
 #######################################################################
 # AUDIENCE FRONTEND LIBRARY
