@@ -1,3 +1,4 @@
+#include "gtk_weak_symbols.h"
 #include <gtk/gtk.h>
 #include <webkit2/webkit2.h>
 
@@ -82,9 +83,20 @@ AudienceScreenList nucleus_impl_screen_list()
 {
   AudienceScreenList result{};
 
-  // find focused monitor
   auto display = gdk_display_get_default();
   auto screen = gdk_display_get_default_screen(display);
+
+  // legacy support
+  if (gdk_display_get_monitor == nullptr || gdk_display_get_monitor_at_window == nullptr || gdk_display_get_n_monitors == nullptr || gdk_monitor_get_geometry == nullptr || gdk_monitor_get_workarea == nullptr || gdk_monitor_is_primary == nullptr)
+  {
+    SPDLOG_WARN("screen_list: gdk monitor api not available, using fallback!");
+    result.count = 1;
+    result.screens[0].frame.size.width = result.screens[0].workspace.size.width = gdk_screen_get_width(screen);
+    result.screens[0].frame.size.height = result.screens[0].workspace.size.height = gdk_screen_get_height(screen);
+    return result;
+  }
+
+  // find focused monitor
   GdkMonitor *focused_monitor = nullptr;
   {
     GdkWindow *focused_window = nullptr;
@@ -159,9 +171,19 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
 
   // retrieve screen dimensions
   GdkRectangle workarea = {0};
-  gdk_monitor_get_workarea(
-      gdk_display_get_primary_monitor(gdk_display_get_default()),
-      &workarea);
+  if (gdk_monitor_get_workarea != nullptr && gdk_display_get_primary_monitor != nullptr)
+  {
+    gdk_monitor_get_workarea(
+        gdk_display_get_primary_monitor(gdk_display_get_default()),
+        &workarea);
+  }
+  else
+  {
+    SPDLOG_WARN("window_create: gdk monitor api not available, using fallback!");
+    auto screen = gdk_display_get_default_screen(gdk_display_get_default());
+    workarea.width = gdk_screen_get_width(screen);
+    workarea.height = gdk_screen_get_height(screen);
+  }
 
   // create window
   context->window = gtk_window_new(GTK_WINDOW_TOPLEVEL);

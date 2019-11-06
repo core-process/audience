@@ -1,5 +1,6 @@
 #pragma once
 
+#include "gtk_weak_symbols.h"
 #include <gtk/gtk.h>
 #include <memory>
 #include <chrono>
