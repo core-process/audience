@@ -216,7 +216,7 @@ interface AudienceApi {
 
 See [index.ts](integrations/backend/nodejs/index.ts) for a specification of the data types used above.
 
-You can install the backend integration library via `npm install audience-backend --save` and import via `import "audience-backend";`.
+You can install the backend integration library via `npm install audience-backend --save` and import via `import { audience } from 'audience-backend';`.
 
 ### Frontend: Web App
 
