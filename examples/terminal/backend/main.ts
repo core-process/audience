@@ -5,7 +5,7 @@ import path from 'path';
 async function main(debug: boolean) {
   // retrieve audience interface
   const app = await audience({
-    icons: [16, 32, 64, 128, 512].map(icon => path.join(__dirname, '../icons', icon + '.png')),
+    icons: [16, 32, 48, 64, 96, 512, 1024].map(icon => path.join(__dirname, '../icons', icon + '.png')),
     debug,
   });
   if (debug) console.debug('audience() completed');
