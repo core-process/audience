@@ -31,7 +31,10 @@ static std::atomic<bool> is_terminating = false;
 
 @implementation AudienceAppDelegate
 - (void)applicationDidFinishLaunching:(NSNotification *)notification {
-  NSApp.applicationIconImage = self.appIcon;
+  if (self.appIcon != nullptr) {
+    SPDLOG_INFO("applicationDidFinishLaunching: applying app icon");
+    NSApp.applicationIconImage = self.appIcon;
+  }
 }
 
 - (NSApplicationTerminateReply)applicationShouldTerminate:
@@ -156,6 +159,10 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation,
     SPDLOG_INFO("selecting icon with width = {}", select_app_icon.size.width);
     _nucleus_app_delegate.appIcon = select_app_icon;
   }
+
+  // set activation policy
+  [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
+  [NSApp activateIgnoringOtherApps:YES];
 
   SPDLOG_INFO("initialized");
   return true;
@@ -288,8 +295,7 @@ nucleus_impl_window_create(const NucleusImplWindowDetails &details) {
 
   // show window and activate app
   [context.window orderFrontRegardless];
-  [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular];
-  [NSApp activateIgnoringOtherApps:YES];
+  [context.window makeKeyWindow];
 
   SPDLOG_INFO("window created");
   return context;
