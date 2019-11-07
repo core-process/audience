@@ -1,7 +1,7 @@
 #pragma once
 
 // NOTE: This is required for backward compatibility.
-//       Include this header before inclusing gtk.h!
+//       Include this header before including gtk.h!
 
 #pragma weak gdk_display_get_monitor
 #pragma weak gdk_display_get_monitor_at_window

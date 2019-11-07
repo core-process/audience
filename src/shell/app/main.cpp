@@ -84,11 +84,11 @@ int main(int argc, char **argv)
 
     if (std::holds_alternative<cxxopts::OptionParseException>(args_or_error))
     {
-      display_help(std::string(std::get<cxxopts::OptionParseException>(args_or_error).what()) + ".");
+      display_help(std::string(std::get_if<cxxopts::OptionParseException>(&args_or_error)->what()) + ".");
       return 1;
     }
 
-    auto args = std::get<cxxopts::ParseResult>(args_or_error);
+    auto args = *std::get_if<cxxopts::ParseResult>(&args_or_error);
 
     if (args["help"].count() > 0 && args["help"].as<bool>())
     {
