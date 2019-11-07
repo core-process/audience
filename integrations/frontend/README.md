@@ -5,7 +5,7 @@ This is the frontend integration library of Audience.
 You will find further information on [github.com/core-process/audience](https://github.com/core-process/audience).
 
 ## What is Audience?
-A small adaptive cross-platform webview window library for C/C++ to build modern cross-platform user interfaces.
+A small adaptive cross-platform and cross-technology webview window library to build modern cross-platform user interfaces.
 
 - It is **small**: The size of the Audience runtime is just a fraction of the size of the Electron runtime. Currently, the ratio is about 1%, further optimizations pending.
 

@@ -23,7 +23,7 @@
         exit: false,
         scrollOnEcho: true
       });
-      terminal.echo('\nWelcome!\n\nAvailable commands:\n- open\n- quote\n- screens\n- windows\n- pos left|top|right|bottom|center\n- quit\n');
+      terminal.echo('\nWelcome!\n\nAvailable commands:\n- open\n- quote\n- screens\n- windows\n- pos left|top|right|bottom|center\n- size <width> <height>\n- quit\n');
       audience.onMessage(function (message) {
         terminal.echo(message);
       });

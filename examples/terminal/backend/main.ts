@@ -110,6 +110,25 @@ async function main(debug: boolean) {
         }
       } break;
 
+      // command: size
+      case 'size': {
+        if (args.length >= 2) {
+          const screens = await app.screenList();
+          const ws = screens.screens[screens.focused].workspace;
+          let target: AudienceRect = { ...ws };
+          target.width = parseInt(args[0]);
+          target.height = parseInt(args[1]);
+          target.x += (ws.width - target.width) * 0.5;
+          target.y += (ws.height - target.height) * 0.5;
+          await app.windowUpdatePosition(handle, target);
+          if (debug) console.debug('app.windowUpdatePosition() completed');
+        }
+        else {
+          await app.windowPostMessage(handle, `Please provide width and height!`);
+          if (debug) console.debug('app.windowPostMessage() completed');
+        }
+      } break;
+
       // unknown command
       default: {
         await app.windowPostMessage(handle, `Unknown command: ${command}`);
