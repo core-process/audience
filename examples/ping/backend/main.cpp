@@ -56,7 +56,23 @@ int main(int argc, char **argv)
   // prepare window handler
   AudienceWindowEventHandler weh{};
   weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
-    if (std::wstring(message) == L"close")
+    if (std::wstring(message) == L"ready")
+    {
+      // start ping loop
+      ping_start(
+          [handle](ping_time_point tp, ping_duration dur) {
+            json pkg{
+                {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count()},
+                {"roundtrip", dur.count()}};
+            audience_window_post_message(handle, utf8_to_utf16(pkg.dump()).c_str());
+          },
+          [handle](std::string error) {
+            std::cerr << "ping error: " << error << std::endl;
+            json pkg{{"error", error}};
+            audience_window_post_message(handle, utf8_to_utf16(pkg.dump()).c_str());
+          });
+    }
+    else if (std::wstring(message) == L"close")
     {
       audience_window_destroy(handle);
     }
@@ -79,20 +95,6 @@ int main(int argc, char **argv)
     std::cerr << "Could not create Audience window." << std::endl;
     return 2;
   }
-
-  // start ping loop
-  ping_start(
-      [wnd](ping_time_point tp, ping_duration dur) {
-        json pkg{
-            {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count()},
-            {"roundtrip", dur.count()}};
-        audience_window_post_message(wnd, utf8_to_utf16(pkg.dump()).c_str());
-      },
-      [wnd](std::string error) {
-        std::cerr << "ping error: " << error << std::endl;
-        json pkg{{"error", error}};
-        audience_window_post_message(wnd, utf8_to_utf16(pkg.dump()).c_str());
-      });
 
   // run main loop
   audience_main(); // calls exit by itself

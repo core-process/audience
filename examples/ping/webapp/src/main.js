@@ -3,8 +3,7 @@ import { Chart } from 'chart.js';
 import { Notyf } from 'notyf';
 import 'notyf/notyf.min.css';
 
-var notyf = new Notyf();
-
+// setup chart
 var ctx = document.getElementById('chart');
 var chart = new Chart(ctx, {
   type: 'line',
@@ -25,29 +24,42 @@ var chart = new Chart(ctx, {
         distribution: 'linear',
         ticks: {
           source: 'auto',
+          min: Date.now() - 30 * 1000,
+          max: Date.now() + 0 * 1000,
+          maxRotation: 90,
+          minRotation: 90,
         },
         time: {
           unit: 'second',
-          min: Date.now() - 30 * 1000,
-          max: Date.now() + 0 * 1000,
+          displayFormats: {
+            second: 'HH:mm:ss'
+          }
         },
       }],
       yAxes: [{
-        display: true,
         scaleLabel: {
           display: true,
           labelString: 'ms'
+        },
+        ticks: {
+          callback: function (value, index, values) {
+            return value.toFixed(1);
+          }
         }
       }]
     }
   }
 });
 
+// toast instrument
+var notyf = new Notyf();
+
+// patch in new data and show ping errors
 window.audience.onMessage(function (message) {
   message = JSON.parse(message);
   if (message.timestamp !== undefined && message.roundtrip !== undefined) {
-    chart.options.scales.xAxes[0].time.min = message.timestamp - 30 * 1000;
-    chart.options.scales.xAxes[0].time.max = message.timestamp + 0 * 1000;
+    chart.options.scales.xAxes[0].ticks.min = message.timestamp - 30 * 1000;
+    chart.options.scales.xAxes[0].ticks.max = message.timestamp + 0 * 1000;
     chart.data.datasets[0].data.push({
       x: new Date(message.timestamp),
       y: message.roundtrip
@@ -59,6 +71,7 @@ window.audience.onMessage(function (message) {
   }
 });
 
+// handle close on ESC
 document.addEventListener('keydown', function (event) {
   if (event.key === "Escape" || event.key === "Esc") {
     window.audience.postMessage('close');
@@ -66,3 +79,6 @@ document.addEventListener('keydown', function (event) {
 });
 
 notyf.success('ESC to close');
+
+// signal ready, ping will start...
+window.audience.postMessage('ready');
