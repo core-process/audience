@@ -5,9 +5,6 @@
 #include <cstdint>
 #include <cstring>
 
-#include <iostream>
-#include <iomanip>
-
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -64,22 +61,6 @@ static uint16_t ping_package_checksum(echo_req_t &pkg);
 
 static std::unique_ptr<std::thread> ping_thread;
 static std::atomic<bool> ping_stop_signal = false;
-
-void print_buf_as_hex(void *buf, size_t len)
-{
-  using namespace std;
-  cout << hex << setfill('0');
-  auto *ptr = reinterpret_cast<uint8_t *>(buf);
-  for (int i = 0; i < len; i++, ptr++)
-  {
-    if (i % sizeof(uint64_t) == 0)
-    {
-      cout << endl;
-    }
-    cout << setw(2) << static_cast<uint16_t>(*ptr) << " ";
-  }
-  cout << endl;
-}
 
 void ping_start(
     std::function<void(ping_time_point, ping_duration)> on_echo_reply,
@@ -161,9 +142,6 @@ void ping_start(
       pkg_send.hdr.checksum = 0;
       pkg_send.hdr.checksum = ping_package_checksum(pkg_send);
 
-      std::cout << ">---- PING ---->" << std::endl;
-      print_buf_as_hex(&pkg_send, sizeof(pkg_send));
-
       // send echo package
       ping_time_point tp1 = std::chrono::system_clock::now();
 
@@ -185,17 +163,19 @@ void ping_start(
         continue;
       }
 
-      std::cout << "<---- PONG ----<" << std::endl;
-      print_buf_as_hex(&pkg_rcv, sizeof(pkg_rcv));
-
       // evaluate reply package
-      std::cout << std::dec;
-      std::cout << "type = " << (uint16_t)pkg_rcv.hdr.type << std::endl;
-      std::cout << "code = " << (uint16_t)pkg_rcv.hdr.code << std::endl;
-      std::cout << "id = " << pkg_rcv.hdr.id << std::endl;
-      std::cout << "id(s) = " << pkg_send.hdr.id << std::endl;
       if (pkg_rcv.hdr.type == 0 && pkg_rcv.hdr.code == 0 && std::memcmp(pkg_rcv.msg, pkg_send.msg, sizeof(pkg_rcv.msg)) == 0)
       {
+        // NOTE: Comparing ids does not work on Linux. The kernel places its own id
+        //       in the outgoing package and therefore we cannot match it here with our id.
+        //       It works on macOS though. Not sure about Windows. Well, this is just
+        //       a simple demo...
+        //
+        // NOTE: We should actually check the sequence number here and
+        //       continue to receive the next package in case the received
+        //       sequence number is smaller than the last sent sequence number.
+        //       Well, this is just a simple demo...
+
         ping_time_point tp2 = std::chrono::system_clock::now();
         ping_duration dur = tp2 - tp1;
 
