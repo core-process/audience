@@ -10,6 +10,7 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
@@ -43,7 +44,7 @@ struct echo_req_t
 
 struct echo_res_t
 {
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(_WIN32)
   char ip_hdr[20];
 #endif
   struct
@@ -106,28 +107,15 @@ void ping_start(
       return;
     }
 
-    // set ttl
-    int ttl = 64;
-#if defined(__linux__)
-    if (setsockopt(sock, SOL_IP, IP_TTL, (const char *)&ttl, sizeof(ttl)) != 0)
-#else
-    if (setsockopt(sock, IPPROTO_IP, IP_TTL, (const char *)&ttl, sizeof(ttl)) != 0)
-#endif
-    {
-      on_error("could not set ttl");
+// set receive timeout
 #ifdef _WIN32
-      closesocket(sock);
+    DWORD rcv_timeout = 5000;
 #else
-      close(sock);
-#endif
-      return;
-    }
-
-    // set receive timeout
     timeval rcv_timeout{};
     rcv_timeout.tv_sec = 5;
     rcv_timeout.tv_usec = 0;
-    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&rcv_timeout, sizeof rcv_timeout) != 0)
+#endif
+    if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&rcv_timeout, sizeof(rcv_timeout)) != 0)
     {
       on_error("could not set receive timeout");
 #ifdef _WIN32
@@ -155,7 +143,11 @@ void ping_start(
     // prepare echo package
     echo_req_t pkg_send{};
     pkg_send.hdr.type = 8;
+#ifdef _WIN32
+    pkg_send.hdr.id = GetCurrentProcessId();
+#else
     pkg_send.hdr.id = htons(getpid());
+#endif
     for (size_t i = 0; i < sizeof(pkg_send.msg) - 1; i++)
     {
       pkg_send.msg[i] = i + '0';
