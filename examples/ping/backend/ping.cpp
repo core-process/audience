@@ -2,26 +2,54 @@
 #include <thread>
 #include <atomic>
 #include <functional>
+#include <cstdint>
 #ifdef _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #else
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <unistd.h>
 #endif
 
-#ifdef __APPLE__
+#include "ping.h"
+
+#if defined(__APPLE__) || defined(_WIN32)
 #define SOL_IP IPPROTO_IP
 #endif
 
-#include "ping.h"
+#if !defined(_WIN32)
+#define closesocket close
+#endif
+
+#ifdef _WIN32
+#define ICMP_ECHO 8
+#endif
 
 using namespace std::chrono_literals;
 
 struct echo_package
 {
 #ifdef _WIN32
-  typedef struct ICMPHeader icmp_header;
+  typedef struct icmphdr
+  {
+    uint8_t type; /* message type */
+    uint8_t code; /* type sub-code */
+    uint16_t checksum;
+    union {
+      struct
+      {
+        uint16_t id;
+        uint16_t sequence;
+      } echo;           /* echo datagram */
+      uint32_t gateway; /* gateway address */
+      struct
+      {
+        uint16_t __unused;
+        uint16_t mtu;
+      } frag; /* path mtu discovery */
+    } un;
+  } icmp_header;
 #elif __APPLE__
   typedef struct icmp icmp_header;
 #elif __linux__
@@ -42,9 +70,22 @@ void ping_start(
     std::function<void(ping_time_point, ping_duration)> on_echo_reply,
     std::function<void(std::string)> on_error)
 {
+#ifdef _WIN32
+  WSADATA wsock;
+  if (WSAStartup(MAKEWORD(2, 2), &wsock) != 0)
+  {
+    on_error("could not initialize windows sockets");
+    return;
+  }
+#endif
+
   ping_thread = std::make_unique<std::thread>([on_echo_reply, on_error]() {
     // create datagram socket
+#ifdef __APPLE__
     auto sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
+#else
+    auto sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+#endif
     if (sock < 0)
     {
       on_error("could not open datagram socket");
@@ -53,10 +94,10 @@ void ping_start(
 
     // set ttl
     int ttl = 64;
-    if (setsockopt(sock, SOL_IP, IP_TTL, &ttl, sizeof(ttl)) != 0)
+    if (setsockopt(sock, SOL_IP, IP_TTL, (const char *)&ttl, sizeof(ttl)) != 0)
     {
       on_error("could not set ttl");
-      close(sock);
+      closesocket(sock);
       return;
     }
 
@@ -67,7 +108,7 @@ void ping_start(
     if (setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, (const char *)&rcv_timeout, sizeof rcv_timeout) != 0)
     {
       on_error("could not set receive timeout");
-      close(sock);
+      closesocket(sock);
       return;
     }
 
@@ -81,19 +122,29 @@ void ping_start(
     {
       // prepare echo package
       echo_package pkg{};
+#ifdef __APPLE__
       pkg.hdr.icmp_type = ICMP_ECHO;
       pkg.hdr.icmp_id = getpid();
       pkg.hdr.icmp_seq = seq;
+#else
+      pkg.hdr.type = ICMP_ECHO;
+      pkg.hdr.un.echo.id = getpid();
+      pkg.hdr.un.echo.sequence = seq;
+#endif
       for (size_t i = 0; i < sizeof(pkg.msg) - 1; i++)
       {
         pkg.msg[i] = i + '0';
       }
+#ifdef __APPLE__
       pkg.hdr.icmp_cksum = ping_package_checksum(pkg);
+#else
+      pkg.hdr.checksum = ping_package_checksum(pkg);
+#endif
 
       // send echo package
       ping_time_point tp1 = std::chrono::system_clock::now();
 
-      if (sendto(sock, &pkg, sizeof(pkg), 0, (struct sockaddr *)&addr, sizeof(addr)) <= 0)
+      if (sendto(sock, (const char *)&pkg, sizeof(pkg), 0, (struct sockaddr *)&addr, sizeof(addr)) <= 0)
       {
         on_error("could not send echo package");
         std::this_thread::sleep_for(3s);
@@ -103,7 +154,7 @@ void ping_start(
       // receive echo reply package
       sockaddr_in rcv_addr;
       socklen_t rcv_addr_len = sizeof(rcv_addr);
-      if (recvfrom(sock, &pkg, sizeof(pkg), 0, (struct sockaddr *)&rcv_addr, &rcv_addr_len) <= 0)
+      if (recvfrom(sock, (char *)&pkg, sizeof(pkg), 0, (struct sockaddr *)&rcv_addr, &rcv_addr_len) <= 0)
       {
         on_error("could not receive echo reply package");
         std::this_thread::sleep_for(3s);
@@ -111,7 +162,11 @@ void ping_start(
       }
 
       // evaluate reply package
+#ifdef __APPLE__
       if (pkg.hdr.icmp_type == 69 && pkg.hdr.icmp_code == 0)
+#else
+      if (pkg.hdr.type == 69 && pkg.hdr.code == 0)
+#endif
       {
         ping_time_point tp2 = std::chrono::system_clock::now();
         ping_duration dur = tp2 - tp1;
@@ -130,7 +185,7 @@ void ping_start(
     }
 
     // close socket properly
-    close(sock);
+    closesocket(sock);
   });
 }
 

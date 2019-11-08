@@ -166,6 +166,8 @@ add_executable(example main.cpp ping.cpp)
 target_link_libraries(example PRIVATE audience json)
 if(UNIX)
   target_link_libraries(example PRIVATE Threads::Threads)
+elseif(WIN32)
+  target_link_libraries(example PRIVATE ws2_32)
 endif()
 
 # strip binary
