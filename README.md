@@ -17,6 +17,10 @@ The following screenshots show a simple web app based on [jQuery Terminal](https
 
 <table><tr><td><img src="examples/terminal/screenshots/macos.png"></td><td><img src="examples/terminal/screenshots/windows.png"></td></tr><tr><td><img src="examples/terminal/screenshots/ubuntu.png"></td></tr></table>
 
+The following screenshots show a simple web app based on [Chart.js](https://www.chartjs.org/).
+
+<table><tr><td><img src="examples/ping/screenshots/macos.png"></td><td><img src="examples/ping/screenshots/windows.png"></td></tr><tr><td><img src="examples/ping/screenshots/ubuntu.png"></td></tr></table>
+
 ## Compatibility
 
 Internally the library is split into a shell (shell, as in wrapper, not as in command shell) and multiple nuclei. All nuclei share the same internal API, and each nucleus implements a specific webview technology. The shell probes the available nuclei one after another according to a priority list.

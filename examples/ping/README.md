@@ -22,3 +22,7 @@ cd <EXAMPLE>
 sudo sysctl -w net.ipv4.ping_group_range="0 9999" # Linux only, otherwise ICMP socket cannot be opened
 ./backend/dist/MinSizeRel/bin/example ./webapp
 ```
+
+## Screenshots
+
+<table><tr><td><img src="screenshots/macos.png"></td><td><img src="screenshots/windows.png"></td></tr><tr><td><img src="screenshots/ubuntu.png"></td></tr></table>
