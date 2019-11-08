@@ -49,9 +49,10 @@ int main(int argc, char **argv)
   auto screens = audience_screen_list();
   auto workspace = screens.screens[screens.focused].workspace;
   wd.position.size = {workspace.size.width * 0.5, workspace.size.height * 0.5};
+  // wd.position.size = {750, 450};
   wd.position.origin = workspace.origin;
-  wd.position.origin.x += workspace.size.width * 0.25;
-  wd.position.origin.y += workspace.size.height * 0.25;
+  wd.position.origin.x += (workspace.size.width - wd.position.size.width) * 0.5;
+  wd.position.origin.y += (workspace.size.height - wd.position.size.height) * 0.5;
 
   // prepare window handler
   AudienceWindowEventHandler weh{};
