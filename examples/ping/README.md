@@ -9,6 +9,10 @@ export USE_STATIC_CRT=OFF
 export USE_STATIC_AUDIENCE_LIBRARY=ON
 export USE_AUDIENCE_DEBUG=OFF
 ./build.sh MinSizeRel
+
+cd <EXAMPLE>/webapp
+npm install
+npm run build
 ```
 
 How to run the example:

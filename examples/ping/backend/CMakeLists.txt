@@ -51,8 +51,17 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 SET(CMAKE_SKIP_BUILD_RPATH TRUE)
 
 #######################################################################
-# THREADING LIBRARY
+# DEPENDENCIES
 #######################################################################
+
+set(DEPS_DOWNLOAD_DIR ${CMAKE_SOURCE_DIR}/downloads)
+set(DEPS_BUILD_ROOT_DIR ${CMAKE_BINARY_DIR}/deps_build)
+set(DEPS_INSTALL_ROOT_DIR ${CMAKE_BINARY_DIR}/deps)
+
+include(ExternalProject)
+
+###################################
+# threads
 
 if(UNIX)
   set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
@@ -60,9 +69,8 @@ if(UNIX)
   find_package(Threads REQUIRED)
 endif()
 
-#######################################################################
-# AUDIENCE LIBRARY
-#######################################################################
+###################################
+# audience
 
 # ... download and extract
 if(USE_AUDIENCE_DEBUG)
@@ -90,8 +98,8 @@ else()
 endif()
 
 set(AUDIENCE_ZIP_URL https://github.com/core-process/audience/releases/download/v${AUDIENCE_VERSION}/${AUDIENCE_ZIP_NAME})
-set(AUDIENCE_ZIP_PATH ${CMAKE_BINARY_DIR}/audience/${AUDIENCE_ZIP_NAME})
-set(AUDIENCE_DIR ${CMAKE_BINARY_DIR}/audience/${AUDIENCE_VERSION}-${AUDIENCE_VARIANT})
+set(AUDIENCE_ZIP_PATH ${DEPS_DOWNLOAD_DIR}/${AUDIENCE_ZIP_NAME})
+set(AUDIENCE_DIR ${DEPS_INSTALL_ROOT_DIR}/audience/${AUDIENCE_VERSION}-${AUDIENCE_VARIANT})
 
 if(NOT EXISTS ${AUDIENCE_DIR})
   if(NOT EXISTS ${AUDIENCE_ZIP_PATH})
@@ -121,15 +129,41 @@ else()
   endif()
 endif()
 
+###################################
+# nlohmann/json
+
+# ... build
+set(JSON_ROOT ${DEPS_INSTALL_ROOT_DIR}/json)
+set(JSON_INCLUDE_DIR ${JSON_ROOT}/include)
+
+ExternalProject_Add(json_build
+  URL "https://github.com/nlohmann/json/releases/download/v3.7.0/json.hpp" DOWNLOAD_NAME "json-v3.7.0.hpp"
+  URL_HASH SHA256=a503214947952b69f0062f572cb74c17582a495767446347ce2e452963fc2ca4
+  DOWNLOAD_NO_EXTRACT ON
+  DOWNLOAD_DIR ${DEPS_DOWNLOAD_DIR}
+  PREFIX ${DEPS_BUILD_ROOT_DIR}/json
+  INSTALL_DIR ${JSON_ROOT}
+  CONFIGURE_COMMAND ""
+  BUILD_COMMAND ""
+  INSTALL_COMMAND ${CMAKE_COMMAND} -E copy <DOWNLOADED_FILE> ${JSON_INCLUDE_DIR}/json.hpp
+)
+
+file(MAKE_DIRECTORY ${JSON_INCLUDE_DIR})
+
+# ... import
+add_library(json INTERFACE IMPORTED)
+add_dependencies(json json_build)
+target_include_directories(json INTERFACE ${JSON_INCLUDE_DIR})
+
 #######################################################################
 # EXAMPLE BACKEND
 #######################################################################
 
 # source files
-add_executable(example main.cpp)
+add_executable(example main.cpp ping.cpp)
 
 # libraries
-target_link_libraries(example PRIVATE audience)
+target_link_libraries(example PRIVATE audience json)
 if(UNIX)
   target_link_libraries(example PRIVATE Threads::Threads)
 endif()

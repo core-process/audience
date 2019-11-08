@@ -1,20 +1,12 @@
 #include <iostream>
 #include <string>
-#include <locale>
-#include <codecvt>
 #include <audience.h>
+#include <json.hpp>
 
-static std::string utf16_to_utf8(const std::wstring &data)
-{
-  static thread_local std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-  return converter.to_bytes(data);
-}
+#include "utf.h"
+#include "ping.h"
 
-static std::wstring utf8_to_utf16(const std::string &data)
-{
-  static thread_local std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
-  return converter.from_bytes(data);
-}
+using json = nlohmann::json;
 
 int main(int argc, char **argv)
 {
@@ -45,6 +37,8 @@ int main(int argc, char **argv)
   // prepare window configuration
   AudienceWindowDetails wd{};
 
+  wd.dev_mode = true;
+
   wd.webapp_type = AUDIENCE_WEBAPP_TYPE_DIRECTORY;
   wd.webapp_location = webapp_dir.c_str();
 
@@ -61,10 +55,17 @@ int main(int argc, char **argv)
 
   // prepare window handler
   AudienceWindowEventHandler weh{};
+  weh.on_message.handler = [](AudienceWindowHandle handle, void *context, const wchar_t *message) {
+    if (std::wstring(message) == L"close")
+    {
+      audience_window_destroy(handle);
+    }
+  };
   weh.on_close_intent.handler = [](AudienceWindowHandle handle, void *context) {
     audience_window_destroy(handle);
   };
   weh.on_close.handler = [](AudienceWindowHandle handle, void *context, bool is_last_window) {
+    ping_stop();
     if (is_last_window)
     {
       audience_quit();
@@ -72,11 +73,25 @@ int main(int argc, char **argv)
   };
 
   // create window
-  if (!audience_window_create(&wd, &weh))
+  auto wnd = audience_window_create(&wd, &weh);
+  if (!wnd)
   {
     std::cerr << "Could not create Audience window." << std::endl;
     return 2;
   }
+
+  // start ping loop
+  ping_start(
+      [wnd](ping_time_point tp, ping_duration dur) {
+        json pkg{
+            {"timestamp", std::chrono::duration_cast<std::chrono::milliseconds>(tp.time_since_epoch()).count()},
+            {"roundtrip", dur.count()}};
+        audience_window_post_message(wnd, utf8_to_utf16(pkg.dump()).c_str());
+      },
+      [wnd](std::string error) {
+        json pkg{{"error", error}};
+        audience_window_post_message(wnd, utf8_to_utf16(pkg.dump()).c_str());
+      });
 
   // run main loop
   audience_main(); // calls exit by itself
