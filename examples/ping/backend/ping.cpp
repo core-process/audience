@@ -5,11 +5,20 @@
 #include <cstdint>
 #include <cstring>
 
+#include <iostream>
+#include <iomanip>
+
 #ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <unistd.h>
 #include <arpa/inet.h>
+#endif
+#ifdef __APPLE__
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #endif
 
 #include "ping.h"
@@ -19,7 +28,7 @@ using namespace std::chrono_literals;
 #pragma pack(push)
 #pragma pack(1)
 
-struct echo_package
+struct echo_req_t
 {
   struct
   {
@@ -29,15 +38,47 @@ struct echo_package
     uint16_t id;
     uint16_t sequence;
   } hdr;
-  char msg[64 - 8];
+  char msg[32];
+};
+
+struct echo_res_t
+{
+#ifdef __APPLE__
+  char ip_hdr[20];
+#endif
+  struct
+  {
+    uint8_t type;
+    uint8_t code;
+    uint16_t checksum;
+    uint16_t id;
+    uint16_t sequence;
+  } hdr;
+  char msg[32];
 };
 
 #pragma pack(pop)
 
-static uint16_t ping_package_checksum(echo_package &pkg);
+static uint16_t ping_package_checksum(echo_req_t &pkg);
 
 static std::unique_ptr<std::thread> ping_thread;
 static std::atomic<bool> ping_stop_signal = false;
+
+void print_buf_as_hex(void *buf, size_t len)
+{
+  using namespace std;
+  cout << hex << setfill('0');
+  auto *ptr = reinterpret_cast<uint8_t *>(buf);
+  for (int i = 0; i < len; i++, ptr++)
+  {
+    if (i % sizeof(uint64_t) == 0)
+    {
+      cout << endl;
+    }
+    cout << setw(2) << static_cast<uint16_t>(*ptr) << " ";
+  }
+  cout << endl;
+}
 
 void ping_start(
     std::function<void(ping_time_point, ping_duration)> on_echo_reply,
@@ -112,7 +153,7 @@ void ping_start(
     }
 
     // prepare echo package
-    echo_package pkg_send{};
+    echo_req_t pkg_send{};
     pkg_send.hdr.type = 8;
     pkg_send.hdr.id = htons(getpid());
     for (size_t i = 0; i < sizeof(pkg_send.msg) - 1; i++)
@@ -125,7 +166,11 @@ void ping_start(
     {
       // finalize echo package
       pkg_send.hdr.sequence = htons(seq);
+      pkg_send.hdr.checksum = 0;
       pkg_send.hdr.checksum = ping_package_checksum(pkg_send);
+
+      std::cout << ">---- PING ---->" << std::endl;
+      print_buf_as_hex(&pkg_send, sizeof(pkg_send));
 
       // send echo package
       ping_time_point tp1 = std::chrono::system_clock::now();
@@ -138,7 +183,7 @@ void ping_start(
       }
 
       // receive echo reply package
-      echo_package pkg_rcv{};
+      echo_res_t pkg_rcv{};
       sockaddr_in rcv_addr{};
       socklen_t rcv_addr_len = sizeof(rcv_addr);
       if (recvfrom(sock, (char *)&pkg_rcv, sizeof(pkg_rcv), 0, (struct sockaddr *)&rcv_addr, &rcv_addr_len) <= 0)
@@ -148,8 +193,16 @@ void ping_start(
         continue;
       }
 
+      std::cout << "<---- PONG ----<" << std::endl;
+      print_buf_as_hex(&pkg_rcv, sizeof(pkg_rcv));
+
       // evaluate reply package
-      if (pkg_rcv.hdr.type == 0 && pkg_rcv.hdr.code == 0 && std::memcmp(pkg_rcv.msg, pkg_send.msg, sizeof(pkg_rcv.msg)) == 0)
+      std::cout << std::dec;
+      std::cout << "type = " << (uint16_t)pkg_rcv.hdr.type << std::endl;
+      std::cout << "code = " << (uint16_t)pkg_rcv.hdr.code << std::endl;
+      std::cout << "id = " << pkg_rcv.hdr.id << std::endl;
+      std::cout << "id(s) = " << pkg_send.hdr.id << std::endl;
+      if (pkg_rcv.hdr.type == 0 && pkg_rcv.hdr.code == 0 && pkg_rcv.hdr.id == pkg_send.hdr.id && std::memcmp(pkg_rcv.msg, pkg_send.msg, sizeof(pkg_rcv.msg)) == 0)
       {
         ping_time_point tp2 = std::chrono::system_clock::now();
         ping_duration dur = tp2 - tp1;
@@ -191,9 +244,9 @@ void ping_stop()
   }
 }
 
-static uint16_t ping_package_checksum(echo_package &pkg)
+static uint16_t ping_package_checksum(echo_req_t &pkg)
 {
-  size_t len = sizeof(echo_package);
+  size_t len = sizeof(echo_req_t);
   uint16_t *buf = (uint16_t *)&pkg;
   uint32_t sum = 0;
   uint16_t result;
