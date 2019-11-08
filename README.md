@@ -21,6 +21,12 @@ The following screenshots show a simple web app based on [Chart.js](https://www.
 
 <table><tr><td><img src="examples/ping/screenshots/macos.png"></td><td><img src="examples/ping/screenshots/windows.png"></td></tr><tr><td><img src="examples/ping/screenshots/ubuntu.png"></td></tr></table>
 
+## Authors and Contributors
+
+Authored and maintained by Niklas Salmoukas [[@GitHub](https://github.com/core-process) [@LinkedIn](https://www.linkedin.com/in/salmoukas/) [@Xing](https://www.xing.com/profile/Niklas_Salmoukas) [@Twitter](https://twitter.com/salmoukas) [@Facebook](https://www.facebook.com/salmoukas) [@Instagram](https://www.instagram.com/salmoukas/)].
+
+[![](https://sourcerer.io/fame/core-process/core-process/audience/images/0)](https://sourcerer.io/fame/core-process/core-process/audience/links/0)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/1)](https://sourcerer.io/fame/core-process/core-process/audience/links/1)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/2)](https://sourcerer.io/fame/core-process/core-process/audience/links/2)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/3)](https://sourcerer.io/fame/core-process/core-process/audience/links/3)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/4)](https://sourcerer.io/fame/core-process/core-process/audience/links/4)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/5)](https://sourcerer.io/fame/core-process/core-process/audience/links/5)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/6)](https://sourcerer.io/fame/core-process/core-process/audience/links/6)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/7)](https://sourcerer.io/fame/core-process/core-process/audience/links/7)
+
 ## Compatibility
 
 Internally the library is split into a shell (shell, as in wrapper, not as in command shell) and multiple nuclei. All nuclei share the same internal API, and each nucleus implements a specific webview technology. The shell probes the available nuclei one after another according to a priority list.
@@ -333,7 +339,3 @@ cd audience
 - Add the `include` directory to your include paths and link `libaudience_shared.so` or `libaudience_static.a`.
 - Define `AUDIENCE_STATIC_LIBRARY` before including `<audience.h>` in case you want to link the static library.
 - All `audience_unix_*.so` files need to reside next to your executable. The same applies to `libaudience_shared.so` in case you linked the shared library.
-
-## Authors and Contributors
-
-[![](https://sourcerer.io/fame/core-process/core-process/audience/images/0)](https://sourcerer.io/fame/core-process/core-process/audience/links/0)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/1)](https://sourcerer.io/fame/core-process/core-process/audience/links/1)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/2)](https://sourcerer.io/fame/core-process/core-process/audience/links/2)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/3)](https://sourcerer.io/fame/core-process/core-process/audience/links/3)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/4)](https://sourcerer.io/fame/core-process/core-process/audience/links/4)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/5)](https://sourcerer.io/fame/core-process/core-process/audience/links/5)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/6)](https://sourcerer.io/fame/core-process/core-process/audience/links/6)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/7)](https://sourcerer.io/fame/core-process/core-process/audience/links/7)
