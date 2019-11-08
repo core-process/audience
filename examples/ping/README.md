@@ -19,6 +19,6 @@ How to run the example:
 
 ```sh
 cd <EXAMPLE>
-sudo sysctl -w net.ipv4.ping_group_range="0 9999" # linux only, otherwhise ICMP socket cannot be opened
+sudo sysctl -w net.ipv4.ping_group_range="0 9999" # Linux only, otherwise ICMP socket cannot be opened
 ./backend/dist/MinSizeRel/bin/example ./webapp
 ```

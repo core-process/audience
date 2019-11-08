@@ -4,6 +4,51 @@ This is the backend integration library of Audience.
 
 You will find further information on [github.com/core-process/audience](https://github.com/core-process/audience).
 
+## Example
+
+```ts
+import { audience, AudienceRect } from 'audience-backend';
+import path from 'path';
+
+async function main() {
+  // retrieve audience interface
+  const app = await audience({
+    icons: [16, 32, 48, 64, 96, 512, 1024].map(icon => path.join(__dirname, '../icons', icon + '.png')),
+  });
+
+  // handle close related events
+  app.onWindowCloseIntent(async ({ handle }) => {
+    await app.windowDestroy(handle);
+  });
+
+  app.onWindowClose(async ({ is_last_window }) => {
+    if (is_last_window) {
+      await app.quit();
+    }
+  });
+
+  // handle window messages
+  app.onWindowMessage(async ({ handle, message }) => {
+    if (message == 'ping') {
+        await app.windowPostMessage(handle, 'pong');
+    }
+  });
+
+  // create application window
+  await app.windowCreate({ dir: path.join(__dirname, '../webapp'), dev: true });
+
+  // wait for future exit of app
+  // not required, but nice to manage lifecycle of main()
+  await app.futureExit();
+};
+
+main()
+  .catch((error) => { console.error('error', error); process.exit(1); })
+  .then(() => { console.log('completed'); });
+```
+
+See [here](https://github.com/core-process/audience/examples/terminal/) for a complete example.
+
 ## What is Audience?
 A small adaptive cross-platform and cross-technology webview window library to build modern cross-platform user interfaces.
 

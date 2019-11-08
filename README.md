@@ -89,7 +89,7 @@ int main(int argc, char **argv)
 }
 ```
 
-See [here](examples/terminal/) for the complete example.
+See [here](examples/ping/) and [here](examples/terminal/) for complete examples.
 
 ### Frontend
 
@@ -124,7 +124,7 @@ See [here](examples/terminal/) for the complete example.
 </html>
 ```
 
-See [here](examples/terminal/) for the complete example.
+See [here](examples/ping/) and [here](examples/terminal/) for complete examples.
 
 ## API
 

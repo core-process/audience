@@ -4,6 +4,44 @@ This is the frontend integration library of Audience.
 
 You will find further information on [github.com/core-process/audience](https://github.com/core-process/audience).
 
+## Example
+
+```ts
+import 'audience-frontend';
+import { Chart } from 'chart.js';
+import { Notyf } from 'notyf';
+import 'notyf/notyf.min.css';
+
+var notyf = new Notyf();
+
+var ctx = document.getElementById('chart');
+var chart = new Chart(ctx, { /* -- snip -- */ });
+
+window.audience.onMessage(function (message) {
+  message = JSON.parse(message);
+  if (message.timestamp !== undefined && message.roundtrip !== undefined) {
+    chart.options.scales.xAxes[0].time.min = message.timestamp - 30 * 1000;
+    chart.options.scales.xAxes[0].time.max = message.timestamp + 0 * 1000;
+    chart.data.datasets[0].data.push({
+      x: new Date(message.timestamp),
+      y: message.roundtrip
+    });
+    chart.update();
+  }
+  if (message.error) {
+    notyf.error(message.error);
+  }
+});
+
+document.addEventListener('keydown', function (event) {
+  if (event.key === "Escape" || event.key === "Esc") {
+    window.audience.postMessage('close');
+  }
+});
+```
+
+See [here](https://github.com/core-process/audience/examples/ping/) and [here](https://github.com/core-process/audience/examples/terminal/) for complete examples.
+
 ## What is Audience?
 A small adaptive cross-platform and cross-technology webview window library to build modern cross-platform user interfaces.
 
