@@ -3,6 +3,7 @@
 #include <atomic>
 #include <functional>
 #include <cstdint>
+#include <cstring>
 #ifdef _WIN32
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -80,15 +81,15 @@ void ping_start(
 #endif
 
   ping_thread = std::make_unique<std::thread>([on_echo_reply, on_error]() {
-    // create datagram socket
-#ifdef __APPLE__
-    auto sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-#else
+  // create datagram socket
+#ifdef _WIN32
     auto sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+#else
+    auto sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
 #endif
     if (sock < 0)
     {
-      on_error("could not open datagram socket");
+      on_error("could not open raw/datagram socket");
       return;
     }
 
@@ -121,30 +122,30 @@ void ping_start(
     for (uint16_t seq = 0; !ping_stop_signal; ++seq)
     {
       // prepare echo package
-      echo_package pkg{};
+      echo_package pkg_send{};
 #ifdef __APPLE__
-      pkg.hdr.icmp_type = ICMP_ECHO;
-      pkg.hdr.icmp_id = getpid();
-      pkg.hdr.icmp_seq = seq;
+      pkg_send.hdr.icmp_type = ICMP_ECHO;
+      pkg_send.hdr.icmp_id = getpid();
+      pkg_send.hdr.icmp_seq = seq;
 #else
-      pkg.hdr.type = ICMP_ECHO;
-      pkg.hdr.un.echo.id = getpid();
-      pkg.hdr.un.echo.sequence = seq;
+      pkg_send.hdr.type = ICMP_ECHO;
+      pkg_send.hdr.un.echo.id = getpid();
+      pkg_send.hdr.un.echo.sequence = seq;
 #endif
-      for (size_t i = 0; i < sizeof(pkg.msg) - 1; i++)
+      for (size_t i = 0; i < sizeof(pkg_send.msg) - 1; i++)
       {
-        pkg.msg[i] = i + '0';
+        pkg_send.msg[i] = i + '0';
       }
 #ifdef __APPLE__
-      pkg.hdr.icmp_cksum = ping_package_checksum(pkg);
+      pkg_send.hdr.icmp_cksum = ping_package_checksum(pkg_send);
 #else
-      pkg.hdr.checksum = ping_package_checksum(pkg);
+      pkg_send.hdr.checksum = ping_package_checksum(pkg_send);
 #endif
 
       // send echo package
       ping_time_point tp1 = std::chrono::system_clock::now();
 
-      if (sendto(sock, (const char *)&pkg, sizeof(pkg), 0, (struct sockaddr *)&addr, sizeof(addr)) <= 0)
+      if (sendto(sock, (const char *)&pkg_send, sizeof(pkg_send), 0, (struct sockaddr *)&addr, sizeof(addr)) <= 0)
       {
         on_error("could not send echo package");
         std::this_thread::sleep_for(3s);
@@ -152,9 +153,10 @@ void ping_start(
       }
 
       // receive echo reply package
+      echo_package pkg_receive{};
       sockaddr_in rcv_addr;
       socklen_t rcv_addr_len = sizeof(rcv_addr);
-      if (recvfrom(sock, (char *)&pkg, sizeof(pkg), 0, (struct sockaddr *)&rcv_addr, &rcv_addr_len) <= 0)
+      if (recvfrom(sock, (char *)&pkg_receive, sizeof(pkg_receive), 0, (struct sockaddr *)&rcv_addr, &rcv_addr_len) <= 0)
       {
         on_error("could not receive echo reply package");
         std::this_thread::sleep_for(3s);
@@ -163,9 +165,9 @@ void ping_start(
 
       // evaluate reply package
 #ifdef __APPLE__
-      if (pkg.hdr.icmp_type == 69 && pkg.hdr.icmp_code == 0)
+      if (pkg_receive.hdr.icmp_type == 0 && pkg_receive.hdr.icmp_code == 0 && std::memcmp(pkg_receive.msg, pkg_send.msg, sizeof(pkg_receive.msg)) == 0)
 #else
-      if (pkg.hdr.type == 69 && pkg.hdr.code == 0)
+      if (pkg_receive.hdr.type == 0 && pkg_receive.hdr.code == 0 && std::memcmp(pkg_receive.msg, pkg_send.msg, sizeof(pkg_receive.msg)) == 0)
 #endif
       {
         ping_time_point tp2 = std::chrono::system_clock::now();

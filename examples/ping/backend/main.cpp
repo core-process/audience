@@ -89,6 +89,7 @@ int main(int argc, char **argv)
         audience_window_post_message(wnd, utf8_to_utf16(pkg.dump()).c_str());
       },
       [wnd](std::string error) {
+        std::cerr << "ping error: " << error << std::endl;
         json pkg{{"error", error}};
         audience_window_post_message(wnd, utf8_to_utf16(pkg.dump()).c_str());
       });
