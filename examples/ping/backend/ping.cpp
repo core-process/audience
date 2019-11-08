@@ -202,7 +202,7 @@ void ping_start(
       std::cout << "code = " << (uint16_t)pkg_rcv.hdr.code << std::endl;
       std::cout << "id = " << pkg_rcv.hdr.id << std::endl;
       std::cout << "id(s) = " << pkg_send.hdr.id << std::endl;
-      if (pkg_rcv.hdr.type == 0 && pkg_rcv.hdr.code == 0 && pkg_rcv.hdr.id == pkg_send.hdr.id && std::memcmp(pkg_rcv.msg, pkg_send.msg, sizeof(pkg_rcv.msg)) == 0)
+      if (pkg_rcv.hdr.type == 0 && pkg_rcv.hdr.code == 0 && std::memcmp(pkg_rcv.msg, pkg_send.msg, sizeof(pkg_rcv.msg)) == 0)
       {
         ping_time_point tp2 = std::chrono::system_clock::now();
         ping_duration dur = tp2 - tp1;
