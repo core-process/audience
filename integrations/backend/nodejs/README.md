@@ -47,7 +47,7 @@ main()
   .then(() => { console.log('completed'); });
 ```
 
-See [here](https://github.com/core-process/audience/examples/terminal/) for a complete example.
+See [here](https://github.com/core-process/audience/tree/master/examples/terminal) for a complete example.
 
 ## What is Audience?
 A small adaptive cross-platform and cross-technology webview window library to build modern cross-platform user interfaces.

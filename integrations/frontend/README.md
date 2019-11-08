@@ -40,7 +40,7 @@ document.addEventListener('keydown', function (event) {
 });
 ```
 
-See [here](https://github.com/core-process/audience/examples/ping/) and [here](https://github.com/core-process/audience/examples/terminal/) for complete examples.
+See [here](https://github.com/core-process/audience/tree/master/examples/ping) and [here](https://github.com/core-process/audience/tree/master/examples/terminal) for complete examples.
 
 ## What is Audience?
 A small adaptive cross-platform and cross-technology webview window library to build modern cross-platform user interfaces.
