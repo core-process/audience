@@ -50,7 +50,10 @@ How to run the example on Linux:
 
 ```sh
 cd <EXAMPLE>
-sudo sysctl -w net.ipv4.ping_group_range="0 9999" # required, otherwise ICMP socket cannot be opened
+# The following is required for this ping demo, otherwise the ICMP socket cannot be opened.
+# Note: This is NOT a requirement of Audience, it is just this ping demo, which wants
+#       to send some ICMP ECHO packages over the network to 8.8.8.8. See ping.cpp.
+sudo sysctl -w net.ipv4.ping_group_range="0 9999"
 ./backend/dist/MinSizeRel/bin/example ./webapp
 ```
 
