@@ -71,6 +71,7 @@ static std::atomic<bool> is_terminating = false;
 - (void)timedWindowTitleUpdate:(NSTimer *)timer;
 - (BOOL)windowShouldClose:(NSWindow *)sender;
 - (void)windowWillClose:(NSNotification *)notification;
+- (BOOL)performKeyEquivalent:(NSEvent *)event;
 @end
 
 @implementation AudienceWindow
@@ -120,6 +121,10 @@ static std::atomic<bool> is_terminating = false;
   (void)((__bridge_retained void *)self);
 
   SPDLOG_INFO("window closed");
+}
+
+- (BOOL)performKeyEquivalent:(NSEvent *)event {
+  return event.keyCode == 53;
 }
 @end
 
