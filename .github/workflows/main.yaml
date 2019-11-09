@@ -305,7 +305,7 @@ jobs:
           path: dist/packed
   build_macos:
     name: Build for macOS
-    runs-on: macOS-10.14
+    runs-on: macos-latest
     steps:
       - name: Install Software
         shell: bash
