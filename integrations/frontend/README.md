@@ -20,8 +20,8 @@ var chart = new Chart(ctx, { /* -- snip -- */ });
 window.audience.onMessage(function (message) {
   message = JSON.parse(message);
   if (message.timestamp !== undefined && message.roundtrip !== undefined) {
-    chart.options.scales.xAxes[0].time.min = message.timestamp - 30 * 1000;
-    chart.options.scales.xAxes[0].time.max = message.timestamp + 0 * 1000;
+    chart.options.scales.xAxes[0].ticks.min = message.timestamp - 30 * 1000;
+    chart.options.scales.xAxes[0].ticks.max = message.timestamp + 0 * 1000;
     chart.data.datasets[0].data.push({
       x: new Date(message.timestamp),
       y: message.roundtrip

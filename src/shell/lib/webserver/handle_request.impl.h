@@ -4,6 +4,7 @@
 #include <boost/beast/http.hpp>
 
 #include "../../../common/fs.h"
+#include "../../../common/fmt_exception.h"
 #include "mime_type.impl.h"
 
 extern const char *_audience_frontend_library_code_begin;
@@ -108,8 +109,17 @@ void handle_request(
   else
   {
     // build path
-    std::string path = utf16_to_utf8(normalize_path(utf8_to_utf16(
-        std::string(doc_root) + "/" + target + (target.back() == '/' ? "index.html" : ""))));
+    std::string path;
+    try
+    {
+      path = utf16_to_utf8(normalize_path(utf8_to_utf16(
+          std::string(doc_root) + "/" + target + (target.back() == '/' ? "index.html" : ""))));
+    }
+    catch (const std::invalid_argument &e)
+    {
+      SPDLOG_ERROR("{}", e);
+      return send(not_found(target));
+    }
 
     SPDLOG_DEBUG("serving file: {}", path);
 

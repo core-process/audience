@@ -25,6 +25,7 @@
 #include "../../common/fs.h"
 #include "../../common/logger.h"
 #include "../../common/sys_error.h"
+#include "../../common/fmt_exception.h"
 #include "webserver/process.h"
 #include "lib.h"
 #include "nucleus.h"
@@ -191,9 +192,16 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
   {
     if (details->icon_set[i] != nullptr)
     {
-      icon_set_absolute.push_back(normalize_path(details->icon_set[i]));
-      SPDLOG_DEBUG("normalized icon path: {}", utf16_to_utf8(icon_set_absolute.back()));
-      nucleus_details.icon_set[i] = icon_set_absolute.back().c_str();
+      try
+      {
+        icon_set_absolute.push_back(normalize_path(details->icon_set[i]));
+        SPDLOG_DEBUG("normalized icon path: {}", utf16_to_utf8(icon_set_absolute.back()));
+        nucleus_details.icon_set[i] = icon_set_absolute.back().c_str();
+      }
+      catch (const std::invalid_argument &e)
+      {
+        SPDLOG_ERROR("{}", e);
+      }
     }
   }
 
@@ -201,7 +209,16 @@ static inline bool shell_unsafe_init(const AudienceAppDetails *details, const Au
   for (auto dylib : dylibs)
   {
     // load library
-    auto dylib_abs = normalize_path(dir_of_exe() + L"/" + dylib);
+    std::wstring dylib_abs;
+    try
+    {
+      dylib_abs = normalize_path(dir_of_exe() + L"/" + dylib);
+    }
+    catch (const std::invalid_argument &e)
+    {
+      SPDLOG_ERROR("{}", e);
+      continue;
+    }
     SPDLOG_INFO("trying to load library from path {}", utf16_to_utf8(dylib_abs));
 #ifdef WIN32
     auto dlh = LoadLibraryW(dylib_abs.c_str());
