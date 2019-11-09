@@ -9,7 +9,7 @@ set AUDIENCE_VERSION=x.x.x
 set USE_STATIC_CRT=OFF
 set USE_STATIC_AUDIENCE_LIBRARY=ON
 set USE_AUDIENCE_DEBUG=OFF
-.\build.sh MinSizeRel
+.\build.bat MinSizeRel
 
 cd <EXAMPLE>\webapp
 npm install
