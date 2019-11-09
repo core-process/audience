@@ -13,11 +13,11 @@ A small adaptive cross-platform and cross-technology webview window library to b
 
 - The core provides a lightweight C API, a command-line interface, as well as a channel-based API (using Unix sockets and named pipes on Windows). Integrations into other environments are provided on top, e.g., for Node.js.
 
-The following screenshots show a simple web app based on [jQuery Terminal](https://terminal.jcubic.pl/).
+The following screenshots show a simple [terminal app](examples/terminal) based on [jQuery Terminal](https://terminal.jcubic.pl/).
 
 <table><tr><td><img src="examples/terminal/screenshots/macos.png"></td><td><img src="examples/terminal/screenshots/windows.png"></td></tr><tr><td><img src="examples/terminal/screenshots/ubuntu.png"></td></tr></table>
 
-The following screenshots show a simple web app based on [Chart.js](https://www.chartjs.org/).
+The following screenshots show a simple [ping app](examples/ping) based on [Chart.js](https://www.chartjs.org/).
 
 <table><tr><td><img src="examples/ping/screenshots/macos.png"></td><td><img src="examples/ping/screenshots/windows.png"></td></tr><tr><td><img src="examples/ping/screenshots/ubuntu.png"></td></tr></table>
 
@@ -271,7 +271,7 @@ interface AudienceApi {
 
 See [index.ts](integrations/backend/nodejs/index.ts) for a specification of the data types used above.
 
-You can install the backend integration library via `npm install audience-backend --save` and import via `import { audience } from 'audience-backend';`.
+You can install the [backend integration library](https://www.npmjs.com/package/audience-backend) via `npm install audience-backend --save` and import via `import { audience } from 'audience-backend';`.
 
 ### Frontend: Web App
 
@@ -283,7 +283,7 @@ window.audience.onMessage(handler /* function(string) */)
 window.audience.offMessage(handler /* function(string) or undefined */)
 ```
 
-You can install the frontend integration library via `npm install audience-frontend --save` and import via `import "audience-frontend";`.
+You can install the [frontend integration library](https://www.npmjs.com/package/audience-frontend) via `npm install audience-frontend --save` and import via `import "audience-frontend";`.
 
 Alternatively, you can load the library via ``<script src="/audience.js"></script>``. Path `/audience.js` is a virtual file provided by the backend.
 
