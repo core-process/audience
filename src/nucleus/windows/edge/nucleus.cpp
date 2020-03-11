@@ -41,12 +41,7 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
   negotiation.nucleus_handles_messaging = true;
 
   // initialize COM
-  auto r = CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
-  if (r != S_OK && r != S_FALSE)
-  {
-    SPDLOG_ERROR("CoInitializeEx() failed");
-    return false;
-  }
+  init_apartment(winrt::apartment_type::single_threaded);
 
   // test if required COM objects are available (will throw COM exception if not available)
   WebViewControlProcess().GetWebViewControls().Size();
