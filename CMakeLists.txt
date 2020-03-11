@@ -358,6 +358,7 @@ if(WIN32)
   add_library(audience_windows_edge SHARED
     src/nucleus/windows/edge/nucleus.cpp
     src/nucleus/windows/edge/interface.cpp
+    src/nucleus/windows/edge/security.cpp
     src/nucleus/windows/shared/load.cpp
     src/nucleus/windows/shared/icons.cpp
     ${AUDIENCE_FRONTEND_LIBRARY_CODE_CPP}

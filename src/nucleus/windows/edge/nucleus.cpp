@@ -14,6 +14,8 @@
 #include "../shared/icons.h"
 #include "nucleus.h"
 #include "stream_resolver.h"
+#include "security.h"
+#include "wait.h"
 
 using namespace winrt;
 using namespace winrt::Windows::Foundation;
@@ -34,6 +36,18 @@ void UpdateWebViewPosition(const AudienceWindowContext context);
 
 std::atomic<HWND> _audience_message_window = nullptr;
 
+// void dpi_convert(double &width, double &height)
+// {
+//   auto monitor_handle = MonitorFromPoint({0, 0}, MONITOR_DEFAULTTOPRIMARY);
+
+//   UINT dpi_x, dpi_y;
+//   if (GetDpiForMonitor(monitor_handle, MDT_EFFECTIVE_DPI, &dpi_x, &dpi_y) == S_OK)
+//   {
+//     width = width * dpi_x / DEFAULT_DPI;
+//     height = height * dpi_y / DEFAULT_DPI;
+//   }
+// }
+
 bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const NucleusImplAppDetails &details)
 {
   // negotiate protocol
@@ -42,6 +56,30 @@ bool nucleus_impl_init(AudienceNucleusProtocolNegotiation &negotiation, const Nu
 
   // initialize COM
   init_apartment(winrt::apartment_type::single_threaded);
+
+  // adjust privileges
+  const bool should_try_drop_privileges = !initialize_com_security_policy_for_webview() && is_process_elevated();
+
+  if (should_try_drop_privileges)
+  {
+    SPDLOG_INFO("security: we should drop privileges");
+
+    if (!drop_elevated_privileges())
+    {
+      SPDLOG_ERROR("security: failed to drop admin privileges");
+    }
+    else
+    {
+      SPDLOG_INFO("security: we dropped privileges");
+    }
+  }
+  else
+  {
+    SPDLOG_INFO("security: we do not need to drop privileges");
+  }
+
+  // enable dpi awareness
+  // SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
 
   // test if required COM objects are available (will throw COM exception if not available)
   WebViewControlProcess().GetWebViewControls().Size();
@@ -182,13 +220,15 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   if (webview_op.Status() == AsyncStatus::Started)
   {
     auto event = CreateEventW(nullptr, false, false, nullptr);
+    if (event == nullptr)
+    {
+      throw std::runtime_error("CreateEventW failed");
+    }
     webview_op.Completed([event](auto, auto) { SetEvent(event); });
     DWORD lpdwindex = 0;
-    if (CoWaitForMultipleHandles(
-            COWAIT_DISPATCH_WINDOW_MESSAGES | COWAIT_DISPATCH_CALLS | COWAIT_INPUTAVAILABLE,
-            INFINITE, 1, &event, &lpdwindex) != S_OK)
+    if (!co_wait_for_object(event))
     {
-      throw std::runtime_error("CoWaitForMultipleHandles failed");
+      throw std::runtime_error("co_wait_for_object failed");
     }
   }
 
@@ -304,7 +344,11 @@ void nucleus_impl_window_update_position(AudienceWindowContext context,
 {
   SPDLOG_DEBUG("window_update_position: origin={},{} size={}x{}", position.origin.x, position.origin.y, position.size.width, position.size.height);
 
-  if (!MoveWindow(context->window, position.origin.x, position.origin.y, position.size.width, position.size.height, TRUE))
+  auto width = position.size.width;
+  auto height = position.size.height;
+  // dpi_convert(width, height);
+
+  if (!MoveWindow(context->window, position.origin.x, position.origin.y, width, height, TRUE))
   {
     SPDLOG_ERROR("could not move window");
   }
@@ -317,13 +361,15 @@ void nucleus_impl_window_post_message(AudienceWindowContext context, const std::
   if (op.Status() == AsyncStatus::Started)
   {
     auto event = CreateEventW(nullptr, false, false, nullptr);
+    if (event == nullptr)
+    {
+      throw std::runtime_error("CreateEventW failed");
+    }
     op.Completed([event](auto, auto) { SetEvent(event); });
     DWORD lpdwindex = 0;
-    if (CoWaitForMultipleHandles(
-            COWAIT_DISPATCH_WINDOW_MESSAGES | COWAIT_DISPATCH_CALLS | COWAIT_INPUTAVAILABLE,
-            INFINITE, 1, &event, &lpdwindex) != S_OK)
+    if (!co_wait_for_object(event))
     {
-      throw std::runtime_error("CoWaitForMultipleHandles failed");
+      throw std::runtime_error("co_wait_for_object failed");
     }
   }
 
@@ -414,7 +460,7 @@ LRESULT CALLBACK MessageWndProc(HWND window, UINT message, WPARAM wParam, LPARAM
   }
   else if (message == WM_AUDIENCE_DESTROY_WINDOW)
   {
-    auto context = reinterpret_cast<AudienceWindowContext*>(wParam);
+    auto context = reinterpret_cast<AudienceWindowContext *>(wParam);
     if ((*context)->window != nullptr)
     {
       SPDLOG_INFO("calling DestroyWindow()");
@@ -465,6 +511,8 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
   {
   case WM_NCCREATE:
   {
+    //EnableNonClientDpiScaling(window);
+
     // install context as user data
     auto context = reinterpret_cast<AudienceWindowContext *>(((CREATESTRUCT *)lParam)->lpCreateParams);
     if (context != nullptr)
@@ -486,6 +534,20 @@ LRESULT CALLBACK WndProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
     SetTimer(window, 0x1, 1000, nullptr);
   }
   break;
+
+  // case WM_DPICHANGED:
+  // {
+  //   // resize the window using the suggested rect
+  //   RECT *const suggested = (RECT *)lParam;
+  //   SetWindowPos(window,
+  //                nullptr,
+  //                suggested->left,
+  //                suggested->top,
+  //                suggested->right - suggested->left,
+  //                suggested->bottom - suggested->top,
+  //                SWP_NOZORDER | SWP_NOACTIVATE);
+  // }
+  // break;
 
   case WM_SIZE:
   {
