@@ -303,6 +303,8 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   ShowWindow(window, SW_SHOW);
   UpdateWindow(window);
   SetActiveWindow(window);
+  SetForegroundWindow(window);
+  SetFocus(window);
 
   SPDLOG_INFO("window created successfully");
   return context;
