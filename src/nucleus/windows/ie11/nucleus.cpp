@@ -240,9 +240,25 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   // show window
   ShowWindow(context->window, SW_SHOW);
   UpdateWindow(context->window);
-  SetActiveWindow(context->window);
+
+  // bring to foreground
+
+  // To unlock SetForegroundWindow we need to imitate pressing the Alt key
+  // This circumvents the ForegroundLockTimeout in Windows 10
+  bool alt_pressed = false;
+  if ((GetAsyncKeyState(VK_MENU) & 0x8000) == 0)
+  {
+    alt_pressed = true;
+    keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | 0, 0);
+  }
+
   SetForegroundWindow(context->window);
   SetFocus(context->window);
+
+  if (alt_pressed)
+  {
+    keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, 0);
+  }
 
   SPDLOG_INFO("window created successfully");
   return context;
