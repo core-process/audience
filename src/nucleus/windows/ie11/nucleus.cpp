@@ -169,13 +169,13 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   // create window
   AudienceWindowContext context = std::make_shared<AudienceWindowContextData>();
 
-  HWND window = CreateWindowW(AUDIENCE_WINDOW_CLASSNAME, details.loading_title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &context);
-  if (!window)
+  context->window = CreateWindowW(AUDIENCE_WINDOW_CLASSNAME, details.loading_title.c_str(), WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstanceEXE, &context);
+  if (!context->window)
   {
     return {};
   }
 
-  scope_fail += [window]() { DestroyWindow(window); };
+  scope_fail += [context]() { DestroyWindow(context->window); };
 
   // create browser widget
   context->webview = new IEWebView();
@@ -189,7 +189,7 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
     }
   };
 
-  if (!context->webview->Create(window))
+  if (!context->webview->Create(context->window))
   {
     throw std::runtime_error("creation of web view failed");
   }
@@ -238,11 +238,11 @@ AudienceWindowContext nucleus_impl_window_create(const NucleusImplWindowDetails 
   context->webview->Navigate(details.webapp_location.c_str());
 
   // show window
-  ShowWindow(window, SW_SHOW);
-  UpdateWindow(window);
-  SetActiveWindow(window);
-  SetForegroundWindow(window);
-  SetFocus(window);
+  ShowWindow(context->window, SW_SHOW);
+  UpdateWindow(context->window);
+  SetActiveWindow(context->window);
+  SetForegroundWindow(context->window);
+  SetFocus(context->window);
 
   SPDLOG_INFO("window created successfully");
   return context;
