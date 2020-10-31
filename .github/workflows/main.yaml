@@ -171,8 +171,8 @@ jobs:
           sudo sh cmake-3.15.4-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir --skip-license
           cmake --version
           # install patchelf
-          wget http://mirrors.kernel.org/ubuntu/pool/universe/p/patchelf/patchelf_0.9+52.20180509-1_amd64.deb
-          sudo dpkg -i patchelf_0.9+52.20180509-1_amd64.deb
+          wget http://mirrors.kernel.org/ubuntu/pool/universe/p/patchelf/patchelf_0.10-2build1_amd64.deb
+          sudo dpkg -i patchelf_0.10-2build1_amd64.deb
           # install dependencies
           sudo apt-get update
           sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev
@@ -245,8 +245,8 @@ jobs:
           sudo sh cmake-3.15.4-Linux-x86_64.sh --prefix=/usr/local --exclude-subdir --skip-license
           cmake --version
           # install patchelf
-          wget http://mirrors.kernel.org/ubuntu/pool/universe/p/patchelf/patchelf_0.9+52.20180509-1_amd64.deb
-          sudo dpkg -i patchelf_0.9+52.20180509-1_amd64.deb
+          wget http://mirrors.kernel.org/ubuntu/pool/universe/p/patchelf/patchelf_0.10-2build1_amd64.deb
+          sudo dpkg -i patchelf_0.10-2build1_amd64.deb
           # install dependencies
           sudo apt-get update
           sudo apt-get install libgtk-3-dev libwebkit2gtk-4.0-dev
