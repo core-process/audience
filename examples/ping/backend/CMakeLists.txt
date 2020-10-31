@@ -97,7 +97,7 @@ else()
   message(FATAL_ERROR "No pre-built Audience binaries available")
 endif()
 
-set(AUDIENCE_ZIP_URL https://github.com/core-process/audience/releases/download/v${AUDIENCE_VERSION}/${AUDIENCE_ZIP_NAME})
+set(AUDIENCE_ZIP_URL https://github.com/coreprocess/audience/releases/download/v${AUDIENCE_VERSION}/${AUDIENCE_ZIP_NAME})
 set(AUDIENCE_ZIP_PATH ${DEPS_DOWNLOAD_DIR}/${AUDIENCE_ZIP_NAME})
 set(AUDIENCE_DIR ${DEPS_INSTALL_ROOT_DIR}/audience/${AUDIENCE_VERSION}-${AUDIENCE_VARIANT})
 

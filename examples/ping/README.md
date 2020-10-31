@@ -3,7 +3,7 @@
 How to build the example on Windows (`cmd.exe`):
 
 ```bat
-rem pick latest version number from https://github.com/core-process/audience/releases, e.g. 1.0.0
+rem pick latest version number from https://github.com/coreprocess/audience/releases, e.g. 1.0.0
 cd <EXAMPLE>\backend
 set AUDIENCE_VERSION=x.x.x
 set USE_STATIC_CRT=OFF
@@ -19,7 +19,7 @@ npm run build
 How to build the example on macOS and Linux:
 
 ```sh
-# pick latest version number from https://github.com/core-process/audience/releases, e.g. 1.0.0
+# pick latest version number from https://github.com/coreprocess/audience/releases, e.g. 1.0.0
 cd <EXAMPLE>/backend
 export AUDIENCE_VERSION=x.x.x
 export USE_STATIC_CRT=OFF

@@ -2,7 +2,7 @@
 
 This is the backend integration library of Audience.
 
-You will find further information on [github.com/core-process/audience](https://github.com/core-process/audience).
+You will find further information on [github.com/coreprocess/audience](https://github.com/coreprocess/audience).
 
 ## Example
 
@@ -47,7 +47,7 @@ main()
   .then(() => { console.log('completed'); });
 ```
 
-See [here](https://github.com/core-process/audience/tree/master/examples/terminal) for a complete example.
+See [here](https://github.com/coreprocess/audience/tree/master/examples/terminal) for a complete example.
 
 ## What is Audience?
 A small adaptive cross-platform and cross-technology webview window library to build modern cross-platform user interfaces.
@@ -66,6 +66,6 @@ A small adaptive cross-platform and cross-technology webview window library to b
 
 ## Authors and Contributors
 
-Authored and maintained by Niklas Salmoukas [[@GitHub](https://github.com/core-process) [@LinkedIn](https://www.linkedin.com/in/salmoukas/) [@Xing](https://www.xing.com/profile/Niklas_Salmoukas) [@Twitter](https://twitter.com/salmoukas) [@Facebook](https://www.facebook.com/salmoukas) [@Instagram](https://www.instagram.com/salmoukas/)].
+Authored and maintained by Niklas Salmoukas [[@GitHub](https://github.com/coreprocess) [@LinkedIn](https://www.linkedin.com/in/salmoukas/) [@Xing](https://www.xing.com/profile/Niklas_Salmoukas) [@Twitter](https://twitter.com/salmoukas) [@Facebook](https://www.facebook.com/salmoukas) [@Instagram](https://www.instagram.com/salmoukas/)].
 
-[![](https://sourcerer.io/fame/core-process/core-process/audience/images/0)](https://sourcerer.io/fame/core-process/core-process/audience/links/0)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/1)](https://sourcerer.io/fame/core-process/core-process/audience/links/1)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/2)](https://sourcerer.io/fame/core-process/core-process/audience/links/2)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/3)](https://sourcerer.io/fame/core-process/core-process/audience/links/3)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/4)](https://sourcerer.io/fame/core-process/core-process/audience/links/4)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/5)](https://sourcerer.io/fame/core-process/core-process/audience/links/5)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/6)](https://sourcerer.io/fame/core-process/core-process/audience/links/6)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/7)](https://sourcerer.io/fame/core-process/core-process/audience/links/7)
+[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/0)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/0)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/1)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/1)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/2)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/2)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/3)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/3)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/4)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/4)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/5)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/5)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/6)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/6)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/7)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/7)

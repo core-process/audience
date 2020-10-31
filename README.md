@@ -23,9 +23,9 @@ The following screenshots show a simple [ping app](examples/ping) based on [Char
 
 ## Authors and Contributors
 
-Authored and maintained by Niklas Salmoukas [[@GitHub](https://github.com/core-process) [@LinkedIn](https://www.linkedin.com/in/salmoukas/) [@Xing](https://www.xing.com/profile/Niklas_Salmoukas) [@Twitter](https://twitter.com/salmoukas) [@Facebook](https://www.facebook.com/salmoukas) [@Instagram](https://www.instagram.com/salmoukas/)].
+Authored and maintained by Niklas Salmoukas [[@GitHub](https://github.com/coreprocess) [@LinkedIn](https://www.linkedin.com/in/salmoukas/) [@Xing](https://www.xing.com/profile/Niklas_Salmoukas) [@Twitter](https://twitter.com/salmoukas) [@Facebook](https://www.facebook.com/salmoukas) [@Instagram](https://www.instagram.com/salmoukas/)].
 
-[![](https://sourcerer.io/fame/core-process/core-process/audience/images/0)](https://sourcerer.io/fame/core-process/core-process/audience/links/0)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/1)](https://sourcerer.io/fame/core-process/core-process/audience/links/1)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/2)](https://sourcerer.io/fame/core-process/core-process/audience/links/2)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/3)](https://sourcerer.io/fame/core-process/core-process/audience/links/3)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/4)](https://sourcerer.io/fame/core-process/core-process/audience/links/4)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/5)](https://sourcerer.io/fame/core-process/core-process/audience/links/5)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/6)](https://sourcerer.io/fame/core-process/core-process/audience/links/6)[![](https://sourcerer.io/fame/core-process/core-process/audience/images/7)](https://sourcerer.io/fame/core-process/core-process/audience/links/7)
+[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/0)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/0)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/1)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/1)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/2)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/2)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/3)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/3)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/4)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/4)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/5)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/5)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/6)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/6)[![](https://sourcerer.io/fame/coreprocess/coreprocess/audience/images/7)](https://sourcerer.io/fame/coreprocess/coreprocess/audience/links/7)
 
 ## Compatibility
 
@@ -50,9 +50,9 @@ All Platforms | Chrome App Mode | (1) | [#8][i8]
 Unix | QtWebEngine | none | [#14][i14]
 Unix | Generic Browser Fallback | (2) | [#1][i1]
 
-[i1]: https://github.com/core-process/audience/issues/1
-[i8]: https://github.com/core-process/audience/issues/8
-[i14]: https://github.com/core-process/audience/issues/14
+[i1]: https://github.com/coreprocess/audience/issues/1
+[i8]: https://github.com/coreprocess/audience/issues/8
+[i14]: https://github.com/coreprocess/audience/issues/14
 
 1. Chrome App Mode: A custom window menu and icon configuration will be ignored. Use favicon to influence the window icon.
 2. Generic Browser Fallback: Window positioning via Audience API will not be possible. A custom window menu and icon configuration will be ignored. Use favicon to influence the window icon.
@@ -291,7 +291,7 @@ Alternatively, you can load the library via ``<script src="/audience.js"></scrip
 
 ### Pre-built Binaries
 
-Pre-built binaries for a Windows, macOS and Linux are available via [GitHub Releases](https://github.com/core-process/audience/releases). Please download the `release-minsize` (=`MinSizeRel`) variant for production builds. Pre-packed runtime binaries are provided as well. Use `runtime-cli` when you integrate Audience via command line or channel API. Use `runtime-dynamic` in case you use the C API and link the shared library. Use `runtime-static`in case you link the static library.
+Pre-built binaries for a Windows, macOS and Linux are available via [GitHub Releases](https://github.com/coreprocess/audience/releases). Please download the `release-minsize` (=`MinSizeRel`) variant for production builds. Pre-packed runtime binaries are provided as well. Use `runtime-cli` when you integrate Audience via command line or channel API. Use `runtime-dynamic` in case you use the C API and link the shared library. Use `runtime-static`in case you link the static library.
 
 ### Requirements
 
@@ -304,7 +304,7 @@ Pre-built binaries for a Windows, macOS and Linux are available via [GitHub Rele
 ### Windows
 
 ```bat
-git clone https://github.com/core-process/audience
+git clone https://github.com/coreprocess/audience
 cd audience
 .\build.bat MinSizeRel
 ```
@@ -317,7 +317,7 @@ cd audience
 ### MacOS
 
 ```sh
-git clone https://github.com/core-process/audience
+git clone https://github.com/coreprocess/audience
 cd audience
 ./build.sh MinSizeRel
 ```
@@ -330,7 +330,7 @@ cd audience
 ### Unix
 
 ```sh
-git clone https://github.com/core-process/audience
+git clone https://github.com/coreprocess/audience
 cd audience
 ./build.sh MinSizeRel
 ```

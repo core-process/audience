@@ -11,7 +11,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/core-process/audience.git"
+    "url": "git+https://github.com/coreprocess/audience.git"
   },
   "keywords": [
     "webview",
@@ -26,9 +26,9 @@
   "author": "Niklas Salmoukas <niklas@salmoukas.com>",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/core-process/audience/issues"
+    "url": "https://github.com/coreprocess/audience/issues"
   },
-  "homepage": "https://github.com/core-process/audience#readme",
+  "homepage": "https://github.com/coreprocess/audience#readme",
   "dependencies": {
     "audience-backend": ">0.0.0"
   },
